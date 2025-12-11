@@ -26,5 +26,5 @@ RUN php bin/console cache:clear --env=prod || true
 EXPOSE 8080
 
 # Commande de démarrage : serveur PHP interne qui sert le dossier public/
-CMD ["php", "-S", "0.0.0.0:8080", "-t", "public"]
+CMD ["php", "-S", "0.0.0.0:8000", "-t", "public"]
 
