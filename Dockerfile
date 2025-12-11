@@ -23,7 +23,7 @@ RUN composer install --no-interaction --prefer-dist --no-progress
 RUN php bin/console cache:clear --env=prod || true
 
 # Exposer le port sur lequel on va servir Symfony
-EXPOSE 8080
+EXPOSE 8000
 
 # Commande de démarrage : serveur PHP interne qui sert le dossier public/
 CMD ["php", "-S", "0.0.0.0:8000", "-t", "public"]
