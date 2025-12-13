@@ -78,3 +78,40 @@
 </div>
 
 {{ form_end(form) }}
+
+<div class="modal fade"
+     id="ingredientCreateModal"
+     tabindex="-1"
+     aria-hidden="true"
+     data-controller="ingredient-create"
+>
+  <div class="modal-dialog">
+    <div class="modal-content" data-ingredient-create-target="modalContent">
+      <div class="modal-header">
+        <h5 class="modal-title">Ajouter un ingrédient</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Nom</label>
+          <input type="text" class="form-control" data-ingredient-create-target="nameInput">
+          <div class="invalid-feedback" data-ingredient-create-target="nameError"></div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Unité</label>
+          <input type="text" class="form-control" placeholder="g, ml, pièce…" data-ingredient-create-target="unitInput">
+          <div class="invalid-feedback" data-ingredient-create-target="unitError"></div>
+        </div>
+
+        <input type="hidden" value="{{ csrf_token('ingredient_quick_create') }}" data-ingredient-create-target="csrfToken">
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-primary" data-action="ingredient-create#submit">Ajouter</button>
+      </div>
+    </div>
+  </div>
+</div>

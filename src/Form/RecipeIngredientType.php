@@ -19,12 +19,14 @@ class RecipeIngredientType extends AbstractType
                 'class' => Ingredient::class,
                 'choice_label' => 'name',
                 'placeholder' => 'Rechercher un ingrédient…',
-                'autocomplete' => true, // ✅ active UX Autocomplete
-                // IMPORTANT: ne pas définir data-controller ici
+                'autocomplete' => true,
+                'tom_select_options' => [
+                    'create' => true,
+                    'persist' => false,
+                ],
                 'attr' => [
-                    // tu peux garder des data-* perso, mais pas data-controller
-                    'data-action' => 'change->ingredient-unit#update',
-                     'class' => 'form-select',
+                    'class' => 'form-select',
+                    'data-controller' => 'ingredient-create-hook',
                 ],
             ])
             ->add('quantity', NumberType::class, [
