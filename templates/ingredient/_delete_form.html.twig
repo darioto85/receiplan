@@ -1,0 +1,15 @@
+<form
+  method="post"
+  action="{{ path('app_ingredient_delete', { id: ingredient.id }) }}"
+  class="d-inline"
+  onsubmit="return confirm('Supprimer cet ingrédient ?');"
+>
+  <input
+    type="hidden"
+    name="_token"
+    value="{{ csrf_token('delete' ~ ingredient.id) }}"
+  >
+  <button class="btn btn-sm btn-outline-danger">
+    🗑️
+  </button>
+</form>

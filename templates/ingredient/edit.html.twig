@@ -1,0 +1,13 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Modifier ingrédient{% endblock %}
+
+{% block body %}
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h1 class="h4 mb-4">✏️ Modifier l’ingrédient</h1>
+
+      {{ include('ingredient/_form.html.twig', { button_label: 'Mettre à jour' }) }}
+    </div>
+  </div>
+{% endblock %}

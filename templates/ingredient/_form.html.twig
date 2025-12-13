@@ -1,0 +1,25 @@
+{{ form_start(form) }}
+
+<div class="mb-3">
+  {{ form_label(form.name, null, { label_attr: { class: 'form-label' } }) }}
+  {{ form_widget(form.name, { attr: { class: 'form-control' } }) }}
+  {{ form_errors(form.name) }}
+</div>
+
+<div class="mb-3">
+  {{ form_label(form.unit, null, { label_attr: { class: 'form-label' } }) }}
+  {{ form_widget(form.unit, { attr: { class: 'form-control' } }) }}
+  {{ form_errors(form.unit) }}
+</div>
+
+<div class="d-flex justify-content-between mt-4">
+  <a href="{{ path('app_ingredient_index') }}" class="btn btn-link">
+    ← Retour
+  </a>
+
+  <button class="btn btn-success">
+    {{ button_label|default('Enregistrer') }}
+  </button>
+</div>
+
+{{ form_end(form) }}

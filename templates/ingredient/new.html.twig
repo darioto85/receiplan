@@ -1,0 +1,13 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Nouvel ingrédient{% endblock %}
+
+{% block body %}
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h1 class="h4 mb-4">➕ Nouvel ingrédient</h1>
+
+      {{ include('ingredient/_form.html.twig', { button_label: 'Créer' }) }}
+    </div>
+  </div>
+{% endblock %}

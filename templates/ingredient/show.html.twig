@@ -1,0 +1,25 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Ingrédient{% endblock %}
+
+{% block body %}
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h1 class="h4 mb-4">{{ ingredient.name }}</h1>
+
+      <ul class="list-group list-group-flush mb-4">
+        <li class="list-group-item">
+          <strong>Unité :</strong> {{ ingredient.unit }}
+        </li>
+      </ul>
+
+      <a href="{{ path('app_ingredient_edit', { id: ingredient.id }) }}" class="btn btn-secondary">
+        ✏️ Modifier
+      </a>
+
+      <a href="{{ path('app_ingredient_index') }}" class="btn btn-link">
+        ← Retour
+      </a>
+    </div>
+  </div>
+{% endblock %}

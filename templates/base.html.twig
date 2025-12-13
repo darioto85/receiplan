@@ -1,17 +1,85 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="UTF-8">
-        <title>{% block title %}Welcome!{% endblock %}</title>
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⚫️</text><text y=%221.3em%22 x=%220.2em%22 font-size=%2276%22 fill=%22%23fff%22>sf</text></svg>">
-        {% block stylesheets %}
-        {% endblock %}
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Receiplan{% endblock %}</title>
 
-        {% block javascripts %}
-            {% block importmap %}{{ importmap('app') }}{% endblock %}
-        {% endblock %}
-    </head>
-    <body>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    >
+
+    {% block stylesheets %}{% endblock %}
+
+    {% block javascripts %}
+      {{ importmap('app') }}
+    {% endblock %}
+  </head>
+
+  <body>
+    <!-- Navbar mobile -->
+    <nav class="navbar navbar-dark bg-dark d-lg-none">
+      <div class="container-fluid">
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="offcanvas"
+          data-bs-target="#sidebar"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <span class="navbar-brand mb-0 h1">🍽️ Receiplan</span>
+      </div>
+    </nav>
+
+    <div class="d-flex">
+      <!-- Sidebar -->
+      <div
+        class="offcanvas-lg offcanvas-start bg-dark text-white"
+        tabindex="-1"
+        id="sidebar"
+      >
+        <div class="offcanvas-header d-lg-none">
+          <h5 class="offcanvas-title">🍽️ Receiplan</h5>
+          <button
+            type="button"
+            class="btn-close btn-close-white"
+            data-bs-dismiss="offcanvas"
+          ></button>
+        </div>
+
+        <div class="offcanvas-body p-0">
+          <nav class="nav flex-column p-3">
+            <a
+              class="nav-link text-white {% if app.request.attributes.get('_route') starts with 'app_recipe' %}active fw-bold{% endif %}"
+              href="{{ path('app_recipe_index') }}"
+            >
+              📖 Recettes
+            </a>
+
+            <a
+              class="nav-link text-white {% if app.request.attributes.get('_route') starts with 'app_ingredient' %}active fw-bold{% endif %}"
+              href="{{ path('app_ingredient_index') }}"
+            >
+              🧂 Ingrédients
+            </a>
+          </nav>
+        </div>
+      </div>
+
+      <!-- Main content -->
+      <main class="flex-fill p-4 bg-light min-vh-100">
         {% block body %}{% endblock %}
-    </body>
+      </main>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+    ></script>
+  </body>
 </html>
