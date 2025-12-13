@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Ingredient;
 use App\Form\IngredientType;
 use App\Repository\IngredientRepository;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -90,8 +91,7 @@ final class IngredientController extends AbstractController
         IngredientRepository $ingredientRepository,
         EntityManagerInterface $entityManager,
         CsrfTokenManagerInterface $csrfTokenManager
-    ): JsonResponse
-    {
+    ): JsonResponse {
         $payload = json_decode((string) $request->getContent(), true) ?? [];
 
         $name = trim((string) ($payload['name'] ?? ''));
@@ -102,7 +102,6 @@ final class IngredientController extends AbstractController
             return new JsonResponse(['error' => 'Invalid CSRF token'], 403);
         }
 
-
         if ($name === '') {
             return new JsonResponse(['error' => 'Name is required'], 422);
         }
@@ -111,8 +110,10 @@ final class IngredientController extends AbstractController
             return new JsonResponse(['error' => 'Unit is required'], 422);
         }
 
-        // Simple anti-doublon (exact match). Améliorable ensuite via normalisation.
-        $existing = $ingredientRepository->findOneBy(['name' => $name]);
+        // ✅ Anti-doublon robuste : on cherche par nameKey normalisé
+        $nameKey = Ingredient::normalizeName($name);
+
+        $existing = $ingredientRepository->findOneBy(['nameKey' => $nameKey]);
         if ($existing) {
             return new JsonResponse([
                 'id' => $existing->getId(),
@@ -123,11 +124,27 @@ final class IngredientController extends AbstractController
         }
 
         $ingredient = (new Ingredient())
-            ->setName($name)
+            ->setName($name)  // setName() remplit aussi nameKey automatiquement
             ->setUnit($unit);
 
         $entityManager->persist($ingredient);
-        $entityManager->flush();
+
+        try {
+            $entityManager->flush();
+        } catch (\Doctrine\DBAL\Exception\UniqueConstraintViolationException $e) {
+            // Quelqu’un l’a créé juste avant (race condition) -> on renvoie l'existant
+            $existing = $ingredientRepository->findOneBy(['nameKey' => $nameKey]);
+            if ($existing) {
+                return new JsonResponse([
+                    'id' => $existing->getId(),
+                    'name' => $existing->getName(),
+                    'unit' => $existing->getUnit(),
+                    'created' => false,
+                ], 200);
+            }
+
+            throw $e;
+        }
 
         return new JsonResponse([
             'id' => $ingredient->getId(),
@@ -135,5 +152,13 @@ final class IngredientController extends AbstractController
             'unit' => $ingredient->getUnit(),
             'created' => true,
         ], 201);
+    }
+
+    #[Route('/{id}/unit', name: 'app_ingredient_unit', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function unit(Ingredient $ingredient): JsonResponse
+    {
+        return new JsonResponse([
+            'unit' => $ingredient->getUnit(),
+        ]);
     }
 }

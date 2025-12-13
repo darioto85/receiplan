@@ -10,15 +10,33 @@
 
 <h5 class="mb-3">🧂 Ingrédients</h5>
 
-{# ✅ Prototype custom avec le même layout que tes items #}
 {% set prototype %}
-  <div class="row g-2 align-items-end mb-2" data-collection-target="item">
+  <div
+    class="row g-2 align-items-end mb-2"
+    data-collection-target="item"
+    data-controller="ingredient-unit"
+  >
     <div class="col-md-6">
-      {{ form_widget(form.recipeIngredients.vars.prototype.ingredient) }}
+      {{ form_widget(form.recipeIngredients.vars.prototype.ingredient, {
+        attr: {
+          'data-ingredient-unit-target': 'select',
+          'data-action': 'change->ingredient-unit#update'
+        }
+      }) }}
     </div>
+
     <div class="col-md-4">
-      {{ form_widget(form.recipeIngredients.vars.prototype.quantity) }}
+      <div class="input-group">
+        {{ form_widget(form.recipeIngredients.vars.prototype.quantity, {
+          attr: { class: 'form-control' }
+        }) }}
+        <span
+          class="input-group-text"
+          data-ingredient-unit-target="unit"
+        ></span>
+      </div>
     </div>
+
     <div class="col-md-2">
       <button
         type="button"
@@ -31,6 +49,7 @@
   </div>
 {% endset %}
 
+
 <div
   data-controller="collection"
   data-collection-prototype-value="{{ prototype|e('html_attr') }}"
@@ -38,12 +57,27 @@
 >
   <div data-collection-target="list">
     {% for itemForm in form.recipeIngredients %}
-      <div class="row g-2 align-items-end mb-2" data-collection-target="item">
+      <div
+        class="row g-2 align-items-end mb-2"
+        data-collection-target="item"
+        data-controller="ingredient-unit"
+      >
         <div class="col-md-6">
-          {{ form_widget(itemForm.ingredient) }}
+          {{ form_widget(itemForm.ingredient, {
+            attr: {
+              'data-ingredient-unit-target': 'select',
+              'data-action': 'change->ingredient-unit#update'
+            }
+          }) }}
         </div>
         <div class="col-md-4">
-          {{ form_widget(itemForm.quantity) }}
+          <div class="input-group">
+          {{ form_widget(itemForm.quantity, { attr: { class: 'form-control' } }) }}
+          <span
+            class="input-group-text"
+            data-ingredient-unit-target="unit"
+          ></span>
+        </div>
         </div>
         <div class="col-md-2">
           <button

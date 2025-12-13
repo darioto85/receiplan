@@ -8,6 +8,8 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: IngredientRepository::class)]
+#[ORM\Table(name: 'ingredient')]
+#[ORM\UniqueConstraint(name: 'uniq_ingredient_name_key', columns: ['name_key'])]
 class Ingredient
 {
     #[ORM\Id]
@@ -17,6 +19,10 @@ class Ingredient
 
     #[ORM\Column(length: 255)]
     private ?string $name = null;
+
+    // ✅ Clé normalisée pour anti-doublon (trim + lower + espaces + accents optionnels)
+    #[ORM\Column(name: 'name_key', length: 255, unique: true)]
+    private ?string $nameKey = null;
 
     #[ORM\Column(length: 255)]
     private ?string $unit = null;
@@ -37,7 +43,14 @@ class Ingredient
     public function setName(string $name): static
     {
         $this->name = $name;
+        $this->nameKey = self::normalizeName($name);
+
         return $this;
+    }
+
+    public function getNameKey(): ?string
+    {
+        return $this->nameKey;
     }
 
     public function getUnit(): ?string { return $this->unit; }
@@ -46,6 +59,34 @@ class Ingredient
     {
         $this->unit = $unit;
         return $this;
+    }
+
+    /**
+     * Normalise un nom d'ingrédient pour éviter les doublons :
+     * - trim
+     * - espaces multiples -> un seul
+     * - minuscule (UTF-8)
+     * - suppression des accents si l'extension intl est dispo
+     */
+    public static function normalizeName(string $name): string
+    {
+        $name = trim($name);
+
+        // espaces multiples -> un seul
+        $name = preg_replace('/\s+/u', ' ', $name) ?? $name;
+
+        // lowercase utf-8
+        $name = mb_strtolower($name);
+
+        // supprime les accents (optionnel, mais très pratique)
+        if (class_exists(\Transliterator::class)) {
+            $tr = \Transliterator::create('NFD; [:Nonspacing Mark:] Remove; NFC');
+            if ($tr) {
+                $name = $tr->transliterate($name);
+            }
+        }
+
+        return $name;
     }
 
     /** @return Collection<int, RecipeIngredient> */
