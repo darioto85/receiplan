@@ -8,7 +8,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: IngredientRepository::class)]
-#[ORM\Table(name: 'ingredient')]
+#[ORM\Table(name: 'ingredient', schema: 'receiplan')]
 #[ORM\UniqueConstraint(name: 'uniq_ingredient_name_key', columns: ['name_key'])]
 class Ingredient
 {
