@@ -1,30 +1,39 @@
 # Image de base PHP (CLI) récente
 FROM php:8.3-cli
 
-# Installer quelques dépendances système + extensions PHP utiles pour Symfony
+# Installer dépendances système + PostgreSQL + extensions PHP
 RUN apt-get update && apt-get install -y \
-        git unzip libicu-dev libzip-dev libonig-dev libxml2-dev \
-    && docker-php-ext-install intl zip opcache \
+        git \
+        unzip \
+        libicu-dev \
+        libzip-dev \
+        libonig-dev \
+        libxml2-dev \
+        libpq-dev \
+    && docker-php-ext-install \
+        intl \
+        zip \
+        opcache \
+        pdo_pgsql \
     && rm -rf /var/lib/apt/lists/*
 
-# Installer Composer (copié depuis l'image officielle)
+# Installer Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Dossier de travail dans le conteneur
+# Dossier de travail
 WORKDIR /app
 
-# 👉 Copier TOUT le projet dans le conteneur
+# Copier le projet
 COPY . .
 
-# 👉 Installer les dépendances maintenant que bin/console existe
+# Installer les dépendances PHP
 RUN composer install --no-interaction --prefer-dist --no-progress
 
-# (Optionnel) Générer le cache en prod
+# Générer le cache en prod (safe)
 RUN php bin/console cache:clear --env=prod || true
 
-# Exposer le port sur lequel on va servir Symfony
+# Port exposé
 EXPOSE 8000
 
-# Commande de démarrage : serveur PHP interne qui sert le dossier public/
+# Serveur PHP interne
 CMD ["php", "-S", "0.0.0.0:8000", "-t", "public"]
-
