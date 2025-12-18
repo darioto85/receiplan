@@ -1,0 +1,90 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Stock{% endblock %}
+
+{% block body %}
+<div class="container py-4">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h1 class="h3 mb-0">Mon stock</h1>
+  </div>
+
+  {% for label, messages in app.flashes %}
+    {% for message in messages %}
+      <div class="alert alert-{{ label }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endfor %}
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <h2 class="h6 mb-3">Ajouter / mettre à jour</h2>
+
+      {{ form_start(form, { action: path('stock_upsert'), method: 'POST' }) }}
+        <div class="row g-3 align-items-end">
+          <div class="col-12 col-md-7">
+            {{ form_label(form.ingredient) }}
+            {{ form_widget(form.ingredient, { attr: { class: 'form-control' } }) }}
+            {{ form_errors(form.ingredient) }}
+          </div>
+
+          <div class="col-12 col-md-3">
+            {{ form_label(form.quantity) }}
+            <div class="input-group">
+              {{ form_widget(form.quantity, { attr: { class: 'form-control' } }) }}
+              {# Si tu veux afficher l’unité comme sur recette, on peut brancher ton stimulus ingredient-unit ici #}
+              <span class="input-group-text">—</span>
+            </div>
+            {{ form_errors(form.quantity) }}
+          </div>
+
+          <div class="col-12 col-md-2 d-grid">
+            <button class="btn btn-primary" type="submit">Enregistrer</button>
+          </div>
+        </div>
+      {{ form_end(form) }}
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h2 class="h6 mb-3">Liste</h2>
+
+      {% if items is empty %}
+        <div class="text-muted">Aucun ingrédient en stock.</div>
+      {% else %}
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Ingrédient</th>
+                <th class="text-end">Quantité</th>
+                <th class="text-end">Unité</th>
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for ui in items %}
+                <tr>
+                  <td>{{ ui.ingredient.name }}</td>
+                  <td class="text-end">{{ ui.quantity }}</td>
+                  <td class="text-end">{{ ui.ingredient.unit }}</td>
+                  <td class="text-end">
+                    <form method="post" action="{{ path('stock_delete', {id: ui.id}) }}" class="d-inline">
+                      <input type="hidden" name="_token" value="{{ csrf_token('delete_stock_' ~ ui.id) }}">
+                      <button class="btn btn-sm btn-outline-danger" type="submit">
+                        Supprimer
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

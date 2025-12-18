@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use App\Repository\UserRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -32,6 +34,20 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private ?string $password = null;
 
+    /** @var Collection<int, Recipe> */
+    #[ORM\OneToMany(mappedBy: 'user', targetEntity: Recipe::class, orphanRemoval: true)]
+    private Collection $recipes;
+
+    /** @var Collection<int, UserIngredient> */
+    #[ORM\OneToMany(mappedBy: 'user', targetEntity: UserIngredient::class, orphanRemoval: true)]
+    private Collection $userIngredients;
+
+    public function __construct()
+    {
+        $this->recipes = new ArrayCollection();
+        $this->userIngredients = new ArrayCollection();
+    }
+
     public function getId(): ?int
     {
         return $this->id;
@@ -45,27 +61,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setEmail(string $email): static
     {
         $this->email = $email;
-
         return $this;
     }
 
-    /**
-     * A visual identifier that represents this user.
-     *
-     * @see UserInterface
-     */
     public function getUserIdentifier(): string
     {
         return (string) $this->email;
     }
 
-    /**
-     * @see UserInterface
-     */
     public function getRoles(): array
     {
         $roles = $this->roles;
-        // guarantee every user at least has ROLE_USER
         $roles[] = 'ROLE_USER';
 
         return array_unique($roles);
@@ -77,13 +83,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setRoles(array $roles): static
     {
         $this->roles = $roles;
-
         return $this;
     }
 
-    /**
-     * @see PasswordAuthenticatedUserInterface
-     */
     public function getPassword(): ?string
     {
         return $this->password;
@@ -92,6 +94,60 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setPassword(string $password): static
     {
         $this->password = $password;
+        return $this;
+    }
+
+    /** @return Collection<int, Recipe> */
+    public function getRecipes(): Collection
+    {
+        return $this->recipes;
+    }
+
+    public function addRecipe(Recipe $recipe): static
+    {
+        if (!$this->recipes->contains($recipe)) {
+            $this->recipes->add($recipe);
+            $recipe->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeRecipe(Recipe $recipe): static
+    {
+        // Comme Recipe::user est nullable=false, on ne "détache" pas,
+        // on retire juste de la collection (la suppression se fait via orphanRemoval si tu supprimes l'entité)
+        $this->recipes->removeElement($recipe);
+
+        return $this;
+    }
+
+    /** @return Collection<int, UserIngredient> */
+    public function getUserIngredients(): Collection
+    {
+        return $this->userIngredients;
+    }
+
+    public function addUserIngredient(UserIngredient $userIngredient): static
+    {
+        if (!$this->userIngredients->contains($userIngredient)) {
+            $this->userIngredients->add($userIngredient);
+            $userIngredient->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeUserIngredient(UserIngredient $userIngredient): static
+    {
+        if ($this->userIngredients->removeElement($userIngredient)) {
+            if ($userIngredient->getUser() === $this) {
+                // Ici c'est OK car UserIngredient::user est nullable=false,
+                // mais cette ligne ne sera appelée que si tu veux détacher (rare).
+                // Tu peux aussi la supprimer si tu ne détaches jamais.
+                $userIngredient->setUser(null);
+            }
+        }
 
         return $this;
     }

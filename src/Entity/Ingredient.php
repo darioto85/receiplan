@@ -31,9 +31,14 @@ class Ingredient
     #[ORM\OneToMany(mappedBy: 'ingredient', targetEntity: RecipeIngredient::class, orphanRemoval: true)]
     private Collection $recipeIngredients;
 
+    /** @var Collection<int, UserIngredient> */
+    #[ORM\OneToMany(mappedBy: 'ingredient', targetEntity: UserIngredient::class, orphanRemoval: true)]
+    private Collection $userIngredients;
+
     public function __construct()
     {
         $this->recipeIngredients = new ArrayCollection();
+        $this->userIngredients = new ArrayCollection();
     }
 
     public function getId(): ?int { return $this->id; }
@@ -110,6 +115,34 @@ class Ingredient
         if ($this->recipeIngredients->removeElement($recipeIngredient)) {
             if ($recipeIngredient->getIngredient() === $this) {
                 $recipeIngredient->setIngredient(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /** @return Collection<int, UserIngredient> */
+    public function getUserIngredients(): Collection
+    {
+        return $this->userIngredients;
+    }
+
+    public function addUserIngredient(UserIngredient $userIngredient): static
+    {
+        if (!$this->userIngredients->contains($userIngredient)) {
+            $this->userIngredients->add($userIngredient);
+            $userIngredient->setIngredient($this);
+        }
+
+        return $this;
+    }
+
+    public function removeUserIngredient(UserIngredient $userIngredient): static
+    {
+        if ($this->userIngredients->removeElement($userIngredient)) {
+            if ($userIngredient->getIngredient() === $this) {
+                // ici OK si un jour tu détaches (rare). Sinon tu peux enlever cette ligne.
+                $userIngredient->setIngredient(null);
             }
         }
 

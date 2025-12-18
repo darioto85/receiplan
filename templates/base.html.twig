@@ -38,38 +38,46 @@
 
     <div class="d-flex">
       <!-- Sidebar -->
-      <div
-        class="offcanvas-lg offcanvas-start bg-dark text-white"
-        tabindex="-1"
-        id="sidebar"
+<div
+  class="offcanvas-lg offcanvas-start bg-dark text-white"
+  tabindex="-1"
+  id="sidebar"
+>
+  <div class="offcanvas-header d-lg-none">
+    <h5 class="offcanvas-title">🍽️ Receiplan</h5>
+    <button
+      type="button"
+      class="btn-close btn-close-white"
+      data-bs-dismiss="offcanvas"
+    ></button>
+  </div>
+
+  <div class="offcanvas-body p-0">
+    <nav class="nav flex-column p-3">
+      <a
+        class="nav-link text-white {% if app.request.attributes.get('_route') starts with 'app_recipe' %}active fw-bold{% endif %}"
+        href="{{ path('app_recipe_index') }}"
       >
-        <div class="offcanvas-header d-lg-none">
-          <h5 class="offcanvas-title">🍽️ Receiplan</h5>
-          <button
-            type="button"
-            class="btn-close btn-close-white"
-            data-bs-dismiss="offcanvas"
-          ></button>
-        </div>
+        📖 Recettes
+      </a>
 
-        <div class="offcanvas-body p-0">
-          <nav class="nav flex-column p-3">
-            <a
-              class="nav-link text-white {% if app.request.attributes.get('_route') starts with 'app_recipe' %}active fw-bold{% endif %}"
-              href="{{ path('app_recipe_index') }}"
-            >
-              📖 Recettes
-            </a>
+      <a
+        class="nav-link text-white {% if app.request.attributes.get('_route') starts with 'app_ingredient' %}active fw-bold{% endif %}"
+        href="{{ path('app_ingredient_index') }}"
+      >
+        🧂 Ingrédients
+      </a>
 
-            <a
-              class="nav-link text-white {% if app.request.attributes.get('_route') starts with 'app_ingredient' %}active fw-bold{% endif %}"
-              href="{{ path('app_ingredient_index') }}"
-            >
-              🧂 Ingrédients
-            </a>
-          </nav>
-        </div>
-      </div>
+      <a
+        class="nav-link text-white {% if app.request.attributes.get('_route') starts with 'stock_' %}active fw-bold{% endif %}"
+        href="{{ path('stock_index') }}"
+      >
+        🧺 Stock
+      </a>
+    </nav>
+  </div>
+</div>
+
 
       <!-- Main content -->
       <main class="flex-fill p-4 bg-light min-vh-100">

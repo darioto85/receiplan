@@ -26,6 +26,13 @@ final class RecipeController extends AbstractController
     public function new(Request $request, EntityManagerInterface $entityManager): Response
     {
         $recipe = new Recipe();
+        
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $recipe->setUser($user);
         $recipe->addRecipeIngredient(new \App\Entity\RecipeIngredient());
         $form = $this->createForm(RecipeType::class, $recipe);
         $form->handleRequest($request);
@@ -54,6 +61,16 @@ final class RecipeController extends AbstractController
     #[Route('/{id}/edit', name: 'app_recipe_edit', methods: ['GET', 'POST'])]
     public function edit(Request $request, Recipe $recipe, EntityManagerInterface $entityManager): Response
     {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        if ($recipe->getUser() !== $user) {
+            throw $this->createAccessDeniedException();
+        }
+
+
         $form = $this->createForm(RecipeType::class, $recipe);
         $form->handleRequest($request);
 
