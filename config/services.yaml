@@ -26,3 +26,7 @@ services:
       $openAiApiKey: '%env(OPENAI_API_KEY)%'
       $model: 'gpt-4.1-mini'
 
+  App\Service\Ai\AiTranscriptionService:
+      arguments:
+        $openAiApiKey: '%env(OPENAI_API_KEY)%'
+        $model: 'whisper-1'

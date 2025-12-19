@@ -54,6 +54,7 @@
 
   <div class="offcanvas-body p-0">
     <nav class="nav flex-column p-3">
+
       <a
         class="nav-link text-white {% if app.request.attributes.get('_route') starts with 'app_recipe' %}active fw-bold{% endif %}"
         href="{{ path('app_recipe_index') }}"
@@ -74,8 +75,19 @@
       >
         🧺 Stock
       </a>
+
+      <hr class="border-secondary my-2">
+
+      <a
+        class="nav-link text-white {% if app.request.attributes.get('_route') starts with 'voice_' %}active fw-bold{% endif %}"
+        href="{{ path('voice_index') }}"
+      >
+        🎙️🧠 Assistant
+      </a>
+
     </nav>
   </div>
+
 </div>
 
 

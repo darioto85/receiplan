@@ -1,0 +1,34 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Recettes{% endblock %}
+
+{% block body %}
+  <div
+  data-controller="voice-input"
+  data-voice-input-locale-value="fr-FR"
+  data-voice-input-transcribe-url-value="/api/ai/transcribe"
+  data-voice-input-parse-url-value="/api/ai/parse"
+  data-voice-input-user-id-value="1"
+>
+  <textarea class="form-control mb-2" rows="3"
+    data-voice-input-target="textarea"
+    placeholder="Parle ou tape ta demande..."></textarea>
+
+  <div class="d-flex gap-2">
+    <button class="btn btn-outline-primary" type="button" data-action="voice-input#toggleRecord">
+      ⏺️ Enregistrer
+    </button>
+    <button class="btn btn-success" type="button" data-action="voice-input#send">
+      ➤ Envoyer
+    </button>
+  </div>
+
+  <div class="text-muted small mt-2" data-voice-input-target="status"></div>
+</div>
+
+{% endblock %}
+
+
+
+
+
