@@ -11,7 +11,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: 'app_user')]
-#[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_EMAIL', fields: ['email'])]
+#[ORM\UniqueConstraint(name: 'uniq_user_email', fields: ['email'])]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
@@ -23,20 +23,21 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $email = null;
 
     /**
-     * @var list<string> The user roles
+     * @var list<string>
      */
     #[ORM\Column]
     private array $roles = [];
 
-    /**
-     * @var string The hashed password
-     */
     #[ORM\Column]
     private ?string $password = null;
 
     /** @var Collection<int, Recipe> */
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: Recipe::class, orphanRemoval: true)]
     private Collection $recipes;
+
+    /** @var Collection<int, Ingredient> */
+    #[ORM\OneToMany(mappedBy: 'user', targetEntity: Ingredient::class, orphanRemoval: true)]
+    private Collection $ingredients;
 
     /** @var Collection<int, UserIngredient> */
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: UserIngredient::class, orphanRemoval: true)]
@@ -45,6 +46,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function __construct()
     {
         $this->recipes = new ArrayCollection();
+        $this->ingredients = new ArrayCollection();
         $this->userIngredients = new ArrayCollection();
     }
 
@@ -115,10 +117,29 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function removeRecipe(Recipe $recipe): static
     {
-        // Comme Recipe::user est nullable=false, on ne "détache" pas,
-        // on retire juste de la collection (la suppression se fait via orphanRemoval si tu supprimes l'entité)
         $this->recipes->removeElement($recipe);
+        return $this;
+    }
 
+    /** @return Collection<int, Ingredient> */
+    public function getIngredients(): Collection
+    {
+        return $this->ingredients;
+    }
+
+    public function addIngredient(Ingredient $ingredient): static
+    {
+        if (!$this->ingredients->contains($ingredient)) {
+            $this->ingredients->add($ingredient);
+            $ingredient->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeIngredient(Ingredient $ingredient): static
+    {
+        $this->ingredients->removeElement($ingredient);
         return $this;
     }
 
@@ -140,25 +161,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function removeUserIngredient(UserIngredient $userIngredient): static
     {
-        if ($this->userIngredients->removeElement($userIngredient)) {
-            if ($userIngredient->getUser() === $this) {
-                // Ici c'est OK car UserIngredient::user est nullable=false,
-                // mais cette ligne ne sera appelée que si tu veux détacher (rare).
-                // Tu peux aussi la supprimer si tu ne détaches jamais.
-                $userIngredient->setUser(null);
-            }
-        }
-
+        $this->userIngredients->removeElement($userIngredient);
         return $this;
     }
 
     /**
-     * Ensure the session doesn't contain actual password hashes by CRC32C-hashing them, as supported since Symfony 7.3.
+     * Ensure the session doesn't contain actual password hashes
      */
     public function __serialize(): array
     {
         $data = (array) $this;
-        $data["\0".self::class."\0password"] = hash('crc32c', $this->password);
+        $data["\0".self::class."\0password"] = hash('crc32c', (string) $this->password);
 
         return $data;
     }
@@ -166,6 +179,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[\Deprecated]
     public function eraseCredentials(): void
     {
-        // @deprecated, to be removed when upgrading to Symfony 8
+        // noop
     }
 }

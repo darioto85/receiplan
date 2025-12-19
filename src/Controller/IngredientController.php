@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Ingredient;
+use App\Entity\User;
 use App\Form\IngredientType;
 use App\Repository\IngredientRepository;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -32,6 +33,13 @@ final class IngredientController extends AbstractController
     public function new(Request $request, EntityManagerInterface $entityManager): Response
     {
         $ingredient = new Ingredient();
+        
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $ingredient->setUser($user);
         $form = $this->createForm(IngredientType::class, $ingredient);
         $form->handleRequest($request);
 
@@ -59,6 +67,15 @@ final class IngredientController extends AbstractController
     #[Route('/{id}/edit', name: 'app_ingredient_edit', methods: ['GET', 'POST'], requirements: ['id' => '\d+'])]
     public function edit(Request $request, Ingredient $ingredient, EntityManagerInterface $entityManager): Response
     {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        if ($ingredient->getUser() !== $user) {
+            throw $this->createAccessDeniedException();
+        }
+
         $form = $this->createForm(IngredientType::class, $ingredient);
         $form->handleRequest($request);
 

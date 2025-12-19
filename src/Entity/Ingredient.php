@@ -9,7 +9,10 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: IngredientRepository::class)]
 #[ORM\Table(name: 'ingredient')]
-#[ORM\UniqueConstraint(name: 'uniq_ingredient_name_key', columns: ['name_key'])]
+#[ORM\UniqueConstraint(
+    name: 'uniq_ingredient_user_name_key',
+    columns: ['user_id', 'name_key']
+)]
 class Ingredient
 {
     #[ORM\Id]
@@ -20,12 +23,17 @@ class Ingredient
     #[ORM\Column(length: 255)]
     private ?string $name = null;
 
-    // ✅ Clé normalisée pour anti-doublon (trim + lower + espaces + accents optionnels)
-    #[ORM\Column(name: 'name_key', length: 255, unique: true)]
+    // ✅ Clé normalisée pour anti-doublon par utilisateur
+    #[ORM\Column(name: 'name_key', length: 255)]
     private ?string $nameKey = null;
 
     #[ORM\Column(length: 255)]
     private ?string $unit = null;
+
+    // 🔐 Propriétaire de l’ingrédient
+    #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'ingredients')]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+    private ?User $user = null;
 
     /** @var Collection<int, RecipeIngredient> */
     #[ORM\OneToMany(mappedBy: 'ingredient', targetEntity: RecipeIngredient::class, orphanRemoval: true)]
@@ -41,9 +49,15 @@ class Ingredient
         $this->userIngredients = new ArrayCollection();
     }
 
-    public function getId(): ?int { return $this->id; }
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
 
-    public function getName(): ?string { return $this->name; }
+    public function getName(): ?string
+    {
+        return $this->name;
+    }
 
     public function setName(string $name): static
     {
@@ -58,11 +72,25 @@ class Ingredient
         return $this->nameKey;
     }
 
-    public function getUnit(): ?string { return $this->unit; }
+    public function getUnit(): ?string
+    {
+        return $this->unit;
+    }
 
     public function setUnit(string $unit): static
     {
         $this->unit = $unit;
+        return $this;
+    }
+
+    public function getUser(): ?User
+    {
+        return $this->user;
+    }
+
+    public function setUser(User $user): static
+    {
+        $this->user = $user;
         return $this;
     }
 
@@ -76,14 +104,9 @@ class Ingredient
     public static function normalizeName(string $name): string
     {
         $name = trim($name);
-
-        // espaces multiples -> un seul
         $name = preg_replace('/\s+/u', ' ', $name) ?? $name;
-
-        // lowercase utf-8
         $name = mb_strtolower($name);
 
-        // supprime les accents (optionnel, mais très pratique)
         if (class_exists(\Transliterator::class)) {
             $tr = \Transliterator::create('NFD; [:Nonspacing Mark:] Remove; NFC');
             if ($tr) {
@@ -141,7 +164,6 @@ class Ingredient
     {
         if ($this->userIngredients->removeElement($userIngredient)) {
             if ($userIngredient->getIngredient() === $this) {
-                // ici OK si un jour tu détaches (rare). Sinon tu peux enlever cette ligne.
                 $userIngredient->setIngredient(null);
             }
         }
