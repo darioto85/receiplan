@@ -72,6 +72,12 @@ class Ingredient
         return $this->nameKey;
     }
 
+    public function setNameKey(string $nameKey): static
+    {
+        $this->nameKey = $nameKey;
+        return $this;
+    }
+
     public function getUnit(): ?string
     {
         return $this->unit;

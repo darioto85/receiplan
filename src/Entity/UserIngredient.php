@@ -14,21 +14,27 @@ class UserIngredient
     #[ORM\Column]
     private ?int $id = null;
 
-    // ✅ souvent mieux en decimal pour 0.5, 1.25, etc.
-    #[ORM\Column(type: 'decimal', precision: 10, scale: 2)]
-    private ?string $quantity = null;
+    // Decimal stocké en string (standard Doctrine) + valeur par défaut
+    #[ORM\Column(type: 'decimal', precision: 10, scale: 2, options: ['default' => 0])]
+    private string $quantity = '0.00';
 
     #[ORM\ManyToOne(inversedBy: 'userIngredients')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?User $user = null;
 
     #[ORM\ManyToOne(inversedBy: 'userIngredients')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?Ingredient $ingredient = null;
 
-    public function getId(): ?int { return $this->id; }
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
 
-    public function getQuantity(): ?string { return $this->quantity; }
+    public function getQuantity(): string
+    {
+        return $this->quantity;
+    }
 
     public function setQuantity(string $quantity): static
     {
@@ -36,7 +42,10 @@ class UserIngredient
         return $this;
     }
 
-    public function getUser(): ?User { return $this->user; }
+    public function getUser(): ?User
+    {
+        return $this->user;
+    }
 
     public function setUser(?User $user): static
     {
@@ -44,7 +53,10 @@ class UserIngredient
         return $this;
     }
 
-    public function getIngredient(): ?Ingredient { return $this->ingredient; }
+    public function getIngredient(): ?Ingredient
+    {
+        return $this->ingredient;
+    }
 
     public function setIngredient(?Ingredient $ingredient): static
     {

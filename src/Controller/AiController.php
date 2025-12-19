@@ -2,18 +2,26 @@
 
 namespace App\Controller;
 
+use App\Entity\User;
 use App\Service\AiStockParser;
+use App\Service\Ai\AiAddRecipeHandler;
+use App\Service\Ai\AiAddStockHandler;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\HttpKernel\KernelInterface;
 
+
 #[Route('/api/ai', name: 'api_ai_')]
 final class AiController extends AbstractController
 {
     public function __construct(
         private readonly AiStockParser $aiStockParser,
+        private readonly AiAddRecipeHandler $aiAddRecipeHandler,
+        private readonly AiAddStockHandler $aiAddStockHandler,
+        private readonly EntityManagerInterface $em,
         private readonly KernelInterface $kernel,
     ) {}
 
@@ -21,21 +29,30 @@ final class AiController extends AbstractController
      * Body attendu (JSON):
      * { "text": "J’ai acheté 2 kg de pommes" }
      */
-    #[Route('/parse-purchase-text', name: 'parse_purchase_text', methods: ['POST'])]
-    public function parsePurchaseText(Request $request): JsonResponse
+    #[Route('/parse', name: 'parse', methods: ['POST'])]
+    public function parse(Request $request): JsonResponse
     {
-        $payload = json_decode($request->getContent() ?: '{}', true);
-        if (!is_array($payload)) {
-            return $this->json(['error' => ['code' => 'invalid_json', 'message' => 'JSON invalide']], 400);
+        $payloadIn = json_decode($request->getContent() ?: '{}', true);
+        $text = trim((string)($payloadIn['text'] ?? ''));
+
+        $userId = $payloadIn['user_id'] ?? null;
+        if (!is_numeric($userId)) {
+            return $this->json(['error' => ['code' => 'missing_user_id', 'message' => 'user_id requis']], 422);
         }
 
-        $text = isset($payload['text']) ? trim((string) $payload['text']) : '';
-        if ($text === '') {
-            return $this->json(['error' => ['code' => 'missing_text', 'message' => 'Champ "text" requis']], 422);
+        $user = $this->em->getRepository(User::class)->find((int)$userId);
+        if (!$user instanceof User) {
+            return $this->json(['error' => ['code' => 'user_not_found', 'message' => 'User introuvable']], 404);
         }
 
         try {
-            return $this->json($this->aiStockParser->parsePurchaseText($text));
+            $result = $this->aiStockParser->parse($text);
+
+            return match ($result['action']) {
+                'add_recipe' => $this->json($this->aiAddRecipeHandler->handle($user, $result['payload'])),
+                'add_stock'  => $this->json($this->aiAddStockHandler->handle($user, $result['payload'])),
+                default      => $this->json($result),
+            };
         } catch (\Throwable $e) {
             $debug = $this->kernel->isDebug();
 
