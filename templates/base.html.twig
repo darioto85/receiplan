@@ -76,6 +76,14 @@
         🧺 Stock
       </a>
 
+      {# 👉 Nouveau lien Planning #}
+      <a
+        class="nav-link text-white {% if app.request.attributes.get('_route') starts with 'meal_plan' %}active fw-bold{% endif %}"
+        href="{{ path('meal_plan_index') }}"
+      >
+        📅 Planning
+      </a>
+
       <hr class="border-secondary my-2">
 
       <a
