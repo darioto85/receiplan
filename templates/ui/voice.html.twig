@@ -5,26 +5,46 @@
 {% block body %}
   <div
   data-controller="voice-input"
-  data-voice-input-locale-value="fr-FR"
   data-voice-input-transcribe-url-value="/api/ai/transcribe"
   data-voice-input-parse-url-value="/api/ai/parse"
-  data-voice-input-user-id-value="1"
+  data-voice-input-user-id-value="{{ app.user ? app.user.id : 1 }}"
 >
-  <textarea class="form-control mb-2" rows="3"
-    data-voice-input-target="textarea"
-    placeholder="Parle ou tape ta demande..."></textarea>
+  <div class="d-flex gap-2 mb-2">
+      <button
+        type="button"
+        class="btn btn-primary"
+        data-voice-input-target="recordButton"
+        data-action="click->voice-input#toggle"
+      >
+        🎙️ Enregistrer
+      </button>
 
-  <div class="d-flex gap-2">
-    <button class="btn btn-outline-primary" type="button" data-action="voice-input#toggleRecord">
-      ⏺️ Enregistrer
-    </button>
-    <button class="btn btn-success" type="button" data-action="voice-input#send">
-      ➤ Envoyer
-    </button>
+      <button
+        type="button"
+        class="btn btn-success"
+        data-voice-input-target="validateButton"
+        data-action="click->voice-input#send"
+        disabled
+      >
+        ✅ Valider
+      </button>
   </div>
 
-  <div class="text-muted small mt-2" data-voice-input-target="status"></div>
+  <div class="small text-muted mb-2" data-voice-input-target="status">Prêt.</div>
+
+  <textarea class="form-control mb-3" rows="3"
+    placeholder="La transcription apparaîtra ici…"
+    data-voice-input-target="textarea"
+  ></textarea>
+
+  <div class="card">
+    <div class="card-header">Résultat</div>
+    <div class="card-body">
+      <div data-voice-input-target="result" class="small"></div>
+    </div>
+  </div>
 </div>
+
 
 {% endblock %}
 

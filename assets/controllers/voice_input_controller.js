@@ -1,7 +1,7 @@
 import { Controller } from "@hotwired/stimulus";
 
 export default class extends Controller {
-  static targets = ["textarea", "status"];
+  static targets = ["textarea", "status", "recordButton", "validateButton"];
   static values = {
     locale: { type: String, default: "fr-FR" },
     transcribeUrl: { type: String, default: "/api/ai/transcribe" },
@@ -21,6 +21,9 @@ export default class extends Controller {
     this.audioChunks = [];
     this.recordedBlob = null;
 
+    // 🔁 Transcription auto en fin d'enregistrement
+    this.isTranscribing = false;
+
     // Firefox detection (simple)
     this.isFirefox = /firefox/i.test(navigator.userAgent);
 
@@ -35,15 +38,29 @@ export default class extends Controller {
     this.sampleRate = 48000; // sera corrigé par audioCtx.sampleRate
     this.isWebAudioRecording = false;
 
+    // Boutons (état initial)
+    this._setRecordButtonState(false);
+
+    // Listener textarea => active/désactive Valider si l’utilisateur modifie
+    if (this.hasTextareaTarget) {
+      this._onTextareaInput = () => this._refreshValidateState();
+      this.textareaTarget.addEventListener("input", this._onTextareaInput);
+    }
+
+    // État initial de Valider (souvent disabled)
+    this._refreshValidateState();
+
     if (!this.mediaSupported && !this.isFirefox) {
       this.setStatus("⚠️ Enregistrement audio non supporté ici.");
-    } else {
-      this.setStatus(
-        this.isFirefox
-          ? "Prêt. (Firefox) ⏺️ Enregistrer puis ➤ Envoyer."
-          : "Prêt. ⏺️ Enregistrer puis ➤ Envoyer."
-      );
+      if (this.hasRecordButtonTarget) this.recordButtonTarget.disabled = true;
+      return;
     }
+
+    this.setStatus(
+      this.isFirefox
+        ? "Prêt. (Firefox) 🎙️ Enregistrer (re-clique pour stop) → transcription auto → ✅ Valider."
+        : "Prêt. 🎙️ Enregistrer (re-clique pour stop) → transcription auto → ✅ Valider."
+    );
   }
 
   disconnect() {
@@ -54,14 +71,31 @@ export default class extends Controller {
     } catch {
       // no-op
     }
+
+    if (this.hasTextareaTarget && this._onTextareaInput) {
+      this.textareaTarget.removeEventListener("input", this._onTextareaInput);
+    }
   }
 
-  async toggleRecord() {
+  // =========================================================
+  // ✅ Bouton unique : click->voice-input#toggle
+  // =========================================================
+  async toggle() {
+    if (this.isTranscribing) return;
+
     if (this.isRecording) {
       this.stopRecord();
     } else {
       await this.startRecord();
     }
+  }
+
+  // (Compat si tu as encore du HTML qui appelle #start/#stop)
+  async start() {
+    if (!this.isRecording) await this.startRecord();
+  }
+  stop() {
+    if (this.isRecording) this.stopRecord();
   }
 
   // ========== Common: stream ==========
@@ -86,33 +120,41 @@ export default class extends Controller {
   async startRecord() {
     this.recordedBlob = null;
 
+    // UI
+    this.isRecording = true;
+    this._setRecordButtonState(true);
+    this._refreshValidateState();
+    this.setStatus("⏳ Préparation…");
+
     if (this.isFirefox) {
-      // ✅ Firefox => WebAudio PCM + WAV (pré-roll)
       await this.startFirefoxWebAudio();
-      this.isRecording = true;
       return;
     }
 
-    // ✅ Chrome/Edge => MediaRecorder (ta voie)
     if (!this.mediaSupported) {
       this.setStatus("⚠️ MediaRecorder non supporté ici.");
+      this.isRecording = false;
+      this._setRecordButtonState(false);
+      this._refreshValidateState();
       return;
     }
 
     try {
       this.audioChunks = [];
-      this.setStatus("⏳ Préparation…");
 
       await this.ensureStream();
 
       const mimeType = this.pickAudioMimeType();
-      this.mediaRecorder = new MediaRecorder(this.mediaStream, mimeType ? { mimeType } : undefined);
+      this.mediaRecorder = new MediaRecorder(
+        this.mediaStream,
+        mimeType ? { mimeType } : undefined
+      );
 
       this.mediaRecorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) this.audioChunks.push(e.data);
       };
 
-      this.mediaRecorder.onstop = () => {
+      this.mediaRecorder.onstop = async () => {
         const type = this.mediaRecorder?.mimeType || "audio/webm";
         this.recordedBlob = new Blob(this.audioChunks, { type });
 
@@ -124,20 +166,23 @@ export default class extends Controller {
 
         if (this.recordedBlob.size === 0) {
           this.setStatus("⚠️ Audio vide. Réessaie.");
-        } else {
-          this.setStatus("⏳ Audio prêt. Clique sur ➤ Envoyer.");
+          this._refreshValidateState();
+          return;
         }
-        // On garde le stream (warm-up) tant qu’on est sur la page
+
+        // ✅ Auto-transcription dès que l'audio est prêt
+        await this.autoTranscribeIntoTextarea();
       };
 
       this.mediaRecorder.start(250);
       this.beep();
-      this.isRecording = true;
-      this.setStatus("🔴 Enregistrement…");
+      this.setStatus("🔴 Enregistrement… (re-clique pour arrêter)");
     } catch (e) {
       console.error("[voice-input] startRecord error", e);
       this.setStatus("⚠️ Micro refusé ou indisponible.");
       this.isRecording = false;
+      this._setRecordButtonState(false);
+      this._refreshValidateState();
       this.stopStream();
     }
   }
@@ -145,16 +190,18 @@ export default class extends Controller {
   stopRecord() {
     if (!this.isRecording) return;
 
+    // UI
+    this.isRecording = false;
+    this._setRecordButtonState(false);
+    this._refreshValidateState();
+    this.setStatus("⏳ Arrêt…");
+
     if (this.isFirefox) {
       this.stopFirefoxWebAudio();
-      this.isRecording = false;
       return;
     }
 
-    if (!this.mediaRecorder) {
-      this.isRecording = false;
-      return;
-    }
+    if (!this.mediaRecorder) return;
 
     try {
       if (typeof this.mediaRecorder.requestData === "function") {
@@ -170,20 +217,19 @@ export default class extends Controller {
       console.error("[voice-input] stop error", e);
       this.setStatus("⚠️ Impossible d’arrêter l’enregistrement.");
     }
-
-    this.isRecording = false;
   }
 
   // ========== Firefox WebAudio recording ==========
   async startFirefoxWebAudio() {
     try {
-      this.setStatus("⏳ Préparation (Firefox)…");
       await this.ensureStream();
 
-      // AudioContext doit souvent être "resume" suite à geste utilisateur
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtx) {
         this.setStatus("⚠️ WebAudio non supporté.");
+        this.isRecording = false;
+        this._setRecordButtonState(false);
+        this._refreshValidateState();
         return;
       }
 
@@ -196,13 +242,15 @@ export default class extends Controller {
 
       this.sampleRate = this.audioCtx.sampleRate;
 
-      // Build graph
       this.sourceNode = this.audioCtx.createMediaStreamSource(this.mediaStream);
 
-      // ScriptProcessorNode (deprecated mais toujours supporté, simple, OK ici)
       const bufferSize = 4096;
       const numChannels = 1;
-      this.processorNode = this.audioCtx.createScriptProcessor(bufferSize, numChannels, numChannels);
+      this.processorNode = this.audioCtx.createScriptProcessor(
+        bufferSize,
+        numChannels,
+        numChannels
+      );
 
       // reset ring buffer
       this.ringBuffer = [];
@@ -215,31 +263,30 @@ export default class extends Controller {
 
       this.processorNode.onaudioprocess = (event) => {
         const input = event.inputBuffer.getChannelData(0);
-        // Copie (sinon la mémoire se réutilise)
         const chunk = new Float32Array(input.length);
         chunk.set(input);
 
-        // Ring buffer (pré-roll)
         this.pushToRing(chunk);
 
-        // Pendant l’enregistrement, on accumule aussi
         if (this.isWebAudioRecording) {
           this.recordBuffers.push(chunk);
           this.recordSamples += chunk.length;
         }
       };
 
-      // Connect (on peut connecter vers destination avec gain=0, mais pas nécessaire)
       this.sourceNode.connect(this.processorNode);
       this.processorNode.connect(this.audioCtx.destination);
 
       this.beep();
-      this.setStatus("🔴 Enregistrement (Firefox)…");
+      this.setStatus("🔴 Enregistrement (Firefox)… (re-clique pour arrêter)");
     } catch (e) {
       console.error("[voice-input] Firefox WebAudio start error", e);
       this.setStatus("⚠️ Erreur démarrage audio (Firefox).");
       this.isWebAudioRecording = false;
       this.stopWebAudioGraph();
+      this.isRecording = false;
+      this._setRecordButtonState(false);
+      this._refreshValidateState();
     }
   }
 
@@ -247,30 +294,30 @@ export default class extends Controller {
     try {
       this.isWebAudioRecording = false;
 
-      // Pré-roll = on prend ring buffer + recording
-      const preroll = this.getRingAsLinear();
+      // ✅ Pas de pré-roll (évite la duplication)
       const recorded = this.concatFloat32(this.recordBuffers, this.recordSamples);
 
-      const full = this.concatTwoFloat32(preroll, recorded);
-
       // Encode WAV 16-bit PCM (mono)
-      const wavArrayBuffer = this.encodeWav16(full, this.sampleRate);
+      const wavArrayBuffer = this.encodeWav16(recorded, this.sampleRate);
       this.recordedBlob = new Blob([wavArrayBuffer], { type: "audio/wav" });
 
       console.log("[voice-input] Firefox WAV blob", {
         type: this.recordedBlob.type,
         size: this.recordedBlob.size,
         sampleRate: this.sampleRate,
-        prerollSeconds: this.prerollSecondsValue,
       });
 
-      this.setStatus("⏳ Audio prêt. Clique sur ➤ Envoyer.");
-      // On peut garder le graphe warm-up, mais on le coupe pour éviter CPU.
       this.stopWebAudioGraph();
+
+      // ✅ Auto-transcription
+      this.autoTranscribeIntoTextarea().catch((e) => {
+        console.error("[voice-input] auto transcribe (Firefox) failed", e);
+      });
     } catch (e) {
       console.error("[voice-input] Firefox stop error", e);
       this.setStatus("⚠️ Erreur arrêt audio (Firefox).");
       this.stopWebAudioGraph();
+      this._refreshValidateState();
     }
   }
 
@@ -318,15 +365,7 @@ export default class extends Controller {
     return out;
   }
 
-  concatTwoFloat32(a, b) {
-    const out = new Float32Array(a.length + b.length);
-    out.set(a, 0);
-    out.set(b, a.length);
-    return out;
-  }
-
   encodeWav16(float32Samples, sampleRate) {
-    // PCM 16-bit little-endian, mono
     const numChannels = 1;
     const bytesPerSample = 2;
     const blockAlign = numChannels * bytesPerSample;
@@ -336,32 +375,26 @@ export default class extends Controller {
     const buffer = new ArrayBuffer(44 + dataSize);
     const view = new DataView(buffer);
 
-    // RIFF header
     this.writeString(view, 0, "RIFF");
     view.setUint32(4, 36 + dataSize, true);
     this.writeString(view, 8, "WAVE");
 
-    // fmt chunk
     this.writeString(view, 12, "fmt ");
-    view.setUint32(16, 16, true); // PCM
-    view.setUint16(20, 1, true); // PCM
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
     view.setUint16(22, numChannels, true);
     view.setUint32(24, sampleRate, true);
     view.setUint32(28, byteRate, true);
     view.setUint16(32, blockAlign, true);
-    view.setUint16(34, 16, true); // bits per sample
+    view.setUint16(34, 16, true);
 
-    // data chunk
     this.writeString(view, 36, "data");
     view.setUint32(40, dataSize, true);
 
-    // PCM samples
     let offset = 44;
     for (let i = 0; i < float32Samples.length; i++) {
       let s = float32Samples[i];
-      // clamp
       s = Math.max(-1, Math.min(1, s));
-      // convert to int16
       const int16 = s < 0 ? s * 0x8000 : s * 0x7fff;
       view.setInt16(offset, int16, true);
       offset += 2;
@@ -376,38 +409,70 @@ export default class extends Controller {
     }
   }
 
-  // ========== Send / transcribe / parse ==========
+  // ========== "Valider" => parse uniquement ==========
   async send() {
-    const typedText = this.textareaTarget.value.trim();
-    if (typedText) {
-      await this.parseText(typedText);
+    if (this.isTranscribing) return;
+
+    const text = this.textareaTarget.value.trim();
+    if (!text) {
+      this.setStatus("⚠️ Aucun texte à valider. Enregistre ou saisis une phrase.");
+      this._refreshValidateState();
       return;
     }
+
+    // Pendant le parse, on évite double-clic
+    if (this.hasValidateButtonTarget) this.validateButtonTarget.disabled = true;
+
+    const ok = await this.parseText(text);
+
+    // ✅ Si tout est OK : on vide le textarea
+    if (ok) {
+      this.textareaTarget.value = "";
+    }
+
+    // Refresh boutons (Valider repasse disabled si textarea vide)
+    this._refreshValidateState();
+  }
+
+  // ✅ auto appelée en fin d'enregistrement
+  async autoTranscribeIntoTextarea() {
+    if (this.isTranscribing) return;
 
     if (!this.recordedBlob || this.recordedBlob.size === 0) {
-      this.setStatus("⚠️ Aucun texte ni audio à envoyer.");
+      this.setStatus("⚠️ Audio vide. Réessaie.");
+      this._refreshValidateState();
       return;
     }
 
-    const text = await this.transcribeAudio();
-    if (!text) return;
+    this.isTranscribing = true;
+    this._refreshValidateState();
+    if (this.hasRecordButtonTarget) this.recordButtonTarget.disabled = true;
 
-    this.textareaTarget.value = text;
-    await this.parseText(text);
+    try {
+      this.setStatus("⏳ Transcription…");
+      const text = await this.transcribeAudio();
+      if (!text) return;
+
+      this.textareaTarget.value = text;
+
+      // ✅ IMPORTANT : refresh juste après injection
+      this._refreshValidateState();
+
+      this.setStatus("✅ Transcription prête. Clique sur ✅ Valider.");
+    } finally {
+      this.isTranscribing = false;
+      if (this.hasRecordButtonTarget) this.recordButtonTarget.disabled = false;
+
+      // ✅ IMPORTANT : refresh à la sortie
+      this._refreshValidateState();
+    }
   }
 
   async transcribeAudio() {
-    this.setStatus("⏳ Transcription…");
-
     const fd = new FormData();
 
-    // Firefox => WAV
-    // Chrome => webm/ogg
     const mime = this.recordedBlob.type || "audio/webm";
-    const ext =
-      mime.includes("wav") ? "wav" :
-      mime.includes("ogg") ? "ogg" :
-      "webm";
+    const ext = mime.includes("wav") ? "wav" : mime.includes("ogg") ? "ogg" : "webm";
 
     const file = new File([this.recordedBlob], `voice.${ext}`, { type: mime });
 
@@ -445,10 +510,10 @@ export default class extends Controller {
       return null;
     }
 
-    this.setStatus("✅ Transcription OK.");
     return text;
   }
 
+  // ✅ Retourne true si OK (HTTP 2xx), sinon false
   async parseText(text) {
     this.setStatus("⏳ Parsing IA…");
 
@@ -467,7 +532,7 @@ export default class extends Controller {
     } catch (e) {
       console.error("[voice-input] fetch parse failed", e);
       this.setStatus("❌ Erreur réseau parsing IA.");
-      return;
+      return false;
     }
 
     let data;
@@ -476,18 +541,19 @@ export default class extends Controller {
     } catch (e) {
       console.error("[voice-input] invalid json from parse", e);
       this.setStatus("❌ Réponse parsing invalide.");
-      return;
+      return false;
     }
 
     if (!res.ok) {
       console.error("[voice-input] parse error", data);
       const msg = data?.error?.message || "Erreur /api/ai/parse.";
       this.setStatus(`❌ ${msg}`);
-      return;
+      return false;
     }
 
     this.setStatus("✅ Résultat reçu.");
     console.log("[voice-input] parse result", data);
+    return true;
   }
 
   // ========== Helpers ==========
@@ -508,6 +574,24 @@ export default class extends Controller {
 
   setStatus(msg) {
     if (this.hasStatusTarget) this.statusTarget.textContent = msg;
+  }
+
+  _setRecordButtonState(isRecording) {
+    if (!this.hasRecordButtonTarget) return;
+
+    this.recordButtonTarget.textContent = isRecording ? "⏹️ Stop" : "🎙️ Enregistrer";
+    this.recordButtonTarget.classList.toggle("btn-danger", isRecording);
+    this.recordButtonTarget.classList.toggle("btn-primary", !isRecording);
+    this.recordButtonTarget.setAttribute("aria-pressed", isRecording ? "true" : "false");
+  }
+
+  _refreshValidateState() {
+    if (!this.hasValidateButtonTarget) return;
+
+    const hasText = this.hasTextareaTarget && this.textareaTarget.value.trim().length > 0;
+    const enabled = hasText && !this.isTranscribing;
+
+    this.validateButtonTarget.disabled = !enabled;
   }
 
   beep() {

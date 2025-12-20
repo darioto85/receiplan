@@ -11,6 +11,10 @@ final class VoiceController extends AbstractController
     #[Route('/voice', name: 'voice_index', methods: ['GET'])]
     public function index(): Response
     {
-        return $this->render('ui/voice.html.twig');
+        $user = $this->getUser();
+
+        return $this->render('ui/voice.html.twig', [
+            'user' => $user,
+        ]);
     }
 }
