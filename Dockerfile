@@ -26,11 +26,19 @@ WORKDIR /app
 # Copier le projet
 COPY . .
 
-# Installer les dépendances PHP
-RUN composer install --no-interaction --prefer-dist --no-progress
+# prod env
+ENV APP_ENV=prod
+ENV APP_DEBUG=0
 
-# Générer le cache en prod (safe)
-RUN php bin/console cache:clear --env=prod || true
+# install deps PHP (prod)
+RUN composer install --no-dev --optimize-autoloader --no-interaction
+
+# warmup/cache + assets
+RUN php bin/console cache:clear --env=prod \
+ && php bin/console asset-map:compile --env=prod
+
+# permissions (selon ton image)
+RUN chown -R www-data:www-data var public
 
 # Port exposé
 EXPOSE 8000
