@@ -114,10 +114,6 @@ final class MealPlanProposer
         $candidates = [];
 
         foreach ($recipes as $r) {
-            if (!$r instanceof Recipe) {
-                continue;
-            }
-
             $id = $r->getId();
             if (!$id) {
                 continue;
@@ -133,5 +129,76 @@ final class MealPlanProposer
         }
 
         return $candidates[array_rand($candidates)];
+    }
+
+    /**
+     * 🔄 Remplace la recette d'une ligne MealPlan existante (validated=false) par une autre recette faisable.
+     *
+     * - NE touche pas à validated (reste false)
+     * - Choisit une recette faisable différente de l'actuelle
+     * - Évite les doublons le même jour (compatible avec ton unique constraint user+recipe+date)
+     */
+    public function refreshProposal(MealPlan $mealPlan): MealPlan
+    {
+        if ($mealPlan->isValidated()) {
+            throw new \DomainException("Impossible : repas déjà validé.");
+        }
+
+        $user = $mealPlan->getUser();
+        $date = $mealPlan->getDate();
+
+        // ⚠️ Important : normaliser en Recipe[] comme dans proposeForDate()
+        $feasibleResults = $this->feasibilityService->getFeasibleRecipes($user);
+        $feasibleRecipes = $this->extractRecipes($feasibleResults);
+
+        if ($feasibleRecipes === []) {
+            throw new \DomainException("Aucune recette faisable avec ton stock actuel.");
+        }
+
+        $currentRecipeId = $mealPlan->getRecipe()?->getId();
+        $excludeMealPlanId = (int) ($mealPlan->getId() ?? 0);
+
+        $candidates = [];
+        foreach ($feasibleRecipes as $r) {
+            $rid = $r->getId();
+            if (!$rid) {
+                continue;
+            }
+
+            // Forcer une recette différente
+            if ($currentRecipeId && (int) $rid === (int) $currentRecipeId) {
+                continue;
+            }
+
+            /**
+             * ✅ Idéal : utiliser une méthode repo "exists... excluding current mealPlan"
+             * Si tu ne l'as pas encore, voir fallback en dessous.
+             */
+            if (method_exists($this->mealPlanRepository, 'existsForUserRecipeDateExcludingMealPlan') && $excludeMealPlanId > 0) {
+                if ($this->mealPlanRepository->existsForUserRecipeDateExcludingMealPlan($user, (int) $rid, $date, $excludeMealPlanId)) {
+                    continue;
+                }
+            } else {
+                // Fallback : garde ton comportement actuel
+                if ($this->mealPlanRepository->existsForUserRecipeDate($user, (int) $rid, $date)) {
+                    continue;
+                }
+            }
+
+            $candidates[] = $r;
+        }
+
+        if ($candidates === []) {
+            throw new \DomainException("Aucune autre recette faisable disponible pour relancer la proposition.");
+        }
+
+        $newRecipe = $candidates[array_rand($candidates)];
+
+        $mealPlan->setRecipe($newRecipe);
+        $mealPlan->setValidated(false);
+
+        $this->em->flush();
+
+        return $mealPlan;
     }
 }

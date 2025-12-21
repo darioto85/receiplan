@@ -102,6 +102,7 @@
                         data-controller="meal-plan"
                         data-meal-plan-url-validate-value="{{ path('recipe_validate', { id: meal.id }) }}"
                         data-meal-plan-url-cancel-value="{{ path('recipe_cancel', { id: meal.id }) }}"
+                        data-meal-plan-url-refresh-value="{{ path('recipe_refresh', { id: meal.id }) }}"
                         data-meal-plan-csrf-value="{{ csrf_token('mealplan_update_' ~ meal.id) }}"
                     >
                       {% if meal.validated %}
@@ -113,10 +114,19 @@
                         </button>
                       {% else %}
                         <span class="badge text-bg-warning text-dark">Prévu</span>
+
                         <button type="button"
                                 class="btn btn-sm btn-primary ms-2"
                                 data-action="meal-plan#validate">
                           Valider
+                        </button>
+
+                        <button type="button"
+                                class="btn btn-sm btn-outline-secondary ms-2"
+                                title="Relancer une proposition"
+                                aria-label="Relancer une proposition"
+                                data-action="meal-plan#refresh">
+                          🔄
                         </button>
                       {% endif %}
                     </div>

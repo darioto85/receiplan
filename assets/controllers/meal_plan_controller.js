@@ -4,6 +4,7 @@ export default class extends Controller {
   static values = {
     urlValidate: String,
     urlCancel: String,
+    urlRefresh: String,
     csrf: String,
   };
 
@@ -13,6 +14,10 @@ export default class extends Controller {
 
   async cancel() {
     await this.#send(this.urlCancelValue);
+  }
+
+  async refresh() {
+    await this.#send(this.urlRefreshValue);
   }
 
   async #send(url) {

@@ -79,4 +79,45 @@ final class MealPlanController extends AbstractController
 
         return $this->redirectToRoute('meal_plan_index');
     }
+
+    #[Route('/{id}/refresh', name: 'recipe_refresh', methods: ['POST'])]
+    public function refreshMealPlan(
+        int $id,
+        Request $request,
+        MealPlanRepository $mealPlanRepository,
+        \App\Service\MealPlanProposer $mealPlanProposer,
+    ): Response {
+        $mealPlan = $mealPlanRepository->find($id);
+        if (!$mealPlan) {
+            return $this->json(['message' => 'MealPlan introuvable.'], 404);
+        }
+
+        $this->denyAccessUnlessGranted('ROLE_USER');
+
+        if ($mealPlan->getUser() !== $this->getUser()) {
+            return $this->json(['message' => 'Accès refusé.'], 403);
+        }
+
+        if ($mealPlan->isValidated()) {
+            return $this->json(['message' => "Impossible : repas déjà validé."], 400);
+        }
+
+        $csrf = $request->headers->get('X-CSRF-TOKEN', '');
+        if (!$this->isCsrfTokenValid('mealplan_update_' . $mealPlan->getId(), $csrf)) {
+            return $this->json(['message' => 'CSRF invalide.'], 419);
+        }
+
+        try {
+            $updated = $mealPlanProposer->refreshProposal($mealPlan);
+
+            return $this->json([
+                'ok' => true,
+                'validated' => false,
+                'recipeId' => $updated->getRecipe()->getId(),
+                'recipeName' => $updated->getRecipe()->getName(),
+            ]);
+        } catch (\DomainException $e) {
+            return $this->json(['message' => $e->getMessage()], 400);
+        }
+    }
 }

@@ -5,6 +5,7 @@ namespace App\Repository;
 use App\Entity\MealPlan;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\Persistence\ManagerRegistry;
 
 final class MealPlanRepository extends ServiceEntityRepository
@@ -12,6 +13,28 @@ final class MealPlanRepository extends ServiceEntityRepository
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, MealPlan::class);
+    }
+
+    public function existsForUserRecipeDateExcludingMealPlan(
+        User $user,
+        int $recipeId,
+        \DateTimeImmutable $date,
+        int $excludeMealPlanId
+    ): bool {
+        $count = (int) $this->createQueryBuilder('mp')
+            ->select('COUNT(mp.id)')
+            ->andWhere('mp.user = :user')
+            ->andWhere('IDENTITY(mp.recipe) = :recipeId')
+            ->andWhere('mp.date = :date')
+            ->andWhere('mp.id != :excludeId')
+            ->setParameter('user', $user)
+            ->setParameter('recipeId', $recipeId)
+            ->setParameter('date', $date, Types::DATE_IMMUTABLE)
+            ->setParameter('excludeId', $excludeMealPlanId)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return $count > 0;
     }
 
     /**
@@ -23,7 +46,7 @@ final class MealPlanRepository extends ServiceEntityRepository
             ->andWhere('mp.user = :user')
             ->andWhere('mp.date = :date')
             ->setParameter('user', $user)
-            ->setParameter('date', $date, \Doctrine\DBAL\Types\Types::DATE_IMMUTABLE)
+            ->setParameter('date', $date, Types::DATE_IMMUTABLE)
             ->orderBy('mp.id', 'ASC')
             ->getQuery()
             ->getResult();
@@ -43,7 +66,7 @@ final class MealPlanRepository extends ServiceEntityRepository
             ->andWhere('mp.validated = false')
             ->andWhere('mp.date >= :fromDate')
             ->setParameter('user', $user)
-            ->setParameter('fromDate', $fromDate, \Doctrine\DBAL\Types\Types::DATE_IMMUTABLE)
+            ->setParameter('fromDate', $fromDate, Types::DATE_IMMUTABLE)
             ->orderBy('mp.date', 'ASC')
             ->addOrderBy('mp.id', 'ASC')
             ->getQuery()
@@ -66,8 +89,8 @@ final class MealPlanRepository extends ServiceEntityRepository
             ->andWhere('mp.date >= :fromDate')
             ->andWhere('mp.date <= :toDate')
             ->setParameter('user', $user)
-            ->setParameter('fromDate', $fromDate, \Doctrine\DBAL\Types\Types::DATE_IMMUTABLE)
-            ->setParameter('toDate', $toDate, \Doctrine\DBAL\Types\Types::DATE_IMMUTABLE)
+            ->setParameter('fromDate', $fromDate, Types::DATE_IMMUTABLE)
+            ->setParameter('toDate', $toDate, Types::DATE_IMMUTABLE)
             ->orderBy('mp.date', 'DESC')
             ->addOrderBy('mp.id', 'DESC')
             ->getQuery()
@@ -84,8 +107,8 @@ final class MealPlanRepository extends ServiceEntityRepository
             ->andWhere('mp.date >= :fromDate')
             ->andWhere('mp.date <= :toDate')
             ->setParameter('user', $user)
-            ->setParameter('fromDate', $fromDate, \Doctrine\DBAL\Types\Types::DATE_IMMUTABLE)
-            ->setParameter('toDate', $toDate, \Doctrine\DBAL\Types\Types::DATE_IMMUTABLE)
+            ->setParameter('fromDate', $fromDate, Types::DATE_IMMUTABLE)
+            ->setParameter('toDate', $toDate, Types::DATE_IMMUTABLE)
             ->orderBy('mp.date', 'ASC')
             ->addOrderBy('mp.id', 'ASC')
             ->getQuery()
@@ -101,7 +124,7 @@ final class MealPlanRepository extends ServiceEntityRepository
             ->andWhere('mp.date = :date')
             ->setParameter('user', $user)
             ->setParameter('recipeId', $recipeId)
-            ->setParameter('date', $date, \Doctrine\DBAL\Types\Types::DATE_IMMUTABLE)
+            ->setParameter('date', $date, Types::DATE_IMMUTABLE)
             ->getQuery()
             ->getSingleScalarResult();
 
