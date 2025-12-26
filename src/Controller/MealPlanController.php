@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Repository\MealPlanRepository;
 use App\Service\MealPlanProposer;
 use App\Service\RecipeFeasibilityService;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -245,4 +246,40 @@ final class MealPlanController extends AbstractController
             return $this->json(['message' => $e->getMessage()], 400);
         }
     }
+
+    #[Route('/delete-ajax/{id}', name: 'meal_plan_delete_ajax', methods: ['POST'])]
+    public function deleteAjax(
+        int $id,
+        Request $request,
+        MealPlanRepository $mealPlanRepository,
+        EntityManagerInterface $em,
+        UserInterface $user,
+    ): Response {
+        $csrf = $request->headers->get('X-CSRF-TOKEN', '');
+        if (!$this->isCsrfTokenValid('mealplan_update_' . $id, $csrf)) {
+            return $this->json(['message' => 'CSRF invalide.'], 419);
+        }
+
+        $mealPlan = $mealPlanRepository->find($id);
+        if (!$mealPlan) {
+            return $this->json(['message' => 'Repas introuvable.'], 404);
+        }
+
+        if ($mealPlan->getUser() !== $user) {
+            return $this->json(['message' => 'Accès refusé.'], 403);
+        }
+
+        if ($mealPlan->isValidated()) {
+            return $this->json(['message' => 'Impossible : repas déjà validé.'], 400);
+        }
+
+        $em->remove($mealPlan);
+        $em->flush();
+
+        return $this->json([
+            'ok' => true,
+            'mealId' => $id,
+        ]);
+    }
+
 }
