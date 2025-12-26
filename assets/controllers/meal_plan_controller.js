@@ -4,30 +4,40 @@ export default class extends Controller {
   static values = {
     urlValidate: String,
     urlCancel: String,
-    urlRefresh: String,
     csrf: String,
   };
 
-  async validate() {
+  async validate(event) {
+    event?.preventDefault();
+    event?.stopPropagation();
     await this.#send(this.urlValidateValue);
   }
 
-  async cancel() {
+  async cancel(event) {
+    event?.preventDefault();
+    event?.stopPropagation();
     await this.#send(this.urlCancelValue);
   }
 
-  async refresh() {
-    await this.#send(this.urlRefreshValue);
-  }
-
   async #send(url) {
+    console.log("[meal-plan] ajax send", url); // 🔥 preuve que ce JS est bien chargé
+
+    if (!url) {
+      console.error("[meal-plan] Missing URL");
+      alert("URL manquante (check data-meal-plan-url-...-value)");
+      return;
+    }
+
+    this.#setDisabled(true);
+
     try {
       const res = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-CSRF-TOKEN": this.csrfValue,
+          "X-CSRF-TOKEN": this.csrfValue || "",
           "X-Requested-With": "XMLHttpRequest",
+          Accept: "application/json",
         },
         body: JSON.stringify({}),
       });
@@ -38,10 +48,38 @@ export default class extends Controller {
         throw new Error(data.message || "Erreur lors de la mise à jour.");
       }
 
-      window.location.reload();
+      if (!data.mealId || !data.html) {
+        throw new Error("Réponse invalide: mealId/html manquants.");
+      }
+
+      const currentMealBlock = document.querySelector(
+        `[data-meal-id="${data.mealId}"]`
+      );
+
+      if (!currentMealBlock) {
+        throw new Error(`Impossible de trouver le bloc du repas #${data.mealId} dans le DOM.`);
+      }
+
+      const tpl = document.createElement("template");
+      tpl.innerHTML = data.html.trim();
+      const node = tpl.content.firstElementChild;
+
+      if (!node) {
+        throw new Error("Impossible de parser le HTML retourné.");
+      }
+
+      currentMealBlock.replaceWith(node);
     } catch (e) {
       console.error(e);
-      alert(e.message || "Erreur");
+      alert(e?.message || "Erreur");
+    } finally {
+      this.#setDisabled(false);
     }
+  }
+
+  #setDisabled(disabled) {
+    this.element.querySelectorAll("button").forEach((btn) => {
+      btn.disabled = disabled;
+    });
   }
 }

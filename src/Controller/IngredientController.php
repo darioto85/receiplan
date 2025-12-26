@@ -101,7 +101,7 @@ final class IngredientController extends AbstractController
 
         return $this->redirectToRoute('app_ingredient_index', [], Response::HTTP_SEE_OTHER);
     }
-
+    
     #[Route('/quick-create', name: 'app_ingredient_quick_create', methods: ['POST'])]
     public function quickCreate(
         Request $request,
@@ -109,6 +109,11 @@ final class IngredientController extends AbstractController
         EntityManagerInterface $entityManager,
         CsrfTokenManagerInterface $csrfTokenManager
     ): JsonResponse {
+        $user = $this->getUser();
+        if (!$user instanceof \App\Entity\User) {
+            return new JsonResponse(['error' => 'Unauthorized'], 401);
+        }
+
         $payload = json_decode((string) $request->getContent(), true) ?? [];
 
         $name = trim((string) ($payload['name'] ?? ''));
@@ -127,10 +132,14 @@ final class IngredientController extends AbstractController
             return new JsonResponse(['error' => 'Unit is required'], 422);
         }
 
-        // ✅ Anti-doublon robuste : on cherche par nameKey normalisé
+        // ✅ Anti-doublon robuste : par user + nameKey normalisé
         $nameKey = Ingredient::normalizeName($name);
 
-        $existing = $ingredientRepository->findOneBy(['nameKey' => $nameKey]);
+        $existing = $ingredientRepository->findOneBy([
+            'user' => $user,
+            'nameKey' => $nameKey,
+        ]);
+
         if ($existing) {
             return new JsonResponse([
                 'id' => $existing->getId(),
@@ -141,7 +150,8 @@ final class IngredientController extends AbstractController
         }
 
         $ingredient = (new Ingredient())
-            ->setName($name)  // setName() remplit aussi nameKey automatiquement
+            ->setUser($user)   // ✅ indispensable depuis la relation Ingredient -> User (nullable=false)
+            ->setName($name)   // setName() remplit aussi nameKey automatiquement
             ->setUnit($unit);
 
         $entityManager->persist($ingredient);
@@ -149,8 +159,12 @@ final class IngredientController extends AbstractController
         try {
             $entityManager->flush();
         } catch (\Doctrine\DBAL\Exception\UniqueConstraintViolationException $e) {
-            // Quelqu’un l’a créé juste avant (race condition) -> on renvoie l'existant
-            $existing = $ingredientRepository->findOneBy(['nameKey' => $nameKey]);
+            // Race condition : quelqu’un l’a créé juste avant (ou double submit)
+            $existing = $ingredientRepository->findOneBy([
+                'user' => $user,
+                'nameKey' => $nameKey,
+            ]);
+
             if ($existing) {
                 return new JsonResponse([
                     'id' => $existing->getId(),
@@ -170,6 +184,7 @@ final class IngredientController extends AbstractController
             'created' => true,
         ], 201);
     }
+
 
     #[Route('/{id}/unit', name: 'app_ingredient_unit', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function unit(Ingredient $ingredient): JsonResponse

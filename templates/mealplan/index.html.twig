@@ -3,150 +3,68 @@
 {% block title %}Planning de repas{% endblock %}
 
 {% block body %}
-<div class="container py-4">
-{% for label, messages in app.flashes %}
-  {% for message in messages %}
-    <div class="alert alert-{{ label == 'error' ? 'danger' : label }} mb-3">
-      {{ message }}
+<div class="container py-4"
+     data-turbo="false"
+     data-controller="agenda"
+     data-agenda-week-url-value="{{ path('meal_plan_week') }}"
+     data-agenda-initial-start-value="{{ weekStart|date('Y-m-d') }}"
+>
+  <noscript>
+    <div class="alert alert-warning">
+      Le planning en mode agenda nécessite JavaScript.
     </div>
+  </noscript>
+
+  {# Flash messages #}
+  {% for label, messages in app.flashes %}
+    {% for message in messages %}
+      <div class="alert alert-{{ label == 'error' ? 'danger' : label }} mb-3">
+        {{ message }}
+      </div>
+    {% endfor %}
   {% endfor %}
-{% endfor %}
 
   <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
     <div>
       <h1 class="h3 mb-1">Planning de repas</h1>
-      <div class="text-body-secondary">
-        Du <strong>{{ fromDate|date('d/m/Y') }}</strong> au <strong>{{ toDate|date('d/m/Y') }}</strong>
-      </div>
     </div>
 
-    {# Zone actions (future : navigation semaines, ajout rapide, etc.) #}
-    <div class="d-flex gap-2">
-      {# Exemple future navigation : ?from=YYYY-MM-DD #}
-      {# <a class="btn btn-outline-secondary btn-sm" href="{{ path('meal_plan_index', { from: (fromDate|date('Y-m-d')) }) }}">Changer période</a> #}
-      
-      <form method="post" action="{{ path('meal_plan_propose') }}">
-        <button class="btn btn-primary btn-sm">Proposer pour aujourd’hui</button>
-        </form>
-
-        {# proposer pour une date précise #}
-        <form method="post" action="{{ path('meal_plan_propose', { date: '2025-12-22' }) }}">
-            <button class="btn btn-outline-primary btn-sm">Proposer pour 22/12</button>
-        </form>
-      
+    <div class="d-flex gap-2 flex-wrap">
       <a class="btn btn-outline-primary btn-sm" href="{{ path('app_recipe_index') }}">
         Voir mes recettes
       </a>
     </div>
   </div>
 
-  {% if planningByDate is empty %}
-    <div class="alert alert-info">
-      Aucun repas planifié sur cette période.
+  {# Zone scrollable (le scroll ne bouge plus la page entière => menu accessible) #}
+  <div class="border rounded"
+       style="height: calc(100vh - 220px); overflow: auto;"
+       data-agenda-target="scroller">
+
+    {# Debug / loading state #}
+    <div data-agenda-target="error" class="alert alert-danger d-none m-3"></div>
+
+    <div data-agenda-target="loading" class="text-center text-body-secondary small my-3 d-none">
+      Chargement de la semaine…
     </div>
-  {% else %}
-    {# Tableau "calendrier" (liste par jour) #}
-    <div class="row g-3">
-      {% for dayKey, meals in planningByDate %}
-        {% set day = date(dayKey) %}
-        {% set isToday = day|date('Y-m-d') == today|date('Y-m-d') %}
-        {% set isPast = day < today %}
-        {% set dayLabel = day|date('l d/m/Y') %}
 
-        <div class="col-12 col-lg-6">
-          <div class="card shadow-sm h-100
-            {% if isToday %} border border-primary{% elseif isPast %} border border-light{% endif %}">
-            <div class="card-header d-flex justify-content-between align-items-center">
-              <div class="d-flex flex-column">
-                <div class="fw-semibold">
-                  {{ dayLabel }}
-                  {% if isToday %}
-                    <span class="badge text-bg-primary ms-2">Aujourd’hui</span>
-                  {% elseif isPast %}
-                    <span class="badge text-bg-secondary ms-2">Passé</span>
-                  {% else %}
-                    <span class="badge text-bg-success ms-2">À venir</span>
-                  {% endif %}
-                </div>
-                <div class="text-body-secondary small">
-                  {{ meals|length }} repas
-                </div>
-              </div>
-            </div>
-
-            <div class="card-body">
-              <ul class="list-group list-group-flush">
-                {% for meal in meals %}
-                  {% set recipe = meal.recipe %}
-                  <li class="list-group-item px-0 d-flex align-items-start justify-content-between gap-3">
-                    <div class="d-flex flex-column">
-                      <div class="fw-semibold">
-                        {# Ajuste la route si tu as une page show recipe #}
-                        {% if recipe is not null %}
-                          {# Si tu as recipe_show : #}
-                          {# <a href="{{ path('recipe_show', { id: recipe.id }) }}" class="text-decoration-none">{{ recipe.name }}</a> #}
-
-                          {# Sinon simple texte : #}
-                          {{ recipe.name }}
-                        {% else %}
-                          <span class="text-body-secondary fst-italic">Recette supprimée</span>
-                        {% endif %}
-                      </div>
-
-                      <div class="small text-body-secondary">
-                        ID repas: {{ meal.id }}
-                      </div>
-                    </div>
-
-                    <div class="text-end"
-                        data-controller="meal-plan"
-                        data-meal-plan-url-validate-value="{{ path('recipe_validate', { id: meal.id }) }}"
-                        data-meal-plan-url-cancel-value="{{ path('recipe_cancel', { id: meal.id }) }}"
-                        data-meal-plan-url-refresh-value="{{ path('recipe_refresh', { id: meal.id }) }}"
-                        data-meal-plan-csrf-value="{{ csrf_token('mealplan_update_' ~ meal.id) }}"
-                    >
-                      {% if meal.validated %}
-                        <span class="badge text-bg-success">Validé</span>
-                        <button type="button"
-                                class="btn btn-sm btn-outline-danger ms-2"
-                                data-action="meal-plan#cancel">
-                          Annuler
-                        </button>
-                      {% else %}
-                        <span class="badge text-bg-warning text-dark">Prévu</span>
-
-                        <button type="button"
-                                class="btn btn-sm btn-primary ms-2"
-                                data-action="meal-plan#validate">
-                          Valider
-                        </button>
-
-                        <button type="button"
-                                class="btn btn-sm btn-outline-secondary ms-2"
-                                title="Relancer une proposition"
-                                aria-label="Relancer une proposition"
-                                data-action="meal-plan#refresh">
-                          🔄
-                        </button>
-                      {% endif %}
-                    </div>
-
-
-                  </li>
-                {% endfor %}
-              </ul>
-            </div>
-
-            <div class="card-footer bg-transparent d-flex justify-content-end">
-              {# Zone future (actions par jour) : ajouter / valider tout / etc. #}
-              <span class="text-body-secondary small">
-                {{ day|date('Y-m-d') }}
-              </span>
-            </div>
-          </div>
-        </div>
-      {% endfor %}
+    {# Sentinel haut: scroll infini vers le passé #}
+    <div data-agenda-target="topSentinel"
+         class="py-2 text-center text-body-secondary small">
+      ⬆️ Charger les semaines précédentes…
     </div>
-  {% endif %}
+
+    {# Contenu agenda: semaines injectées ici #}
+    <div data-agenda-target="list" class="d-flex flex-column gap-3 px-3 pb-3">
+      {# La semaine courante sera chargée en AJAX dès connect() #}
+    </div>
+
+    {# Sentinel bas: scroll infini vers le futur #}
+    <div data-agenda-target="bottomSentinel"
+         class="py-2 text-center text-body-secondary small">
+      ⬇️ Charger les semaines suivantes…
+    </div>
+
+  </div>
 </div>
 {% endblock %}

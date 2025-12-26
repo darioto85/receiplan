@@ -125,7 +125,6 @@ final class RecipeController extends AbstractController
         }
 
         $this->denyAccessUnlessGranted('ROLE_USER');
-
         if ($mealPlan->getUser() !== $this->getUser()) {
             return $this->json(['message' => 'Accès refusé.'], 403);
         }
@@ -138,9 +137,15 @@ final class RecipeController extends AbstractController
         try {
             $recipeUpdater->validateMealPlan($mealPlan);
 
+            $html = $this->renderView('mealplan/_meal_item.html.twig', [
+                'meal' => $mealPlan,
+            ]);
+
             return $this->json([
                 'ok' => true,
                 'validated' => true,
+                'mealId' => $mealPlan->getId(),
+                'html' => $html,
             ]);
         } catch (\DomainException $e) {
             return $this->json(['message' => $e->getMessage()], 400);
@@ -164,7 +169,6 @@ final class RecipeController extends AbstractController
         }
 
         $this->denyAccessUnlessGranted('ROLE_USER');
-
         if ($mealPlan->getUser() !== $this->getUser()) {
             return $this->json(['message' => 'Accès refusé.'], 403);
         }
@@ -177,9 +181,15 @@ final class RecipeController extends AbstractController
         try {
             $recipeUpdater->cancelMealPlanValidation($mealPlan);
 
+            $html = $this->renderView('mealplan/_meal_item.html.twig', [
+                'meal' => $mealPlan,
+            ]);
+
             return $this->json([
                 'ok' => true,
                 'validated' => false,
+                'mealId' => $mealPlan->getId(),
+                'html' => $html,
             ]);
         } catch (\DomainException $e) {
             return $this->json(['message' => $e->getMessage()], 400);
