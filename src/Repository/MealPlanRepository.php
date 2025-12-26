@@ -4,6 +4,7 @@ namespace App\Repository;
 
 use App\Entity\MealPlan;
 use App\Entity\User;
+
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\Persistence\ManagerRegistry;
@@ -129,5 +130,22 @@ final class MealPlanRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
 
         return $count > 0;
+    }
+
+    /**
+     * @return MealPlan[]
+     */
+    public function findPendingFrom(User $user, \DateTimeInterface $from): array
+    {
+        return $this->createQueryBuilder('mp')
+            ->andWhere('mp.user = :u')
+            ->andWhere('mp.validated = false')
+            ->andWhere('mp.date >= :from')
+            ->setParameter('u', $user)
+            ->setParameter('from', $from->format('Y-m-d'))
+            ->orderBy('mp.date', 'ASC')
+            ->addOrderBy('mp.id', 'ASC')
+            ->getQuery()
+            ->getResult();
     }
 }

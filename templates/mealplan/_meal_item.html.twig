@@ -1,19 +1,17 @@
 {# templates/mealplan/_meal_item.html.twig #}
-{% set recipe = meal.recipe %}
+{% set ok = is_feasible ?? true %}
 
 <div class="d-flex align-items-start justify-content-between gap-3 border rounded px-3 py-2"
      data-meal-id="{{ meal.id }}"
      data-controller="meal-refresh"
      data-meal-refresh-url-value="{{ path('meal_plan_refresh_ajax', { id: meal.id }) }}"
      data-meal-refresh-csrf-value="{{ csrf_token('mealplan_update_' ~ meal.id) }}"
-     data-meal-refresh-target="container"
->
+     data-meal-refresh-target="container">
   <div class="d-flex flex-column">
     <div class="fw-semibold">
-      {% if recipe is not null %}
-        {{ recipe.name }}
-      {% else %}
-        <span class="text-body-secondary fst-italic">Recette supprimée</span>
+      {{ meal.recipe.name }}
+      {% if not meal.validated and not ok %}
+        <span class="badge text-bg-warning ms-2">Stock insuffisant</span>
       {% endif %}
     </div>
 
@@ -26,32 +24,18 @@
        data-controller="meal-plan"
        data-meal-plan-url-validate-value="{{ path('recipe_validate', { id: meal.id }) }}"
        data-meal-plan-url-cancel-value="{{ path('recipe_cancel', { id: meal.id }) }}"
-       data-meal-plan-csrf-value="{{ csrf_token('mealplan_update_' ~ meal.id) }}"
-  >
+       data-meal-plan-csrf-value="{{ csrf_token('mealplan_update_' ~ meal.id) }}">
     {% if meal.validated %}
       <span class="badge text-bg-success">Validé</span>
-
-      <button type="button"
-              class="btn btn-sm btn-outline-danger ms-2"
-              data-action="meal-plan#cancel">
+      <button type="button" class="btn btn-sm btn-outline-danger ms-2" data-action="meal-plan#cancel">
         Annuler
       </button>
     {% else %}
-      <span class="badge text-bg-warning text-dark">Prévu</span>
-
-      <button type="button"
-              class="btn btn-sm btn-primary ms-2"
-              data-action="meal-plan#validate">
+      <button type="button" class="btn btn-sm btn-outline-success" data-action="meal-plan#validate">
         Valider
       </button>
-
-      <button type="button"
-              class="btn btn-sm btn-outline-secondary ms-2"
-              title="Relancer une proposition"
-              aria-label="Relancer une proposition"
-              data-action="meal-refresh#refresh"
-              data-meal-refresh-target="button">
-        🔄
+      <button type="button" class="btn btn-sm btn-outline-secondary ms-2" data-action="meal-refresh#refresh">
+        Relancer
       </button>
     {% endif %}
   </div>

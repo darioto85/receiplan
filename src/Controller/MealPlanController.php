@@ -3,24 +3,23 @@
 namespace App\Controller;
 
 use App\Repository\MealPlanRepository;
+use App\Service\MealPlanProposer;
+use App\Service\RecipeFeasibilityService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\User\UserInterface;
-use App\Service\MealPlanProposer;
 
 #[Route('/meal-plan')]
 final class MealPlanController extends AbstractController
 {
     #[Route('', name: 'meal_plan_index', methods: ['GET'])]
-    public function index(
-        Request $request,
-    ): Response {
+    public function index(Request $request): Response
+    {
         $today = new \DateTimeImmutable('today');
 
-        // Vue agenda: semaine courante par défaut
-        // (et possibilité de centrer via ?date=YYYY-MM-DD)
         $dateStr = $request->query->get('date');
         $center = $dateStr
             ? (\DateTimeImmutable::createFromFormat('Y-m-d', (string) $dateStr) ?: $today)
@@ -44,6 +43,7 @@ final class MealPlanController extends AbstractController
     public function week(
         Request $request,
         MealPlanRepository $mealPlanRepository,
+        RecipeFeasibilityService $feasibility,
         UserInterface $user,
     ): Response {
         $startStr = (string) $request->query->get('start', '');
@@ -59,14 +59,25 @@ final class MealPlanController extends AbstractController
         $meals = $mealPlanRepository->findBetween($user, $weekStart, $weekEnd);
 
         $planningByDate = [];
+        $recipesById = [];
+
         foreach ($meals as $meal) {
             $key = $meal->getDate()->format('Y-m-d');
             $planningByDate[$key][] = $meal;
+
+            $recipe = $meal->getRecipe();
+            if ($recipe) {
+                $recipesById[$recipe->getId()] = $recipe; // unique
+            }
         }
         ksort($planningByDate);
 
+        // ✅ Map recipeId => isFeasible (stock instantané)
+        $feasibleByRecipeId = $feasibility->getFeasibilityMapForRecipes($user, array_values($recipesById));
+
         return $this->render('mealplan/week.html.twig', [
             'planningByDate' => $planningByDate,
+            'feasibleByRecipeId' => $feasibleByRecipeId,
             'weekStart'      => $weekStart,
             'weekEnd'        => $weekEnd,
             'today'          => new \DateTimeImmutable('today'),
@@ -79,7 +90,7 @@ final class MealPlanController extends AbstractController
         MealPlanProposer $proposer,
         UserInterface $user,
     ): Response {
-        $dateStr = $request->query->get('date'); // YYYY-MM-DD (optionnel)
+        $dateStr = $request->query->get('date');
 
         $date = null;
         if (is_string($dateStr) && $dateStr !== '') {
@@ -100,6 +111,7 @@ final class MealPlanController extends AbstractController
     public function proposeAjax(
         Request $request,
         MealPlanProposer $proposer,
+        RecipeFeasibilityService $feasibility,
         UserInterface $user,
     ): Response {
         $csrf = $request->headers->get('X-CSRF-TOKEN', '');
@@ -122,9 +134,16 @@ final class MealPlanController extends AbstractController
         try {
             $mealPlan = $proposer->proposeForDate($user, $date);
 
-            // Renvoie du HTML prêt à insérer côté client
+            // ✅ faisabilité pour le badge
+            $ok = true;
+            if ($mealPlan->getRecipe()) {
+                $map = $feasibility->getFeasibilityMapForRecipes($user, [$mealPlan->getRecipe()]);
+                $ok = $map[$mealPlan->getRecipe()->getId()] ?? true;
+            }
+
             $html = $this->renderView('mealplan/_meal_item.html.twig', [
                 'meal' => $mealPlan,
+                'is_feasible' => $ok,
             ]);
 
             return $this->json([
@@ -143,7 +162,7 @@ final class MealPlanController extends AbstractController
         int $id,
         Request $request,
         MealPlanRepository $mealPlanRepository,
-        \App\Service\MealPlanProposer $mealPlanProposer,
+        MealPlanProposer $mealPlanProposer,
     ): Response {
         $mealPlan = $mealPlanRepository->find($id);
         if (!$mealPlan) {
@@ -185,6 +204,7 @@ final class MealPlanController extends AbstractController
         Request $request,
         MealPlanRepository $mealPlanRepository,
         MealPlanProposer $proposer,
+        RecipeFeasibilityService $feasibility,
         UserInterface $user,
     ): Response {
         $csrf = $request->headers->get('X-CSRF-TOKEN', '');
@@ -204,8 +224,16 @@ final class MealPlanController extends AbstractController
         try {
             $updated = $proposer->refreshProposal($mealPlan);
 
+            // ✅ faisabilité pour le badge
+            $ok = true;
+            if ($updated->getRecipe()) {
+                $map = $feasibility->getFeasibilityMapForRecipes($user, [$updated->getRecipe()]);
+                $ok = $map[$updated->getRecipe()->getId()] ?? true;
+            }
+
             $html = $this->renderView('mealplan/_meal_item.html.twig', [
                 'meal' => $updated,
+                'is_feasible' => $ok,
             ]);
 
             return $this->json([

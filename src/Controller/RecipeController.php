@@ -6,7 +6,6 @@ use App\Entity\Recipe;
 use App\Entity\User;
 use App\Form\RecipeType;
 use App\Repository\MealPlanRepository;
-use App\Repository\RecipeRepository;
 use App\Service\RecipeFeasibilityService;
 use App\Service\RecipeUpdater;
 use Doctrine\ORM\EntityManagerInterface;
@@ -21,9 +20,9 @@ final class RecipeController extends AbstractController
     #[Route(name: 'app_recipe_index', methods: ['GET'])]
     public function index(RecipeFeasibilityService $feasibility): Response
     {
-        /** @var \App\Entity\User|null $user */
+        /** @var User|null $user */
         $user = $this->getUser();
-        if (!$user instanceof \App\Entity\User) {
+        if (!$user instanceof User) {
             throw $this->createAccessDeniedException();
         }
 
@@ -36,13 +35,13 @@ final class RecipeController extends AbstractController
     #[Route('/new', name: 'app_recipe_new', methods: ['GET', 'POST'])]
     public function new(Request $request, EntityManagerInterface $entityManager): Response
     {
-        $recipe = new Recipe();
-
+        /** @var User|null $user */
         $user = $this->getUser();
         if (!$user instanceof User) {
             throw $this->createAccessDeniedException();
         }
 
+        $recipe = new Recipe();
         $recipe->setUser($user);
         $recipe->addRecipeIngredient(new \App\Entity\RecipeIngredient());
 
@@ -65,6 +64,16 @@ final class RecipeController extends AbstractController
     #[Route('/{id}', name: 'app_recipe_show', methods: ['GET'])]
     public function show(Recipe $recipe): Response
     {
+        /** @var User|null $user */
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        if ($recipe->getUser() !== $user) {
+            throw $this->createAccessDeniedException();
+        }
+
         return $this->render('recipe/show.html.twig', [
             'recipe' => $recipe,
         ]);
@@ -73,6 +82,7 @@ final class RecipeController extends AbstractController
     #[Route('/{id}/edit', name: 'app_recipe_edit', methods: ['GET', 'POST'])]
     public function edit(Request $request, Recipe $recipe, EntityManagerInterface $entityManager): Response
     {
+        /** @var User|null $user */
         $user = $this->getUser();
         if (!$user instanceof User) {
             throw $this->createAccessDeniedException();
@@ -100,7 +110,17 @@ final class RecipeController extends AbstractController
     #[Route('/{id}', name: 'app_recipe_delete', methods: ['POST'])]
     public function delete(Request $request, Recipe $recipe, EntityManagerInterface $entityManager): Response
     {
-        if ($this->isCsrfTokenValid('delete'.$recipe->getId(), $request->getPayload()->getString('_token'))) {
+        /** @var User|null $user */
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        if ($recipe->getUser() !== $user) {
+            throw $this->createAccessDeniedException();
+        }
+
+        if ($this->isCsrfTokenValid('delete' . $recipe->getId(), $request->getPayload()->getString('_token'))) {
             $entityManager->remove($recipe);
             $entityManager->flush();
         }
@@ -109,8 +129,8 @@ final class RecipeController extends AbstractController
     }
 
     /**
-     * AJAX - Valider un MealPlan (déclenche potentiellement décrément stock via RecipeUpdater)
-     * URL finale: POST /recipe/{id}/validate
+     * AJAX - Valider un MealPlan (décrémente le stock via RecipeUpdater)
+     * URL: POST /recipe/{id}/validate
      */
     #[Route('/{id}/validate', name: 'recipe_validate', methods: ['POST'])]
     public function validateMealPlan(
@@ -118,14 +138,20 @@ final class RecipeController extends AbstractController
         Request $request,
         MealPlanRepository $mealPlanRepository,
         RecipeUpdater $recipeUpdater,
+        RecipeFeasibilityService $feasibility,
     ): Response {
+        /** @var User|null $user */
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
         $mealPlan = $mealPlanRepository->find($id);
         if (!$mealPlan) {
             return $this->json(['message' => 'MealPlan introuvable.'], 404);
         }
 
-        $this->denyAccessUnlessGranted('ROLE_USER');
-        if ($mealPlan->getUser() !== $this->getUser()) {
+        if ($mealPlan->getUser() !== $user) {
             return $this->json(['message' => 'Accès refusé.'], 403);
         }
 
@@ -137,8 +163,13 @@ final class RecipeController extends AbstractController
         try {
             $recipeUpdater->validateMealPlan($mealPlan);
 
+            $from = new \DateTimeImmutable('today');
+            $updates = $this->buildPendingUpdates($user, $from, $mealPlanRepository, $feasibility);
+
+            // HTML du bloc courant (validé)
             $html = $this->renderView('mealplan/_meal_item.html.twig', [
                 'meal' => $mealPlan,
+                'is_feasible' => true, // badge non affiché si validated=true
             ]);
 
             return $this->json([
@@ -146,6 +177,7 @@ final class RecipeController extends AbstractController
                 'validated' => true,
                 'mealId' => $mealPlan->getId(),
                 'html' => $html,
+                'updates' => $updates,
             ]);
         } catch (\DomainException $e) {
             return $this->json(['message' => $e->getMessage()], 400);
@@ -154,7 +186,7 @@ final class RecipeController extends AbstractController
 
     /**
      * AJAX - Annuler la validation d'un MealPlan
-     * URL finale: POST /recipe/{id}/cancel
+     * URL: POST /recipe/{id}/cancel
      */
     #[Route('/{id}/cancel', name: 'recipe_cancel', methods: ['POST'])]
     public function cancelMealPlan(
@@ -162,14 +194,20 @@ final class RecipeController extends AbstractController
         Request $request,
         MealPlanRepository $mealPlanRepository,
         RecipeUpdater $recipeUpdater,
+        RecipeFeasibilityService $feasibility,
     ): Response {
+        /** @var User|null $user */
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
         $mealPlan = $mealPlanRepository->find($id);
         if (!$mealPlan) {
             return $this->json(['message' => 'MealPlan introuvable.'], 404);
         }
 
-        $this->denyAccessUnlessGranted('ROLE_USER');
-        if ($mealPlan->getUser() !== $this->getUser()) {
+        if ($mealPlan->getUser() !== $user) {
             return $this->json(['message' => 'Accès refusé.'], 403);
         }
 
@@ -181,8 +219,20 @@ final class RecipeController extends AbstractController
         try {
             $recipeUpdater->cancelMealPlanValidation($mealPlan);
 
+            $from = new \DateTimeImmutable('today');
+            $updates = $this->buildPendingUpdates($user, $from, $mealPlanRepository, $feasibility);
+
+            // HTML du bloc courant (redevient non-validé -> badge peut revenir)
+            $recipe = $mealPlan->getRecipe();
+            $ok = true;
+            if ($recipe) {
+                $map = $feasibility->getFeasibilityMapForRecipes($user, [$recipe]);
+                $ok = $map[$recipe->getId()] ?? true;
+            }
+
             $html = $this->renderView('mealplan/_meal_item.html.twig', [
                 'meal' => $mealPlan,
+                'is_feasible' => $ok,
             ]);
 
             return $this->json([
@@ -190,9 +240,52 @@ final class RecipeController extends AbstractController
                 'validated' => false,
                 'mealId' => $mealPlan->getId(),
                 'html' => $html,
+                'updates' => $updates,
             ]);
         } catch (\DomainException $e) {
             return $this->json(['message' => $e->getMessage()], 400);
         }
+    }
+
+    /**
+     * Construit updates[] pour tous les MealPlan non validés à partir d'une date.
+     *
+     * @return array<int, array{mealId:int, html:string}>
+     */
+    private function buildPendingUpdates(
+        User $user,
+        \DateTimeImmutable $from,
+        MealPlanRepository $mealPlanRepository,
+        RecipeFeasibilityService $feasibility,
+    ): array {
+        // Il faut que tu aies cette méthode dans le repo:
+        // findPendingFrom(User $user, \DateTimeInterface $from)
+        $pendingMeals = $mealPlanRepository->findPendingFrom($user, $from);
+
+        $recipesById = [];
+        foreach ($pendingMeals as $mp) {
+            $r = $mp->getRecipe();
+            if ($r) {
+                $recipesById[$r->getId()] = $r;
+            }
+        }
+
+        $feasibleByRecipeId = $feasibility->getFeasibilityMapForRecipes($user, array_values($recipesById));
+
+        $updates = [];
+        foreach ($pendingMeals as $mp) {
+            $rid = $mp->getRecipe()?->getId();
+            $ok = $rid ? ($feasibleByRecipeId[$rid] ?? true) : true;
+
+            $updates[] = [
+                'mealId' => $mp->getId(),
+                'html' => $this->renderView('mealplan/_meal_item.html.twig', [
+                    'meal' => $mp,
+                    'is_feasible' => $ok,
+                ]),
+            ];
+        }
+
+        return $updates;
     }
 }

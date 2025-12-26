@@ -12,22 +12,24 @@
   <div class="card-body">
     <div class="list-group list-group-flush">
       {% for i in 0..6 %}
-        {% set day = weekStart|date_modify('+' ~ i ~ ' days') %}
+        {% set day = weekStart|date_modify("+" ~ i ~ " days") %}
         {% set dayKey = day|date('Y-m-d') %}
         {% set isToday = dayKey == today|date('Y-m-d') %}
         {% set isPast = day < today %}
         {% set meals = planningByDate[dayKey] ?? [] %}
 
-        <div class="list-group-item px-0"
-             data-controller="day-propose"
-             data-day-propose-url-value="{{ path('meal_plan_propose_ajax') }}"
-             data-day-propose-date-value="{{ dayKey }}"
-             data-day-propose-csrf-value="{{ csrf_token('mealplan_propose') }}"
-             data-day-key="{{ dayKey }}"
+        <div
+          class="list-group-item px-0"
+          data-controller="day-propose"
+          data-day-propose-url-value="{{ path('meal_plan_propose_ajax') }}"
+          data-day-propose-date-value="{{ dayKey }}"
+          data-day-propose-csrf-value="{{ csrf_token('mealplan_propose') }}"
+          data-day-key="{{ dayKey }}"
         >
           <div class="d-flex justify-content-between align-items-center mb-2">
             <div class="fw-semibold">
               {{ day|date('l d/m/Y') }}
+
               {% if isToday %}
                 <span class="badge text-bg-primary ms-2">Aujourd’hui</span>
               {% elseif isPast %}
@@ -42,17 +44,18 @@
                 {{ meals|length }} repas
               </div>
 
-              <button type="button"
-                      class="btn btn-sm btn-outline-primary"
-                      title="Proposer un repas pour ce jour"
-                      data-action="day-propose#propose"
-                      data-day-propose-target="button">
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-primary"
+                title="Proposer un repas pour ce jour"
+                data-action="day-propose#propose"
+                data-day-propose-target="button"
+              >
                 + Proposer
               </button>
             </div>
           </div>
 
-          {# ✅ Conteneur cible pour insertion AJAX #}
           <div class="d-flex flex-column gap-2" data-day-propose-target="meals">
             {% if meals is empty %}
               <div class="text-body-secondary small fst-italic" data-day-propose-target="empty">
@@ -60,8 +63,13 @@
               </div>
             {% else %}
               {% for meal in meals %}
-                {# ✅ IMPORTANT : on utilise le partial pour garantir data-meal-id etc. #}
-                {{ include('mealplan/_meal_item.html.twig', { meal: meal }) }}
+                {% set recipeId = meal.recipe.id %}
+                {% set ok = feasibleByRecipeId[recipeId] ?? true %}
+
+                {{ include('mealplan/_meal_item.html.twig', {
+                  meal: meal,
+                  is_feasible: ok
+                }) }}
               {% endfor %}
             {% endif %}
           </div>
