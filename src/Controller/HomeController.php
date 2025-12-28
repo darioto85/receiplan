@@ -13,6 +13,6 @@ final class HomeController extends AbstractController
     #[Route('/', name: 'app_home', priority: 10)]
     public function index(): RedirectResponse
     {
-        return $this->redirectToRoute('app_login');
+        return $this->redirectToRoute('app_recipe_index');
     }
 }
