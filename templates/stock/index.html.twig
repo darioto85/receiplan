@@ -69,12 +69,14 @@
                 <tr>
                   <td>{{ ui.ingredient.name }}</td>
                   <td class="text-end">{{ ui.quantity }}</td>
-                  <td class="text-end">{{ ui.ingredient.unit }}</td>
+                  <td class="text-end">
+                    {{ ui.ingredient.unit is defined and ui.ingredient.unit ? ui.ingredient.unit.value : '' }}
+                  </td>
                   <td class="text-end">
                     <form method="post" action="{{ path('stock_delete', {id: ui.id}) }}" class="d-inline">
                       <input type="hidden" name="_token" value="{{ csrf_token('delete_stock_' ~ ui.id) }}">
-                      <button class="btn btn-sm btn-outline-danger" type="submit">
-                        Supprimer
+                      <button class="btn btn-sm btn-outline-danger rp-icon-btn" type="submit">
+                        <i class="fa-solid fa-trash"></i>
                       </button>
                     </form>
                   </td>

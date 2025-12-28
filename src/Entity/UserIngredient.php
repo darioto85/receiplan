@@ -31,6 +31,10 @@ class UserIngredient
         return $this->id;
     }
 
+    /**
+     * Quantité en string (decimal doctrine)
+     * Exemple: "1.00" (1 pot) / "250.00" (250 g)
+     */
     public function getQuantity(): string
     {
         return $this->quantity;
@@ -39,6 +43,22 @@ class UserIngredient
     public function setQuantity(string $quantity): static
     {
         $this->quantity = $quantity;
+        return $this;
+    }
+
+    /**
+     * Helpers optionnels (pratiques pour le métier/UI),
+     * sans changer le stockage en BDD.
+     */
+    public function getQuantityFloat(): float
+    {
+        return (float) str_replace(',', '.', $this->quantity);
+    }
+
+    public function setQuantityFloat(float $quantity): static
+    {
+        // 2 décimales comme ton scale=2
+        $this->quantity = number_format($quantity, 2, '.', '');
         return $this;
     }
 

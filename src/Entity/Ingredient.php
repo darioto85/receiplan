@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Enum\Unit;
 use App\Repository\IngredientRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -27,8 +28,12 @@ class Ingredient
     #[ORM\Column(name: 'name_key', length: 255)]
     private ?string $nameKey = null;
 
-    #[ORM\Column(length: 255)]
-    private ?string $unit = null;
+    /**
+     * ✅ Unité NORMALISÉE via Enum (limite les possibilités)
+     * Ex : g, kg, ml, l, piece, pot, boite...
+     */
+    #[ORM\Column(enumType: Unit::class)]
+    private Unit $unit = Unit::G;
 
     // 🔐 Propriétaire de l’ingrédient
     #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'ingredients')]
@@ -78,14 +83,25 @@ class Ingredient
         return $this;
     }
 
-    public function getUnit(): ?string
+    public function getUnit(): Unit
     {
         return $this->unit;
     }
 
-    public function setUnit(string $unit): static
+    public function setUnit(Unit $unit): static
     {
         $this->unit = $unit;
+        return $this;
+    }
+
+    /**
+     * Optionnel (utile si tu reçois encore des strings depuis du legacy/IA/form)
+     * Exemple: setUnitFromString('pot') -> Unit::POT
+     */
+    public function setUnitFromString(string $unit): static
+    {
+        $unit = trim(mb_strtolower($unit));
+        $this->unit = Unit::from($unit);
         return $this;
     }
 

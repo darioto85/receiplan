@@ -1,0 +1,358 @@
+/* =========================================================
+   RECEIPLAN UI — Design System (Bootstrap override-friendly)
+   Palette:
+   - Background: #B7DBF5
+   - Typography: #212660
+   - Gradient: #C590F8 → #8CEFF2
+   ========================================================= */
+
+/* ---------- Tokens ---------- */
+:root {
+  /* Brand */
+  --rp-bg: #B7DBF5;
+  --rp-text: #212660;
+
+  /* Surfaces */
+  --rp-surface: #ffffff;
+  --rp-surface-soft: #f4f8fc;
+
+  /* Text */
+  --rp-text-2: #4b4f8a;
+  --rp-text-muted: #7a7eb2;
+
+  /* Borders / shadows */
+  --rp-border: rgba(33, 38, 96, 0.12);
+  --rp-shadow: 0 10px 30px rgba(33, 38, 96, 0.10);
+  --rp-shadow-soft: 0 8px 20px rgba(33, 38, 96, 0.08);
+
+  /* Radius */
+  --rp-radius-lg: 18px;
+  --rp-radius-md: 14px;
+  --rp-radius-sm: 12px;
+
+  /* Gradient */
+  --rp-gradient: linear-gradient(135deg, #C590F8 0%, #8CEFF2 100%);
+  --rp-gradient-soft: linear-gradient(135deg, rgba(197,144,248,.22), rgba(140,239,242,.22));
+
+  /* Semantic */
+  --rp-success: #2fb8a7; /* teal calm */
+  --rp-danger: #ef6b7b;  /* coral soft */
+  --rp-warning: #f2b84b;
+  --rp-info: #5aa7ff;
+
+  /* Focus ring */
+  --rp-focus: 0 0 0 .25rem rgba(140, 239, 242, .35);
+
+  /* Typography */
+  --rp-font-title: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  --rp-font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+
+  /* Spacing */
+  --rp-gap: 14px;
+}
+
+
+body {
+  background: var(--rp-bg);
+  color: var(--rp-text);
+  font-family: var(--rp-font-body);
+}
+
+/* Soft “page container” look (optional) */
+.rp-page {
+  background: #E0E9FA;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 24px;
+  padding: 22px;
+  box-shadow: var(--rp-shadow);
+}
+
+/* ---------- Headings ---------- */
+h1, h2, h3, .h1, .h2, .h3, .h4, .h5, .h6 {
+  font-family: var(--rp-font-title);
+  letter-spacing: -0.01em;
+  color: var(--rp-text);
+}
+
+/* ---------- Links ---------- */
+a {
+  color: #2a4aa6;
+  text-decoration: none;
+}
+a:hover {
+  color: #1f3a86;
+  text-decoration: underline;
+}
+
+/* ---------- Cards ---------- */
+.card {
+  border: 1px solid var(--rp-border);
+  border-radius: var(--rp-radius-lg);
+  box-shadow: var(--rp-shadow-soft);
+}
+
+.card-header {
+  background: var(--bs-table-bg);
+  border-bottom: 1px solid rgba(33, 38, 96, 0.08);
+  color: var(--rp-text);
+}
+
+.card-body {
+  background: var(--rp-surface);
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  border-radius: 999px; /* pill */
+  padding: .55rem 1rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.btn:focus {
+  box-shadow: var(--rp-focus);
+}
+
+/* Primary = gradient */
+.btn-primary {
+  border: none;
+  background: var(--rp-gradient);
+  color: var(--rp-text);
+}
+.btn-primary:hover {
+  filter: brightness(0.98);
+}
+
+/* ---------- Buttons: outline primary (Receiplan) ---------- */
+.btn-outline-primary {
+  border-color: rgba(197, 144, 248, 0.65); /* violet from gradient */
+  color: var(--rp-text);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.btn-outline-primary:hover {
+  border-color: rgba(197, 144, 248, 0.85);
+  background: var(--rp-gradient-soft);
+  color: var(--rp-text);
+  text-decoration: none;
+}
+
+.btn-outline-primary:active {
+  background: rgba(197, 144, 248, 0.22);
+  border-color: rgba(197, 144, 248, 0.95);
+  color: var(--rp-text);
+}
+
+.btn-outline-primary:focus {
+  box-shadow: var(--rp-focus);
+}
+
+/* Optional: disabled state consistency */
+.btn-outline-primary:disabled,
+.btn-outline-primary.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* ---------- Buttons: outline success (Receiplan) ---------- */
+.btn-outline-success {
+  border-color: rgba(47, 184, 167, 0.65); /* --rp-success */
+  color: var(--rp-text);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.btn-outline-success:hover {
+  border-color: rgba(47, 184, 167, 0.85);
+  background: rgba(47, 184, 167, 0.18);
+  color: var(--rp-text);
+  text-decoration: none;
+}
+
+.btn-outline-success:active {
+  background: rgba(47, 184, 167, 0.28);
+  border-color: rgba(47, 184, 167, 0.95);
+  color: var(--rp-text);
+}
+
+.btn-outline-success:focus {
+  box-shadow: 0 0 0 .25rem rgba(47, 184, 167, 0.35);
+}
+
+/* Disabled state */
+.btn-outline-success:disabled,
+.btn-outline-success.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* ---------- Buttons: outline danger (Receiplan) ---------- */
+.btn-outline-danger {
+  border-color: #EB8994; /* --rp-danger */
+  color: #EB8994;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.btn-outline-danger:hover {
+  border-color: #E46170;
+  background: #EB8994;
+  color: #fff;
+  text-decoration: none;
+}
+
+.btn-outline-danger:active {
+  background: rgba(239, 107, 123, 0.28);
+  border-color: rgba(239, 107, 123, 0.95);
+  color: var(--rp-text);
+}
+
+.btn-outline-danger:focus {
+  box-shadow: 0 0 0 .25rem rgba(239, 107, 123, 0.35);
+}
+
+/* Disabled state */
+.btn-outline-danger:disabled,
+.btn-outline-danger.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+
+/* Secondary / outline */
+.btn-outline-secondary {
+  border-color: rgba(33, 38, 96, 0.20);
+  color: var(--rp-text);
+  background: rgba(255,255,255,0.6);
+}
+.btn-outline-secondary:hover {
+  background: rgba(255,255,255,0.9);
+  border-color: rgba(33, 38, 96, 0.28);
+  color: var(--rp-text);
+}
+
+/* Small buttons */
+.btn-sm {
+  padding: .4rem .75rem;
+}
+
+/* Icon button helper */
+.rp-icon-btn {
+  width: 40px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+}
+
+/* ---------- Badges ---------- */
+.badge {
+  border-radius: 999px;
+  padding: .45em .7em;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+/* Override bootstrap semantic badges */
+.text-bg-success {
+  background: #5DD4C4 !important;
+  color: #ffffff !important;
+  border: 1px solid #3DCBB8;
+}
+
+.text-bg-danger {
+  background: #EB8994 !important;
+  color: #ffffff !important;
+  border: 1px solid #E46170;
+}
+
+.text-bg-info {
+  background: rgba(90, 167, 255, 0.16) !important;
+  color: #114a9a !important;
+  border: 1px solid rgba(90, 167, 255, 0.28);
+}
+
+.text-bg-warning {
+  background: rgba(242, 184, 75, 0.18) !important;
+  color: #7a4e00 !important;
+  border: 1px solid rgba(242, 184, 75, 0.32);
+}
+
+/* ---------- Tables ---------- */
+.table {
+  color: var(--rp-text);
+}
+
+.table thead th {
+  font-weight: 700;
+  color: var(--rp-text);
+  border-bottom: 1px solid rgba(33, 38, 96, 0.10);
+}
+
+.table-light {
+  --bs-table-bg: #E0E9FA;
+  --bs-table-color: var(--rp-text);
+}
+
+.table td, .table th {
+  border-color: rgba(33, 38, 96, 0.08);
+  padding: .8rem 1rem;
+}
+
+/* ---------- Forms ---------- */
+.form-control, .form-select {
+  border-radius: 14px;
+  border-color: rgba(33, 38, 96, 0.16);
+  background: rgba(255,255,255,0.85);
+  color: var(--rp-text);
+}
+
+.form-control:focus, .form-select:focus {
+  border-color: rgba(140, 239, 242, 0.85);
+  box-shadow: var(--rp-focus);
+}
+
+.form-label {
+  color: var(--rp-text-2);
+  font-weight: 600;
+}
+
+/* ---------- Alerts ---------- */
+.alert {
+  border-radius: var(--rp-radius-lg);
+  border: 1px solid rgba(33, 38, 96, 0.10);
+  box-shadow: var(--rp-shadow-soft);
+}
+
+/* ---------- Muted text tweaks ---------- */
+.text-muted {
+  color: var(--rp-text-muted) !important;
+}
+
+/* ---------- Utility: subtle section header ---------- */
+.rp-section-title {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  font-weight: 800;
+  color: var(--rp-text);
+}
+.rp-section-title .rp-pill {
+  background: rgba(255,255,255,0.65);
+  border: 1px solid rgba(33, 38, 96, 0.10);
+  border-radius: 999px;
+  padding: .2rem .6rem;
+  color: var(--rp-text-2);
+}
+
+/* ---------- Font Awesome alignment ---------- */
+.btn i[class^="fa-"],
+.btn i[class*=" fa-"] {
+  line-height: 1;
+}
+
+/* Icon-only buttons */
+.rp-icon-btn i {
+  font-size: 0.95rem;
+}

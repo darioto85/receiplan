@@ -580,8 +580,8 @@ export default class extends Controller {
     if (!this.hasRecordButtonTarget) return;
 
     this.recordButtonTarget.textContent = isRecording ? "⏹️ Stop" : "🎙️ Enregistrer";
-    this.recordButtonTarget.classList.toggle("btn-danger", isRecording);
-    this.recordButtonTarget.classList.toggle("btn-primary", !isRecording);
+    this.recordButtonTarget.classList.toggle("btn-outline-danger", isRecording);
+    this.recordButtonTarget.classList.toggle("btn-danger", !isRecording);
     this.recordButtonTarget.setAttribute("aria-pressed", isRecording ? "true" : "false");
   }
 

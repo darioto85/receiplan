@@ -1,218 +1,226 @@
-{# templates/recipe/index.html.twig #}
 {% extends 'base.html.twig' %}
 
 {% block title %}Recettes{% endblock %}
 
 {% block body %}
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h4 mb-0">📖 Recettes</h1>
+  <div class="rp-page">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1 class="h4 mb-0">📖 Recettes</h1>
 
-    <a href="{{ path('app_recipe_new') }}" class="btn btn-primary">
-      ➕ Nouvelle recette
-    </a>
-  </div>
-
-  {# =========================
-     ✅ Recettes faisables
-     ========================= #}
-  <div class="d-flex align-items-center gap-2 mb-2">
-    <h2 class="h6 mb-0">✅ Faisables</h2>
-    <span class="badge text-bg-success">{{ feasible|length }}</span>
-  </div>
-
-  {% if feasible|length == 0 %}
-    <div class="card shadow-sm mb-4">
-      <div class="card-body text-muted">
-        Aucune recette faisable avec ton stock actuel.
-      </div>
+      <a href="{{ path('app_recipe_new') }}" class="btn btn-primary">
+        ➕ Nouvelle recette
+      </a>
     </div>
-  {% else %}
-    <div class="d-grid gap-3 mb-4">
-      {% for view in feasible %}
-        {% set recipe = view.recipe %}
 
-        <div class="card shadow-sm">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <div class="d-flex align-items-center gap-2">
-              <strong>{{ recipe.name }}</strong>
-              <span class="badge text-bg-success">OK</span>
-            </div>
+    {# =========================
+       ✅ Recettes faisables
+       ========================= #}
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <h2 class="h6 mb-0">✅ Faisables</h2>
+      <span class="badge text-bg-success">{{ feasible|length }}</span>
+    </div>
 
-            <div class="d-flex gap-2">
-              <a
-                href="{{ path('app_recipe_edit', { id: recipe.id }) }}"
-                class="btn btn-sm btn-outline-secondary"
-                title="Modifier"
-              >
-                ✏️
-              </a>
-
-              {{ include('recipe/_delete_form.html.twig', { recipe }) }}
-            </div>
-          </div>
-
-          <div class="card-body p-0">
-            {% if view.items|length == 0 %}
-              <div class="p-3 text-muted">
-                Aucun ingrédient.
-              </div>
-            {% else %}
-              <div class="table-responsive">
-                <table class="table mb-0 align-middle">
-                  <thead class="table-light">
-                    <tr>
-                      <th>Ingrédient</th>
-                      <th class="text-end">Besoin</th>
-                      <th class="text-end">Stock</th>
-                      <th class="text-end">Statut</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for item in view.items %}
-                      {% set ing = item.ingredient %}
-                      {% set unit = item.unit ?? '' %}
-
-                      <tr>
-                        <td>
-                          {{ ing ? ing.name : 'Ingrédient supprimé' }}
-                        </td>
-
-                        <td class="text-end">
-                          {% if item.needed is null %}
-                            <span class="text-muted">—</span>
-                          {% else %}
-                            {{ item.needed }} {{ unit }}
-                          {% endif %}
-                        </td>
-
-                        <td class="text-end">
-                          <span class="text-success fw-semibold">
-                            {{ item.stock }}
-                          </span>
-                          {{ unit }}
-                        </td>
-
-                        <td class="text-end">
-                          <span class="badge text-bg-success">OK</span>
-                        </td>
-                      </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
-            {% endif %}
-          </div>
+    {% if feasible|length == 0 %}
+      <div class="card mb-4">
+        <div class="card-body text-muted">
+          Aucune recette faisable avec ton stock actuel.
         </div>
-      {% endfor %}
-    </div>
-  {% endif %}
-
-  {# =========================
-     ❌ Recettes non faisables
-     ========================= #}
-  <div class="d-flex align-items-center gap-2 mb-2">
-    <h2 class="h6 mb-0">❌ Stock insuffisant</h2>
-    <span class="badge text-bg-danger">{{ insufficient|length }}</span>
-  </div>
-
-  {% if insufficient|length == 0 %}
-    <div class="card shadow-sm">
-      <div class="card-body text-muted">
-        Super : aucune recette en manque.
       </div>
-    </div>
-  {% else %}
-    <div class="d-grid gap-3">
-      {% for view in insufficient %}
-        {% set recipe = view.recipe %}
+    {% else %}
+      <div class="d-grid gap-3 mb-4">
+        {% for view in feasible %}
+          {% set recipe = view.recipe %}
 
-        <div class="card shadow-sm">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <div class="d-flex align-items-center gap-2">
-              <strong>{{ recipe.name }}</strong>
-            </div>
-
-            <div class="d-flex gap-2">
-              <a
-                href="{{ path('app_recipe_edit', { id: recipe.id }) }}"
-                class="btn btn-sm btn-outline-secondary"
-                title="Modifier"
-              >
-                ✏️
-              </a>
-
-              {{ include('recipe/_delete_form.html.twig', { recipe }) }}
-            </div>
-          </div>
-
-          <div class="card-body p-0">
-            {% if view.items|length == 0 %}
-              <div class="p-3 text-muted">
-                Aucun ingrédient.
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <div class="d-flex align-items-center gap-2">
+                <strong>{{ recipe.name }}</strong>
+                <span class="badge text-bg-success">OK</span>
               </div>
-            {% else %}
-              <div class="table-responsive">
-                <table class="table mb-0 align-middle">
-                  <thead class="table-light">
-                    <tr>
-                      <th>Ingrédient</th>
-                      <th class="text-end">Besoin</th>
-                      <th class="text-end">Stock</th>
-                      <th class="text-end">Écart</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for item in view.items %}
-                      {% set ing = item.ingredient %}
-                      {% set unit = item.unit ?? '' %}
-                      {% set isMissing = item.is_missing %}
 
+              <div class="d-flex gap-2">
+                <a
+                  href="{{ path('app_recipe_edit', { id: recipe.id }) }}"
+                  class="btn btn-sm btn-outline-secondary rp-icon-btn"
+                  title="Modifier"
+                  aria-label="Modifier"
+                >
+                 <i class="fa-solid fa-pen"></i>
+                </a>
+
+                {# NOTE: idéalement, mets la classe rp-icon-btn aussi sur le bouton delete dans le partial #}
+                {{ include('recipe/_delete_form.html.twig', { recipe }) }}
+              </div>
+            </div>
+
+            <div class="card-body p-0">
+              {% if view.items|length == 0 %}
+                <div class="p-3 text-muted">
+                  Aucun ingrédient.
+                </div>
+              {% else %}
+                <div class="table-responsive">
+                  <table class="table mb-0 align-middle">
+                    <thead class="table-light">
                       <tr>
-                        <td class="{{ isMissing ? 'text-danger fw-semibold' : '' }}">
-                          {{ ing ? ing.name : 'Ingrédient supprimé' }}
-                        </td>
+                        <th>Ingrédient</th>
+                        <th class="text-end">Besoin</th>
+                        <th class="text-end">Stock</th>
+                        <th class="text-end">Statut</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for item in view.items %}
+                        {% set ing = item.ingredient %}
+                        {% set unit = item.unitLabel
+                          ?? (item.unit is defined and item.unit ? item.unit.value : '')
+                        %}
 
-                        <td class="text-end">
-                          {% if item.needed is null %}
-                            <span class="text-muted">—</span>
-                          {% else %}
-                            <span class="{{ isMissing ? 'text-danger fw-semibold' : '' }}">
-                              {{ item.needed }} {{ unit }}
-                            </span>
-                          {% endif %}
-                        </td>
+                        <tr>
+                          <td>
+                            {{ ing ? ing.name : 'Ingrédient supprimé' }}
+                          </td>
 
-                        <td class="text-end">
-                          {% if isMissing %}
-                            <span class="text-danger fw-semibold">{{ item.stock }}</span>
-                          {% else %}
-                            <span class="text-success fw-semibold">{{ item.stock }}</span>
-                          {% endif %}
-                          {{ unit }}
-                        </td>
-
-                        <td class="text-end">
-                          {% if item.needed is null %}
-                            <span class="text-muted">—</span>
-                          {% else %}
-                            {% if isMissing %}
-                              <span class="text-danger fw-semibold">
-                                Manque {{ item.missing_amount|default(0)|round(2) }}
-                              </span>
+                          <td class="text-end">
+                            {% if item.needed is null %}
+                              <span class="text-muted">—</span>
                             {% else %}
-                              <span class="text-muted">OK</span>
+                              {{ item.needed }} {{ unit }}
                             {% endif %}
-                          {% endif %}
-                        </td>
-                      </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
-            {% endif %}
+                          </td>
+
+                          <td class="text-end">
+                            {# évite text-success de Bootstrap (trop “vert pur”), garde fw-semibold #}
+                            <span class="fw-semibold">{{ item.stock }}</span>
+                            {{ unit }}
+                          </td>
+
+                          <td class="text-end">
+                            <span class="badge text-bg-success">OK</span>
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% endif %}
+            </div>
           </div>
-        </div>
-      {% endfor %}
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {# =========================
+       ❌ Recettes non faisables
+       ========================= #}
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <h2 class="h6 mb-0">❌ Stock insuffisant</h2>
+      <span class="badge text-bg-danger">{{ insufficient|length }}</span>
     </div>
-  {% endif %}
+
+    {% if insufficient|length == 0 %}
+      <div class="card">
+        <div class="card-body text-muted">
+          Super : aucune recette en manque.
+        </div>
+      </div>
+    {% else %}
+      <div class="d-grid gap-3">
+        {% for view in insufficient %}
+          {% set recipe = view.recipe %}
+
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <div class="d-flex align-items-center gap-2">
+                <strong>{{ recipe.name }}</strong>
+                <span class="badge text-bg-danger">Manque</span>
+              </div>
+
+              <div class="d-flex gap-2">
+                <a
+                  href="{{ path('app_recipe_edit', { id: recipe.id }) }}"
+                  class="btn btn-sm btn-outline-secondary rp-icon-btn"
+                  title="Modifier"
+                  aria-label="Modifier"
+                >
+                  ✏️
+                </a>
+
+                {# NOTE: idéalement, mets la classe rp-icon-btn aussi sur le bouton delete dans le partial #}
+                {{ include('recipe/_delete_form.html.twig', { recipe }) }}
+              </div>
+            </div>
+
+            <div class="card-body p-0">
+              {% if view.items|length == 0 %}
+                <div class="p-3 text-muted">
+                  Aucun ingrédient.
+                </div>
+              {% else %}
+                <div class="table-responsive">
+                  <table class="table mb-0 align-middle">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Ingrédient</th>
+                        <th class="text-end">Besoin</th>
+                        <th class="text-end">Stock</th>
+                        <th class="text-end">Écart</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for item in view.items %}
+                        {% set ing = item.ingredient %}
+                        {% set unit = item.unitLabel
+                          ?? (item.unit is defined and item.unit ? item.unit.value : '')
+                        %}
+                        {% set isMissing = item.is_missing %}
+
+                        <tr>
+                          {# évite text-danger Bootstrap (rouge trop dur), utilise le badge + fw-semibold #}
+                          <td class="{{ isMissing ? 'fw-semibold' : '' }}">
+                            {{ ing ? ing.name : 'Ingrédient supprimé' }}
+                          </td>
+
+                          <td class="text-end">
+                            {% if item.needed is null %}
+                              <span class="text-muted">—</span>
+                            {% else %}
+                              <span class="{{ isMissing ? 'fw-semibold' : '' }}">
+                                {{ item.needed }} {{ unit }}
+                              </span>
+                            {% endif %}
+                          </td>
+
+                          <td class="text-end">
+                            <span class="{{ isMissing ? 'fw-semibold' : 'fw-semibold' }}">
+                              {{ item.stock }}
+                            </span>
+                            {{ unit }}
+                          </td>
+
+                          <td class="text-end">
+                            {% if item.needed is null %}
+                              <span class="text-muted">—</span>
+                            {% else %}
+                              {% if isMissing %}
+                                <span class="badge text-bg-danger">
+                                  Manque {{ item.missing_amount|default(0)|round(2) }} {{ unit }}
+                                </span>
+                              {% else %}
+                                <span class="badge text-bg-success">OK</span>
+                              {% endif %}
+                            {% endif %}
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
 {% endblock %}

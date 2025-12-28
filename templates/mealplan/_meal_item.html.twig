@@ -12,9 +12,6 @@
       {% endif %}
     </div>
 
-    <div class="small text-body-secondary">
-      ID repas: {{ meal.id }}
-    </div>
   </div>
 
   <div class="text-end d-flex align-items-center gap-2"
@@ -25,8 +22,8 @@
 
     {% if meal.validated %}
       <span class="badge text-bg-success">Validé</span>
-      <button type="button" class="btn btn-sm btn-outline-danger ms-2" data-action="meal-plan#cancel">
-        Annuler
+      <button type="button" class="btn btn-sm btn-outline-danger ms-2 rp-icon-btn" data-action="meal-plan#cancel">
+        <i class="fa-solid fa-arrow-rotate-left"></i>
       </button>
     {% else %}
       <button type="button" class="btn btn-sm btn-outline-success" data-action="meal-plan#validate">
@@ -35,17 +32,17 @@
 
       {# Relancer #}
       <button type="button"
-              class="btn btn-sm btn-outline-secondary"
+              class="btn btn-sm btn-outline-secondary  rp-icon-btn"
               data-controller="meal-refresh"
               data-meal-refresh-url-value="{{ path('meal_plan_refresh_ajax', { id: meal.id }) }}"
               data-meal-refresh-csrf-value="{{ csrf_token('mealplan_update_' ~ meal.id) }}"
               data-action="meal-refresh#refresh">
-        Relancer
+        <i class="fa-solid fa-arrows-rotate"></i>
       </button>
 
       {# Supprimer (picto) #}
       <button type="button"
-              class="btn btn-sm btn-outline-danger"
+              class="btn btn-sm btn-outline-danger rp-icon-btn"
               title="Supprimer"
               aria-label="Supprimer"
               data-controller="meal-delete"
@@ -53,7 +50,7 @@
               data-meal-delete-csrf-value="{{ csrf_token('mealplan_update_' ~ meal.id) }}"
               data-meal-delete-target="button"
               data-action="meal-delete#remove">
-        🗑️
+        <i class="fa-solid fa-trash"></i>
       </button>
     {% endif %}
   </div>

@@ -25,13 +25,16 @@
           {% for ingredient in ingredients %}
             <tr>
               <td>{{ ingredient.name }}</td>
-              <td>{{ ingredient.unit }}</td>
+              <td>
+                {# Enum Unit => afficher la valeur, fallback si jamais #}
+                {{ ingredient.unit is defined and ingredient.unit ? ingredient.unit.value : '' }}
+              </td>
               <td class="text-end">
                 <a
                   href="{{ path('app_ingredient_edit', { id: ingredient.id }) }}"
-                  class="btn btn-sm btn-outline-secondary"
+                  class="btn btn-sm btn-outline-secondary  rp-icon-btn"
                 >
-                  ✏️
+                 <i class="fa-solid fa-pen"></i>
                 </a>
 
                 {{ include('ingredient/_delete_form.html.twig', { ingredient }) }}
