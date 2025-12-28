@@ -29,9 +29,15 @@ export default class extends Controller {
     this.loadingUp = false;
     this.loadingDown = false;
 
+    // ✅ anti double load
+    this.loadedWeeks = new Set();
+    this.loadingWeeks = new Set();
+
+    // ✅ s’assurer que initialStart est bien stable (format YYYY-MM-DD)
     this.earliestStart = this.initialStartValue;
     this.latestStart = this.initialStartValue;
 
+    // ✅ charge d'abord la semaine courante, puis seulement après on observe
     this.#showLoading(true);
     this.#loadWeek(this.initialStartValue, "append")
       .catch((e) => {
@@ -40,31 +46,8 @@ export default class extends Controller {
       })
       .finally(() => {
         this.#showLoading(false);
+        this.#setupObservers();
       });
-
-    // ✅ IMPORTANT : root = scroller (scroll interne)
-    const rootEl = this.scrollerTarget;
-
-    this.topObserver = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          this.#loadPreviousWeek();
-        }
-      },
-      { root: rootEl, threshold: 0.1 }
-    );
-
-    this.bottomObserver = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          this.#loadNextWeek();
-        }
-      },
-      { root: rootEl, threshold: 0.1 }
-    );
-
-    this.topObserver.observe(this.topSentinelTarget);
-    this.bottomObserver.observe(this.bottomSentinelTarget);
   }
 
   disconnect() {
@@ -72,13 +55,33 @@ export default class extends Controller {
     this.bottomObserver?.disconnect();
   }
 
+  #setupObservers() {
+    const rootEl = this.scrollerTarget;
+
+    const opts = {
+      root: rootEl,
+      threshold: 0.1,
+      rootMargin: "250px 0px 250px 0px",
+    };
+
+    this.topObserver = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) this.#loadPreviousWeek();
+    }, opts);
+
+    this.bottomObserver = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) this.#loadNextWeek();
+    }, opts);
+
+    this.topObserver.observe(this.topSentinelTarget);
+    this.bottomObserver.observe(this.bottomSentinelTarget);
+  }
+
   async #loadPreviousWeek() {
     if (this.loadingUp) return;
     this.loadingUp = true;
 
-    const prev = this.#addDays(this.earliestStart, -7);
+    const prev = this.#addDaysUtc(this.earliestStart, -7);
 
-    // ✅ recalage par rapport au scroller (pas window)
     const scroller = this.scrollerTarget;
     const beforeHeight = scroller.scrollHeight;
     const beforeTop = scroller.scrollTop;
@@ -96,7 +99,7 @@ export default class extends Controller {
     if (this.loadingDown) return;
     this.loadingDown = true;
 
-    const next = this.#addDays(this.latestStart, 7);
+    const next = this.#addDaysUtc(this.latestStart, 7);
     await this.#loadWeek(next, "append");
     this.latestStart = next;
 
@@ -104,9 +107,17 @@ export default class extends Controller {
   }
 
   async #loadWeek(start, mode) {
+    // ✅ déjà dans le DOM
     if (this.element.querySelector(`[data-week-start="${start}"]`)) {
+      this.loadedWeeks.add(start);
       return;
     }
+
+    // ✅ déjà chargé / en cours
+    if (this.loadedWeeks.has(start) || this.loadingWeeks.has(start)) {
+      return;
+    }
+    this.loadingWeeks.add(start);
 
     const url = new URL(this.weekUrlValue, window.location.origin);
     url.searchParams.set("start", start);
@@ -121,12 +132,14 @@ export default class extends Controller {
     } catch (e) {
       console.error("[agenda] network error", e);
       this.#showError("Erreur réseau lors du chargement du planning.");
+      this.loadingWeeks.delete(start);
       return;
     }
 
     if (!res.ok) {
       console.error("[agenda] fetch failed", res.status);
       this.#showError("Erreur serveur lors du chargement du planning.");
+      this.loadingWeeks.delete(start);
       return;
     }
 
@@ -138,14 +151,30 @@ export default class extends Controller {
     if (!node) {
       console.error("[agenda] no node parsed from response");
       this.#showError("Réponse invalide du serveur.");
+      this.loadingWeeks.delete(start);
       return;
     }
 
-    if (mode === "prepend") {
-      this.listTarget.prepend(node);
-    } else {
-      this.listTarget.append(node);
-    }
+    if (mode === "prepend") this.listTarget.prepend(node);
+    else this.listTarget.append(node);
+
+    this.loadingWeeks.delete(start);
+    this.loadedWeeks.add(start);
+
+    // ✅ bornes recalculées depuis le DOM (les week-start viennent du backend, donc fiables)
+    this.#recomputeBoundsFromDom();
+  }
+
+  #recomputeBoundsFromDom() {
+    const weeks = Array.from(this.element.querySelectorAll("[data-week-start]"))
+      .map((el) => el.getAttribute("data-week-start"))
+      .filter(Boolean);
+
+    if (weeks.length === 0) return;
+
+    weeks.sort(); // YYYY-MM-DD -> tri OK
+    this.earliestStart = weeks[0];
+    this.latestStart = weeks[weeks.length - 1];
   }
 
   #showLoading(show) {
@@ -159,9 +188,15 @@ export default class extends Controller {
     this.errorTarget.classList.remove("d-none");
   }
 
-  #addDays(yyyyMmDd, days) {
-    const d = new Date(yyyyMmDd + "T00:00:00");
-    d.setDate(d.getDate() + days);
-    return d.toISOString().slice(0, 10);
+  // ✅ FIX CRITIQUE : calcul date en UTC + format manuel (pas de toISOString().slice)
+  #addDaysUtc(yyyyMmDd, days) {
+    const [y, m, d] = yyyyMmDd.split("-").map((x) => parseInt(x, 10));
+    const dt = new Date(Date.UTC(y, m - 1, d)); // UTC midnight
+    dt.setUTCDate(dt.getUTCDate() + days);
+
+    const yy = dt.getUTCFullYear();
+    const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(dt.getUTCDate()).padStart(2, "0");
+    return `${yy}-${mm}-${dd}`;
   }
 }

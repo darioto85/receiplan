@@ -18,8 +18,15 @@
         {% set isPast = day < today %}
         {% set meals = planningByDate[dayKey] ?? [] %}
 
+        
+        {% set dayClasses = [
+          'list-group-item',
+          isPast ? 'rp-day-past' : '',
+          isToday ? 'rp-day-today' : ''
+        ]|filter(v => v != '')|join(' ') %}
+
         <div
-          class="list-group-item px-0"
+          class="{{ dayClasses }}"
           data-controller="day-propose"
           data-day-propose-url-value="{{ path('meal_plan_propose_ajax') }}"
           data-day-propose-date-value="{{ dayKey }}"
@@ -27,16 +34,8 @@
           data-day-key="{{ dayKey }}"
         >
           <div class="d-flex justify-content-between align-items-center mb-2">
-            <div class="fw-semibold">
-              {{ day|date('l d/m/Y') }}
-
-              {% if isToday %}
-                <span class="badge text-bg-primary ms-2">Aujourd’hui</span>
-              {% elseif isPast %}
-                <span class="badge text-bg-secondary ms-2">Passé</span>
-              {% else %}
-                <span class="badge text-bg-success ms-2">À venir</span>
-              {% endif %}
+            <div class="{{ isToday ? 'fw-semibold rp-day-title' : 'fw-semibold' }}">
+              {{ day|date('l d/m') }}
             </div>
 
             <div class="d-flex align-items-center gap-2">
@@ -51,7 +50,7 @@
                 data-action="day-propose#propose"
                 data-day-propose-target="button"
               >
-                <i class="fa-solid fa-wand-magic-sparkles"></i> Proposer
+                <i class="fa-solid fa-wand-magic-sparkles me-2"></i> Proposer
               </button>
             </div>
           </div>

@@ -88,6 +88,27 @@ class Ingredient
         return $this->unit;
     }
 
+    public function getUnitValue(): string
+    {
+        return $this->unit->value;
+    }
+
+    public function getUnitLabel(): string
+    {
+        // si tu veux un affichage user-friendly
+        return match ($this->unit) {
+            \App\Enum\Unit::G => 'g',
+            \App\Enum\Unit::KG => 'kg',
+            \App\Enum\Unit::ML => 'ml',
+            \App\Enum\Unit::L => 'L',
+            \App\Enum\Unit::PIECE => 'pièce',
+            \App\Enum\Unit::POT => 'pot',
+            \App\Enum\Unit::BOITE => 'boîte',
+            \App\Enum\Unit::SACHET => 'sachet',
+            \App\Enum\Unit::TRANCHE => 'tranche',
+        };
+    }
+
     public function setUnit(Unit $unit): static
     {
         $this->unit = $unit;

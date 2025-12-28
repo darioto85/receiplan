@@ -356,3 +356,164 @@ a:hover {
 .rp-icon-btn i {
   font-size: 0.95rem;
 }
+
+/* ---------- Meal plan week day states ---------- */
+.rp-day-past {
+  opacity: 0.5;
+}
+
+.rp-day-today {
+  border: 1px solid var(--rp-text) !important;
+  border-radius: 10px;
+  padding: 15px;
+}
+
+.rp-day-title {
+  font-size: 1.05rem; /* just a bit bigger */
+}
+
+/* ---------- Header (top) ---------- */
+.rp-header {
+  background: rgba(255, 255, 255, 0.70);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(33, 38, 96, 0.10);
+  box-shadow: 0 10px 30px rgba(33, 38, 96, 0.06);
+}
+
+.rp-brand-mark {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--rp-gradient-soft);
+  border: 1px solid rgba(33, 38, 96, 0.08);
+}
+
+.rp-brand-name {
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: var(--rp-text);
+}
+
+/* ---------- Desktop top nav pills ---------- */
+.rp-topnav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 10px 12px;
+  border-radius: 999px;
+
+  color: var(--rp-text-2);
+  text-decoration: none;
+
+  background: rgba(255,255,255,0.55);
+  border: 1px solid rgba(33, 38, 96, 0.08);
+}
+
+.rp-topnav-link:hover {
+  background: var(--rp-gradient-soft);
+  color: var(--rp-text);
+  text-decoration: none;
+}
+
+.rp-topnav-link.is-active {
+  background: var(--rp-gradient-soft);
+  border-color: rgba(33, 38, 96, 0.14);
+  color: var(--rp-text);
+  font-weight: 800;
+}
+
+.rp-topnav-link-assistant.is-active {
+  background: var(--rp-gradient);
+  border: none;
+  color: var(--rp-text);
+}
+
+/* Optional: CTA size harmony */
+.rp-header-cta {
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+
+
+/* ---------- Mobile bottom navigation (app-like tabs) ---------- */
+.rp-bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+
+  padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px);
+
+  border-top: 1px solid rgba(33, 38, 96, 0.10);
+  box-shadow: 0 -10px 30px rgba(33, 38, 96, 0.08);
+
+  z-index: 1100;
+}
+
+/* each tab */
+.rp-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+
+  padding: 10px 6px;
+  border-radius: 16px;
+
+  color: var(--rp-text-2);
+  text-decoration: none;
+
+  line-height: 1;
+  user-select: none;
+}
+
+.rp-tab i {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.rp-tab span {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+/* hover/press without layout shift */
+.rp-tab:active {
+  background: rgba(33, 38, 96, 0.06);
+}
+
+/* active state */
+.rp-tab.is-active {
+  background: var(--rp-gradient-soft);
+  border: 1px solid rgba(33, 38, 96, 0.08);
+  color: var(--rp-text);
+}
+
+/* Assistant highlighted (even inactive) */
+.rp-tab-assistant {
+  color: var(--rp-text);
+}
+
+.rp-tab-assistant.is-active {
+  background: var(--rp-gradient);
+  color: var(--rp-text);
+  border: none;
+}
+
+/* Make room for the fixed bottom bar */
+body {
+  padding-bottom: 88px; /* adjust if needed */
+}

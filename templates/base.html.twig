@@ -13,14 +13,14 @@
     >
 
     <link
-  rel="stylesheet"
-  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
-  crossorigin="anonymous"
-  referrerpolicy="no-referrer"
-/>
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
 
     {% block stylesheets %}
-    <link rel="stylesheet" href="{{ asset('styles/theme.css') }}">
+      <link rel="stylesheet" href="{{ asset('styles/theme.css') }}">
     {% endblock %}
 
     {% block javascripts %}
@@ -29,94 +29,125 @@
   </head>
 
   <body>
-    <!-- Navbar mobile -->
-    <nav class="navbar navbar-dark bg-dark d-lg-none">
-      <div class="container-fluid">
-        <button
-          class="navbar-toggler"
-          type="button"
-          data-bs-toggle="offcanvas"
-          data-bs-target="#sidebar"
-        >
-          <span class="navbar-toggler-icon"></span>
-        </button>
+    {# ==========================================================
+       HEADER (Desktop: top nav) + (Mobile: compact top header)
+       ========================================================== #}
+    <header class="rp-header sticky-top">
+      <div class="container">
+        <div class="d-flex align-items-center justify-content-between gap-3 py-2">
 
-        <span class="navbar-brand mb-0 h1">🍽️ Receiplan</span>
+          {# Brand #}
+          <a href="{{ path('meal_plan_index') }}" class="rp-brand d-flex align-items-center gap-2 text-decoration-none">
+            <span class="rp-brand-mark" aria-hidden="true">🍽️</span>
+            <span class="rp-brand-name">Receiplan</span>
+          </a>
+
+          {# Desktop nav #}
+          <nav class="rp-topnav d-none d-lg-flex align-items-center gap-2" aria-label="Navigation principale">
+            <a
+              href="{{ path('meal_plan_index') }}"
+              class="rp-topnav-link {{ app.request.attributes.get('_route') starts with 'meal_plan' ? 'is-active' : '' }}"
+            >
+              <i class="fa-solid fa-calendar-days me-2"></i>
+              Planning
+            </a>
+
+            <a
+              href="{{ path('stock_index') }}"
+              class="rp-topnav-link {{ app.request.attributes.get('_route') starts with 'stock_' ? 'is-active' : '' }}"
+            >
+              <i class="fa-solid fa-basket-shopping me-2"></i>
+              Stock
+            </a>
+
+            <a
+              href="{{ path('app_recipe_index') }}"
+              class="rp-topnav-link {{ app.request.attributes.get('_route') starts with 'app_recipe' ? 'is-active' : '' }}"
+            >
+              <i class="fa-solid fa-book-open me-2"></i>
+              Recettes
+            </a>
+
+            <a
+              href="{{ path('app_ingredient_index') }}"
+              class="rp-topnav-link {{ app.request.attributes.get('_route') starts with 'app_ingredient' ? 'is-active' : '' }}"
+            >
+              <i class="fa-solid fa-clipboard-list me-2"></i>
+              Ingrédients
+            </a>
+
+            <a
+              href="{{ path('voice_index') }}"
+              class="rp-topnav-link rp-topnav-link-assistant {{ app.request.attributes.get('_route') starts with 'voice' ? 'is-active' : '' }}"
+            >
+              <i class="fa-solid fa-wand-magic-sparkles me-2"></i>
+              Assistant
+            </a>
+          </nav>
+
+          {# Desktop actions (right) #}
+          <div class="d-none d-lg-flex align-items-center gap-2">
+            {# CTA contextual (optionnel): tu peux remplacer par un block Twig par page #}
+            {% block header_cta %}{% endblock %}
+
+            <a href="{{ path('voice_index') }}"
+               class="btn btn-sm btn-primary rp-header-cta">
+              <i class="fa-solid fa-wand-magic-sparkles me-2"></i>
+              Aide
+            </a>
+          </div>
+
+          {# Mobile: right side (optional quick action) #}
+          <div class="d-lg-none d-flex align-items-center gap-2">
+            <a href="{{ path('voice_index') }}"
+               class="btn btn-sm btn-primary">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </a>
+          </div>
+
+        </div>
       </div>
+    </header>
+
+    {# Main content #}
+    <main class="container p-4 min-vh-100">
+      {% block body %}{% endblock %}
+    </main>
+
+    {# Mobile bottom navigation (shown only on small screens) #}
+    <nav class="rp-bottom-nav d-lg-none" aria-label="Navigation principale">
+      <a href="{{ path('meal_plan_index') }}"
+         class="rp-tab {{ app.request.attributes.get('_route') starts with 'meal_plan' ? 'is-active' : '' }}">
+        <i class="fa-solid fa-calendar-days"></i>
+        <span>Planning</span>
+      </a>
+
+      <a href="{{ path('stock_index') }}"
+         class="rp-tab {{ app.request.attributes.get('_route') starts with 'stock_' ? 'is-active' : '' }}">
+        <i class="fa-solid fa-basket-shopping"></i>
+        <span>Stock</span>
+      </a>
+
+      <a href="{{ path('app_recipe_index') }}"
+         class="rp-tab {{ app.request.attributes.get('_route') starts with 'app_recipe' ? 'is-active' : '' }}">
+        <i class="fa-solid fa-book-open"></i>
+        <span>Recettes</span>
+      </a>
+
+      <a href="{{ path('app_ingredient_index') }}"
+         class="rp-tab {{ app.request.attributes.get('_route') starts with 'app_ingredient' ? 'is-active' : '' }}">
+        <i class="fa-solid fa-clipboard-list"></i>
+        <span>Ingrédients</span>
+      </a>
+
+      <a href="{{ path('voice_index') }}"
+         class="rp-tab rp-tab-assistant {{ app.request.attributes.get('_route') starts with 'voice' ? 'is-active' : '' }}">
+        <i class="fa-solid fa-wand-magic-sparkles"></i>
+        <span>Assistant</span>
+      </a>
     </nav>
-
-    <div class="d-flex">
-      <!-- Sidebar -->
-<div
-  class="offcanvas-lg offcanvas-start bg-dark text-white"
-  tabindex="-1"
-  id="sidebar"
->
-  <div class="offcanvas-header d-lg-none">
-    <h5 class="offcanvas-title">🍽️ Receiplan</h5>
-    <button
-      type="button"
-      class="btn-close btn-close-white"
-      data-bs-dismiss="offcanvas"
-    ></button>
-  </div>
-
-  <div class="offcanvas-body p-0">
-    <nav class="nav flex-column p-3">
-
-      <a
-        class="nav-link text-white {% if app.request.attributes.get('_route') starts with 'app_recipe' %}active fw-bold{% endif %}"
-        href="{{ path('app_recipe_index') }}"
-      >
-        📖 Recettes
-      </a>
-
-      <a
-        class="nav-link text-white {% if app.request.attributes.get('_route') starts with 'app_ingredient' %}active fw-bold{% endif %}"
-        href="{{ path('app_ingredient_index') }}"
-      >
-        🧂 Ingrédients
-      </a>
-
-      <a
-        class="nav-link text-white {% if app.request.attributes.get('_route') starts with 'stock_' %}active fw-bold{% endif %}"
-        href="{{ path('stock_index') }}"
-      >
-        🧺 Stock
-      </a>
-
-      {# 👉 Nouveau lien Planning #}
-      <a
-        class="nav-link text-white {% if app.request.attributes.get('_route') starts with 'meal_plan' %}active fw-bold{% endif %}"
-        href="{{ path('meal_plan_index') }}"
-      >
-        📅 Planning
-      </a>
-
-      <hr class="border-secondary my-2">
-
-      <a
-        class="nav-link text-white {% if app.request.attributes.get('_route') starts with 'voice_' %}active fw-bold{% endif %}"
-        href="{{ path('voice_index') }}"
-      >
-        🎙️🧠 Assistant
-      </a>
-
-    </nav>
-  </div>
-
-</div>
-
-
-      <!-- Main content -->
-      <main class="flex-fill container p-4 min-vh-100">
-        {% block body %}{% endblock %}
-      </main>
-    </div>
 
     <!-- Bootstrap JS -->
-    <script
-      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   </body>
 </html>
