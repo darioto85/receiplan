@@ -110,8 +110,10 @@
     </header>
 
     {# Main content #}
-    <main class="container p-4 min-vh-100">
-      {% block body %}{% endblock %}
+    <main class="container min-vh-100">
+      <div class="rp-page">
+        {% block body %}{% endblock %}
+      </div>
     </main>
 
     {# Mobile bottom navigation (shown only on small screens) #}

@@ -9,6 +9,7 @@ import AgendaController from './controllers/agenda_controller.js';
 import DayProposeController from './controllers/day_propose_controller.js';
 import MealRefreshController from './controllers/meal_refresh_controller.js';
 import MealDeleteController from './controllers/meal_delete_controller.js';
+import TicketScanController from './controllers/ticket_scan_controller.js';
 
 const app = startStimulusApp();
 app.register('collection', CollectionController);
@@ -21,3 +22,4 @@ app.register('agenda', AgendaController);
 app.register('day-propose', DayProposeController);
 app.register('meal-refresh', MealRefreshController);
 app.register('meal-delete', MealDeleteController);
+app.register('ticket-scan', TicketScanController);

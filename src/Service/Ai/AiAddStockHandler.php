@@ -4,7 +4,6 @@ namespace App\Service\Ai;
 
 use App\Entity\User;
 use App\Entity\UserIngredient;
-use App\Entity\Ingredient;
 use App\Service\AiIngredientNormalizer;
 use App\Service\IngredientResolver;
 use Doctrine\ORM\EntityManagerInterface;
@@ -24,7 +23,7 @@ final class AiAddStockHandler
      *     name:string,
      *     quantity:float|null,
      *     quantity_raw:string|null,
-     *     unit:('g'|'kg'|'ml'|'l'|'piece'|null),
+     *     unit:('g'|'kg'|'ml'|'l'|'piece'|'pack'|null),
      *     unit_raw:string|null,
      *     notes:string|null,
      *     confidence:float
@@ -43,10 +42,18 @@ final class AiAddStockHandler
         if (!is_array($items)) {
             throw new \InvalidArgumentException('payload.items manquant.');
         }
-        
+
         $globalNeedsConfirmation = false;
         $warningsByIndex = [];
         $updated = 0;
+
+        /**
+         * Cache in-memory pour éviter de créer 2 UserIngredient identiques
+         * dans la même requête (surtout quand Ingredient est nouveau et n’a pas encore d’id).
+         *
+         * @var array<string, UserIngredient>
+         */
+        $userIngredientCache = [];
 
         foreach ($items as $idx => $item) {
             if (!is_array($item)) {
@@ -54,55 +61,68 @@ final class AiAddStockHandler
             }
 
             $norm = $this->normalizer->normalize($item);
-            if ($norm['needs_confirmation']) {
+
+            if (!empty($norm['needs_confirmation'])) {
                 $globalNeedsConfirmation = true;
             }
-            if (!empty($norm['warnings'])) {
-                $warningsByIndex[] = ['index' => (int)$idx, 'warnings' => $norm['warnings']];
+            if (!empty($norm['warnings']) && is_array($norm['warnings'])) {
+                $warningsByIndex[] = ['index' => (int) $idx, 'warnings' => $norm['warnings']];
             }
 
-            $ingName = trim((string)$norm['ingredient']['name']);
+            $ingName = trim((string) ($norm['ingredient']['name'] ?? ''));
             if ($ingName === '') {
                 $globalNeedsConfirmation = true;
-                $warningsByIndex[] = ['index' => (int)$idx, 'warnings' => ['empty_name']];
+                $warningsByIndex[] = ['index' => (int) $idx, 'warnings' => ['empty_name']];
                 continue;
             }
 
-            $quantity = $norm['ingredient']['quantity'];
-            $unit = $norm['ingredient']['unit'];
+            $quantity = $norm['ingredient']['quantity'] ?? null;
+            $unit = $norm['ingredient']['unit'] ?? null;
 
-            // Si quantity inconnue, on ne modifie pas le stock (ou on met +1 pièce ?)
-            // Ici: on ne touche pas, mais on force confirmation.
             if ($quantity === null) {
                 $globalNeedsConfirmation = true;
-                $warningsByIndex[] = ['index' => (int)$idx, 'warnings' => ['missing_quantity']];
+                $warningsByIndex[] = ['index' => (int) $idx, 'warnings' => ['missing_quantity']];
                 continue;
             }
 
-            $ingredient = $this->ingredientResolver->resolveOrCreate($ingName, $unit);
-            $ingredient->setUser($user);
+            // ✅ Ingredient user-aware + cache anti-doublons (via IngredientResolver)
+            $ingredient = $this->ingredientResolver->resolveOrCreate(
+                $user,
+                $ingName,
+                is_string($unit) ? $unit : null
+            );
 
-            /** @var UserIngredient|null $ui */
-            $ui = $this->em->getRepository(UserIngredient::class)->findOneBy([
-                'user' => $user,
-                'ingredient' => $ingredient,
-            ]);
+            // ✅ Clé de cache UserIngredient : id si dispo, sinon instance (spl_object_id)
+            $ingId = method_exists($ingredient, 'getId') ? $ingredient->getId() : null;
+            $uiKey = $ingId ? ('id:' . $ingId) : ('obj:' . spl_object_id($ingredient));
 
-            if (!$ui) {
-                $ui = new UserIngredient();
-                $ui->setUser($user);
-                $ui->setIngredient($ingredient);
+            if (isset($userIngredientCache[$uiKey])) {
+                $ui = $userIngredientCache[$uiKey];
+            } else {
+                // Si l’ingredient existe déjà en DB (id non null), on peut tenter un findOneBy
+                $ui = null;
 
-                // Si ton UserIngredient a une notion d'unité, adapte ici
-                // if (method_exists($ui, 'setUnit')) { $ui->setUnit($unit); }
+                if ($ingId !== null) {
+                    /** @var UserIngredient|null $ui */
+                    $ui = $this->em->getRepository(UserIngredient::class)->findOneBy([
+                        'user' => $user,
+                        'ingredient' => $ingredient,
+                    ]);
+                }
 
-                $ui->setQuantity(0.0);
+                if (!$ui) {
+                    $ui = new UserIngredient();
+                    $ui->setUser($user);
+                    $ui->setIngredient($ingredient);
+                    $ui->setQuantity(0.0);
+                    $this->em->persist($ui);
+                }
 
-                $this->em->persist($ui);
+                $userIngredientCache[$uiKey] = $ui;
             }
 
-            // Incrément
-            $ui->setQuantity((float)$ui->getQuantity() + (float)$quantity);
+            // Incrément stock
+            $ui->setQuantity((float) $ui->getQuantity() + (float) $quantity);
             $updated++;
 
             if ($unit === null) {

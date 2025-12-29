@@ -3,10 +3,17 @@
 {% block title %}Stock{% endblock %}
 
 {% block body %}
-<div class="container py-4">
+<div class="py-4">
   <div class="d-flex align-items-center justify-content-between mb-3">
-    <h1 class="h3 mb-0">Mon stock</h1>
-  </div>
+  <h1 class="h3 mb-0">Mon stock</h1>
+
+  <a href="{{ path('assistant') }}"
+     class="btn btn-outline-primary d-flex align-items-center gap-2">
+    <i class="fa-solid fa-receipt"></i>
+    <span class="d-none d-sm-inline">Ajouter via ticket</span>
+  </a>
+</div>
+
 
   {% for label, messages in app.flashes %}
     {% for message in messages %}

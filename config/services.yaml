@@ -30,3 +30,8 @@ services:
       arguments:
         $openAiApiKey: '%env(OPENAI_API_KEY)%'
         $model: 'whisper-1'
+
+  App\Service\AiTicketParser:
+    arguments:
+      $openAiApiKey: '%env(OPENAI_API_KEY)%'
+      $model: 'gpt-4.1-mini'

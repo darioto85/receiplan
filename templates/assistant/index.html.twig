@@ -1,0 +1,93 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Assistant — Scanner un ticket{% endblock %}
+
+{% block body %}
+<div class="container py-3"
+     data-controller="ticket-scan"
+     data-ticket-scan-upload-url-value="{{ path('api_ai_ticket_parse')|default('') }}"
+     data-ticket-scan-apply-url-value="{{ path('api_ai_ticket_apply')|default('') }}">
+
+  <div class="mb-3">
+    <h1 class="h4 mb-1 text-primary">Scanner un ticket</h1>
+    <div class="small text-muted">
+      Prends une photo ou importe une image pour ajouter tes courses au stock.
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <label class="form-label fw-semibold mb-2">
+        Photo du ticket
+      </label>
+
+      <input
+        type="file"
+        class="form-control"
+        accept="image/*"
+        capture="environment"
+        data-ticket-scan-target="fileInput"
+      >
+
+      <div class="mt-3 d-none" data-ticket-scan-target="previewWrapper">
+        <div class="small text-muted mb-2">Aperçu</div>
+        <img
+          class="img-fluid rounded-3 border"
+          alt="Aperçu du ticket"
+          data-ticket-scan-target="previewImage"
+        >
+      </div>
+
+      <div class="mt-3 d-flex gap-2">
+        <button type="button"
+                class="btn btn-primary flex-grow-1"
+                disabled
+                data-ticket-scan-target="analyzeButton"
+                data-action="ticket-scan#analyze">
+          <i class="fa-solid fa-camera me-1"></i>
+          Analyser le ticket
+        </button>
+
+        <button type="button"
+                class="btn btn-outline-secondary"
+                disabled
+                data-ticket-scan-target="resetButton"
+                data-action="ticket-scan#reset">
+          <i class="fa-solid fa-rotate-right"></i>
+        </button>
+      </div>
+
+      <div class="mt-3 d-none" data-ticket-scan-target="status"></div>
+    </div>
+  </div>
+
+  <div class="mt-3 d-none" data-ticket-scan-target="results">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between">
+          <div class="fw-semibold">Articles détectés</div>
+          <button type="button"
+                  class="btn btn-success btn-sm"
+                  disabled
+                  data-ticket-scan-target="applyButton"
+                  data-action="ticket-scan#apply">
+            <i class="fa-solid fa-plus me-1"></i>
+            Ajouter au stock
+          </button>
+        </div>
+
+        <div class="small text-muted mt-1">
+          Vérifie les quantités si nécessaire avant d’ajouter.
+        </div>
+
+        <div class="mt-3" data-ticket-scan-target="resultsList"></div>
+
+        <div class="small text-muted mt-2">
+          Astuce : les lignes “À vérifier” ne sont pas cochées par défaut.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

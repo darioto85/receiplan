@@ -11,6 +11,8 @@
   /* Brand */
   --rp-bg: #B7DBF5;
   --rp-text: #212660;
+  --bs-body-color: #212660;
+  --bs-table-color-state: #212660;
 
   /* Surfaces */
   --rp-surface: #ffffff;
@@ -66,6 +68,16 @@ body {
   border-radius: 24px;
   padding: 22px;
   box-shadow: var(--rp-shadow);
+  margin-top:10px;
+}
+@media (max-width: 767.98px) {
+  .rp-page {
+    padding: 5px;
+    border-radius: 18px; 
+  }
+  .rp-card-body{
+    padding: 0px;
+  }
 }
 
 /* ---------- Headings ---------- */
@@ -299,6 +311,12 @@ a:hover {
   border-color: rgba(33, 38, 96, 0.08);
   padding: .8rem 1rem;
 }
+@media (max-width: 767.98px) {
+  .table td, .table th {
+    padding: 5px;
+  }
+}
+
 
 /* ---------- Forms ---------- */
 .form-control, .form-select {

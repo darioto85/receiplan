@@ -3,7 +3,6 @@
 {% block title %}Recettes{% endblock %}
 
 {% block body %}
-  <div class="rp-page">
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h1 class="h4 mb-0">📖 Recettes</h1>
 
@@ -85,15 +84,25 @@
                             {% if item.needed is null %}
                               <span class="text-muted">—</span>
                             {% else %}
-                              {{ item.needed }} {{ unit }}
+                              {{ item.needed }}
+                              {% if unit == 'piece' %}
+                                <span class="d-none d-md-inline"> {{ unit }}</span>
+                              {% else %}
+                                {{ unit }}
+                              {% endif %}
                             {% endif %}
                           </td>
 
+
                           <td class="text-end">
-                            {# évite text-success de Bootstrap (trop “vert pur”), garde fw-semibold #}
                             <span class="fw-semibold">{{ item.stock }}</span>
-                            {{ unit }}
+                            {% if unit == 'piece' %}
+                              <span class="d-none d-md-inline"> {{ unit }}</span>
+                            {% else %}
+                              {{ unit }}
+                            {% endif %}
                           </td>
+
 
                           <td class="text-end">
                             <span class="badge text-bg-success">OK</span>
@@ -133,7 +142,12 @@
             <div class="card-header d-flex justify-content-between align-items-center">
               <div class="d-flex align-items-center gap-2">
                 <strong>{{ recipe.name }}</strong>
-                <span class="badge text-bg-danger">Manque</span>
+                <span class="badge text-bg-danger" title="Stock insuffisant">
+                  <span class="d-none d-md-inline">Manque</span>
+                  <span class="d-inline d-md-none">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                  </span>
+                </span>
               </div>
 
               <div class="d-flex gap-2">
@@ -185,27 +199,37 @@
                             {% if item.needed is null %}
                               <span class="text-muted">—</span>
                             {% else %}
-                              <span class="{{ isMissing ? 'fw-semibold' : '' }}">
-                                {{ item.needed }} {{ unit }}
-                              </span>
+                              {{ item.needed }}
+                              {% if unit == 'piece' %}
+                                <span class="d-none d-md-inline"> {{ unit }}</span>
+                              {% else %}
+                                {{ unit }}
+                              {% endif %}
                             {% endif %}
                           </td>
 
                           <td class="text-end">
-                            <span class="{{ isMissing ? 'fw-semibold' : 'fw-semibold' }}">
-                              {{ item.stock }}
-                            </span>
-                            {{ unit }}
+                            <span class="fw-semibold">{{ item.stock }}</span>
+                            {% if unit == 'piece' %}
+                              <span class="d-none d-md-inline"> {{ unit }}</span>
+                            {% else %}
+                              {{ unit }}
+                            {% endif %}
                           </td>
+
 
                           <td class="text-end">
                             {% if item.needed is null %}
                               <span class="text-muted">—</span>
                             {% else %}
                               {% if isMissing %}
-                                <span class="badge text-bg-danger">
-                                  Manque {{ item.missing_amount|default(0)|round(2) }} {{ unit }}
+                              <span class="badge text-bg-danger" title="Stock insuffisant">
+                                <span class="d-none d-md-inline">Manque {{ item.missing_amount|default(0)|round(2) }} {{ unit }}</span>
+                                <span class="d-inline d-md-none">
+                                  <i class="fa-solid fa-triangle-exclamation"></i>
                                 </span>
+                              </span>
+                              
                               {% else %}
                                 <span class="badge text-bg-success">OK</span>
                               {% endif %}
@@ -222,5 +246,5 @@
         {% endfor %}
       </div>
     {% endif %}
-  </div>
+
 {% endblock %}

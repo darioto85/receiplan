@@ -4,12 +4,9 @@
     <div class="fw-semibold">
       Semaine {{ weekStart|date('W') }} — {{ weekStart|date('d/m') }} → {{ weekEnd|date('d/m') }}
     </div>
-    <div class="text-body-secondary small">
-      {{ weekStart|date('Y-m-d') }}
-    </div>
   </div>
 
-  <div class="card-body">
+  <div class="card-body rp-card-body">
     <div class="list-group list-group-flush">
       {% for i in 0..6 %}
         {% set day = weekStart|date_modify("+" ~ i ~ " days") %}
@@ -39,9 +36,6 @@
             </div>
 
             <div class="d-flex align-items-center gap-2">
-              <div class="text-body-secondary small">
-                {{ meals|length }} repas
-              </div>
 
               <button
                 type="button"

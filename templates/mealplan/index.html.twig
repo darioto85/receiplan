@@ -3,7 +3,7 @@
 {% block title %}Planning de repas{% endblock %}
 
 {% block body %}
-<div class="container py-4"
+<div 
      data-turbo="false"
      data-controller="agenda"
      data-agenda-week-url-value="{{ path('meal_plan_week') }}"
@@ -55,7 +55,7 @@
     </div>
 
     {# Contenu agenda: semaines injectées ici #}
-    <div data-agenda-target="list" class="d-flex flex-column gap-3 px-3 pb-3">
+    <div data-agenda-target="list" class="d-flex flex-column gap-3 pb-3">
       {# La semaine courante sera chargée en AJAX dès connect() #}
     </div>
 
