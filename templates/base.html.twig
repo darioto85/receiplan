@@ -69,11 +69,11 @@
             </a>
 
             <a
-              href="{{ path('app_ingredient_index') }}"
-              class="rp-topnav-link {{ app.request.attributes.get('_route') starts with 'app_ingredient' ? 'is-active' : '' }}"
+              href="{{ path('shopping_index') }}"
+              class="rp-topnav-link {{ app.request.attributes.get('_route') starts with 'shopping_' ? 'is-active' : '' }}"
             >
               <i class="fa-solid fa-clipboard-list me-2"></i>
-              Ingrédients
+              Courses
             </a>
 
             <a
@@ -136,10 +136,10 @@
         <span>Recettes</span>
       </a>
 
-      <a href="{{ path('app_ingredient_index') }}"
-         class="rp-tab {{ app.request.attributes.get('_route') starts with 'app_ingredient' ? 'is-active' : '' }}">
+      <a href="{{ path('shopping_index') }}"
+         class="rp-tab {{ app.request.attributes.get('_route') starts with 'shopping' ? 'is-active' : '' }}">
         <i class="fa-solid fa-clipboard-list"></i>
-        <span>Ingrédients</span>
+        <span>Courses</span>
       </a>
 
       <a href="{{ path('voice_index') }}"

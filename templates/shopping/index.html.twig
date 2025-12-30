@@ -1,0 +1,107 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Liste de courses{% endblock %}
+
+{% block body %}
+  {# Wrapper Stimulus (routes + csrf) #}
+  <div
+    data-controller="shopping"
+    data-shopping-toggle-url-value="{{ path('shopping_toggle', { id: 0 }) }}"
+    data-shopping-validate-url-value="{{ path('shopping_validate_cart') }}"
+    data-shopping-csrf-token-value="{{ csrf_token('shopping_cart') }}"
+  >
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1 class="h4 mb-0">🧺 Courses</h1>
+
+      <div class="d-flex align-items-center gap-2">
+        <a
+          href="{{ path('assistant') }}"
+          class="btn btn-outline-primary d-flex align-items-center gap-2"
+          title="Ajouter au stock via ticket"
+        >
+          <i class="fa-solid fa-receipt"></i>
+          <span class="d-none d-sm-inline">Ticket</span>
+        </a>
+
+        <button
+          type="button"
+          class="btn btn-primary d-flex align-items-center gap-2"
+          data-shopping-target="validateBtn"
+          data-action="shopping#validateCart"
+          disabled
+          title="Valider les produits cochés et les ajouter au stock"
+        >
+          <i class="fa-solid fa-cart-shopping"></i>
+          <span class="d-none d-sm-inline">Valider mon caddie</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 44px;"></th>
+              <th>Ingrédient</th>
+              <th class="text-nowrap">Quantité</th>
+              <th>Unité</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for item in items %}
+              {% set checked = item.checked is defined and item.checked %}
+
+              <tr data-shopping-row-id="{{ item.id }}" class="{{ checked ? 'opacity-50' : '' }}">
+                <td>
+                  <input
+                    type="checkbox"
+                    class="form-check-input"
+                    data-shopping-target="checkbox"
+                    data-action="change->shopping#toggle"
+                    data-shopping-id-param="{{ item.id }}"
+                    {% if checked %}checked{% endif %}
+                  >
+                </td>
+
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <span>{{ item.ingredient.name }}</span>
+                  </div>
+                </td>
+
+                <td class="text-nowrap">
+                  {{ item.quantity }}
+                </td>
+
+                <td>
+                  {{ item.ingredient.unit is defined and item.ingredient.unit ? item.ingredient.unit.value : '' }}
+                </td>
+
+                <td class="text-end">
+                  {# placeholder suppression/édition plus tard #}
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary rp-icon-btn"
+                    disabled
+                    title="Action à venir"
+                  >
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="5" class="text-center text-muted py-4">
+                  Ta liste de courses est vide 🧘‍♀️
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+{% endblock %}
