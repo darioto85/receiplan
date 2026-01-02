@@ -20,13 +20,13 @@ final class RecipeImageTarget implements ImageTargetInterface
         return $this->resolver->hasImage($entity);
     }
 
-    public function getAbsolutePathForWrite(object $entity): string
+    public function getStorageKey(object $entity): string
     {
         if (!$entity instanceof Recipe) {
             throw new \InvalidArgumentException('RecipeImageTarget attend une Recipe.');
         }
 
-        return $this->resolver->getAbsolutePathForWrite($entity);
+        return $this->resolver->getStorageKey($entity);
     }
 
     public function buildPrompt(object $entity): string
@@ -37,7 +37,6 @@ final class RecipeImageTarget implements ImageTargetInterface
 
         $name = $entity->getName() ?? 'plat';
 
-        // Option: ingrédients clés (2-3)
         $keywords = [];
         if (method_exists($entity, 'getRecipeIngredients')) {
             foreach ($entity->getRecipeIngredients() as $ri) {

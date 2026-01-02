@@ -3,60 +3,47 @@
 namespace App\Service;
 
 use App\Entity\Recipe;
+use App\Image\Storage\ImageStorageInterface;
 
 final class RecipeImageResolver
 {
-    public const PUBLIC_DIR = 'img/recipes';
-    public const PLACEHOLDER_FILE = 'placeholder.png';
+    public const PLACEHOLDER_URL = '/img/recipes/placeholder.png';
 
     public function __construct(
-        private readonly string $projectDir,
+        private readonly ImageStorageInterface $storage,
     ) {}
 
-    public function hasImage(Recipe $recipe): bool
+    public function getStorageKey(Recipe $recipe): string
     {
-        $file = $this->getFileName($recipe);
-        if ($file === null) return false;
-
-        $absolute = $this->projectDir . '/public/' . self::PUBLIC_DIR . '/' . $file;
-        return is_file($absolute);
-    }
-
-    public function getAbsolutePathForWrite(Recipe $recipe): string
-    {
-        $file = $this->getFileName($recipe);
-        if ($file === null) {
+        $id = $recipe->getId();
+        if (!$id) {
             throw new \RuntimeException('Recipe id manquant.');
         }
 
-        $dir = $this->projectDir . '/public/' . self::PUBLIC_DIR;
-        if (!is_dir($dir)) {
-            @mkdir($dir, 0775, true);
+        return 'recipes/' . $id . '.png';
+    }
+
+    public function hasImage(Recipe $recipe): bool
+    {
+        $id = $recipe->getId();
+        if (!$id) {
+            return false;
         }
 
-        return $dir . '/' . $file;
+        return $this->storage->exists('recipes/' . $id . '.png');
     }
 
     public function getPublicUrl(Recipe $recipe): string
     {
-        $file = $this->getFileName($recipe);
-        if ($file === null) {
-            return '/' . self::PUBLIC_DIR . '/' . self::PLACEHOLDER_FILE;
+        $id = $recipe->getId();
+        if (!$id) {
+            return self::PLACEHOLDER_URL;
         }
 
-        $relative = self::PUBLIC_DIR . '/' . $file;
-        $absolute = $this->projectDir . '/public/' . $relative;
+        $key = 'recipes/' . $id . '.png';
 
-        return is_file($absolute)
-            ? '/' . $relative
-            : '/' . self::PUBLIC_DIR . '/' . self::PLACEHOLDER_FILE;
-    }
-
-    private function getFileName(Recipe $recipe): ?string
-    {
-        $id = $recipe->getId();
-        if (!$id) return null;
-
-        return $id . '.png';
+        return $this->storage->exists($key)
+            ? $this->storage->publicUrl($key)
+            : self::PLACEHOLDER_URL;
     }
 }

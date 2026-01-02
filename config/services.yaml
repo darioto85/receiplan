@@ -21,6 +21,38 @@ services:
       - '../src/Entity/'
       - '../src/Kernel.php'
 
+  Aws\S3\S3Client:
+    arguments:
+      - version: 'latest'
+        region: 'auto'
+        endpoint: '%env(resolve:R2_ENDPOINT)%'
+        use_path_style_endpoint: true
+        credentials:
+          key: '%env(R2_ACCESS_KEY)%'
+          secret: '%env(R2_SECRET_KEY)%'
+
+  # Filesystem Flysystem vers R2
+  receiplan.r2_filesystem:
+    class: League\Flysystem\Filesystem
+    arguments:
+      - '@receiplan.r2_adapter'
+
+  receiplan.r2_adapter:
+    class: League\Flysystem\AwsS3V3\AwsS3V3Adapter
+    arguments:
+      - '@Aws\S3\S3Client'
+      - '%env(R2_BUCKET)%'
+
+  App\Image\Storage\R2ImageStorage:
+    arguments:
+      $fs: '@receiplan.r2_filesystem'
+      $publicBaseUrl: '%env(resolve:R2_PUBLIC_BASE_URL)%'
+
+  App\Image\Storage\ImageStorageInterface: '@App\Image\Storage\R2ImageStorage'
+
+  App\Service\IngredientImageResolver: ~
+  App\Service\RecipeImageResolver: ~
+  
   App\Service\AiStockParser:
     arguments:
       $openAiApiKey: '%env(OPENAI_API_KEY)%'
@@ -36,14 +68,6 @@ services:
       $openAiApiKey: '%env(OPENAI_API_KEY)%'
       $model: 'gpt-4.1-mini'
 
-  App\Service\IngredientImageResolver:
-    arguments:
-      $projectDir: '%kernel.project_dir%'
-
   App\Service\AiImageClient:
       arguments:
         $openAiApiKey: '%env(OPENAI_API_KEY)%'
-
-  App\Service\RecipeImageResolver:
-    arguments:
-      $projectDir: '%kernel.project_dir%'

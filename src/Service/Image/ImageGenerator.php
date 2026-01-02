@@ -2,6 +2,7 @@
 
 namespace App\Service\Image;
 
+use App\Image\Storage\ImageStorageInterface;
 use App\Service\AiImageClient;
 
 final class ImageGenerator
@@ -11,6 +12,7 @@ final class ImageGenerator
 
     public function __construct(
         private readonly AiImageClient $aiImageClient,
+        private readonly ImageStorageInterface $storage,
     ) {}
 
     public function generateAndStore(ImageTargetInterface $target, object $entity, bool $overwrite = false): void
@@ -25,12 +27,9 @@ final class ImageGenerator
 
         $finalPng200 = $this->resizeAndOptimizePng($png1024, self::TARGET_SIZE);
 
-        $path = $target->getAbsolutePathForWrite($entity);
+        $key = $target->getStorageKey($entity);
 
-        $tmp = $path . '.' . uniqid('tmp_', true);
-        file_put_contents($tmp, $finalPng200);
-        @chmod($tmp, 0664);
-        rename($tmp, $path);
+        $this->storage->put($key, $finalPng200, 'image/png');
     }
 
     private function resizeAndOptimizePng(string $pngBytes, int $size): string

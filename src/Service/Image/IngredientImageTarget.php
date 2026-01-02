@@ -20,13 +20,13 @@ final class IngredientImageTarget implements ImageTargetInterface
         return $this->resolver->hasImage($entity);
     }
 
-    public function getAbsolutePathForWrite(object $entity): string
+    public function getStorageKey(object $entity): string
     {
         if (!$entity instanceof Ingredient) {
             throw new \InvalidArgumentException('IngredientImageTarget attend un Ingredient.');
         }
 
-        return $this->resolver->getAbsolutePathForWrite($entity);
+        return $this->resolver->getStorageKey($entity);
     }
 
     public function buildPrompt(object $entity): string

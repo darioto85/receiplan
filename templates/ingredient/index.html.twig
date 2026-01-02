@@ -23,20 +23,26 @@
         </thead>
         <tbody>
           {% for ingredient in ingredients %}
+            {% set imgSrc = ingredient_image(ingredient) %}
+
             <tr
               data-controller="image-generate"
               data-image-generate-url-value="{{ path('app_image_generate_ingredient', {id: ingredient.id}) }}"
+              data-image-generate-base-src-value="{{ imgSrc }}"
+              data-image-generate-refresh-param-value="v"
             >
               <td>
                 <div class="d-flex align-items-center gap-2">
                   <img
-                    src="{{ ingredient_image(ingredient) }}"
+                    src="{{ imgSrc }}"
                     alt="{{ ingredient.name }}"
                     width="24"
                     height="24"
                     loading="lazy"
+                    decoding="async"
                     style="object-fit: contain; border-radius: 6px;"
                     data-image-generate-target="img"
+                    data-image-generate-base-src-value="{{ imgSrc }}"
                   >
                   <span>{{ ingredient.name }}</span>
                 </div>

@@ -29,6 +29,7 @@
     <div class="d-grid gap-3 mb-4">
       {% for view in feasible %}
         {% set recipe = view.recipe %}
+        {% set recipeImg = recipe_image(recipe) %}
 
         <div class="card">
           {# ✅ le controller englobe tout le header (image + bouton) #}
@@ -36,16 +37,20 @@
             class="card-header d-flex justify-content-between align-items-center"
             data-controller="image-generate"
             data-image-generate-url-value="{{ path('app_image_generate_recipe', {id: recipe.id}) }}"
+            data-image-generate-base-src-value="{{ recipeImg }}"
+            data-image-generate-refresh-param-value="v"
           >
             <div class="d-flex align-items-center gap-2">
               <img
-                src="{{ recipe_image(recipe) }}"
+                src="{{ recipeImg }}"
                 alt="{{ recipe.name }}"
                 width="28"
                 height="28"
                 loading="lazy"
+                decoding="async"
                 style="object-fit: contain; border-radius: 8px;"
                 data-image-generate-target="img"
+                data-image-generate-base-src-value="{{ recipeImg }}"
               >
               <strong>{{ recipe.name }}</strong>
               <span class="badge text-bg-success">OK</span>
@@ -100,13 +105,15 @@
                       <tr>
                         <td>
                           {% if ing %}
+                            {% set ingImg = ingredient_image(ing) %}
                             <div class="d-flex align-items-center gap-2">
                               <img
-                                src="{{ ingredient_image(ing) }}"
+                                src="{{ ingImg }}"
                                 alt="{{ ing.name }}"
                                 width="24"
                                 height="24"
                                 loading="lazy"
+                                decoding="async"
                                 style="object-fit: contain; border-radius: 6px;"
                               >
                               <span>{{ ing.name }}</span>
@@ -171,6 +178,7 @@
     <div class="d-grid gap-3">
       {% for view in insufficient %}
         {% set recipe = view.recipe %}
+        {% set recipeImg = recipe_image(recipe) %}
 
         <div class="card">
           {# ✅ le controller englobe tout le header (image + bouton) #}
@@ -178,16 +186,20 @@
             class="card-header d-flex justify-content-between align-items-center"
             data-controller="image-generate"
             data-image-generate-url-value="{{ path('app_image_generate_recipe', {id: recipe.id}) }}"
+            data-image-generate-base-src-value="{{ recipeImg }}"
+            data-image-generate-refresh-param-value="v"
           >
             <div class="d-flex align-items-center gap-2">
               <img
-                src="{{ recipe_image(recipe) }}"
+                src="{{ recipeImg }}"
                 alt="{{ recipe.name }}"
                 width="28"
                 height="28"
                 loading="lazy"
+                decoding="async"
                 style="object-fit: contain; border-radius: 8px;"
                 data-image-generate-target="img"
+                data-image-generate-base-src-value="{{ recipeImg }}"
               >
               <strong>{{ recipe.name }}</strong>
               <span class="badge text-bg-danger" title="Stock insuffisant">
@@ -248,13 +260,15 @@
                       <tr>
                         <td class="{{ isMissing ? 'fw-semibold' : '' }}">
                           {% if ing %}
+                            {% set ingImg = ingredient_image(ing) %}
                             <div class="d-flex align-items-center gap-2">
                               <img
-                                src="{{ ingredient_image(ing) }}"
+                                src="{{ ingImg }}"
                                 alt="{{ ing.name }}"
                                 width="24"
                                 height="24"
                                 loading="lazy"
+                                decoding="async"
                                 style="object-fit: contain; border-radius: 6px;"
                               >
                               <span>{{ ing.name }}</span>
@@ -292,7 +306,9 @@
                           {% else %}
                             {% if isMissing %}
                               <span class="badge text-bg-danger" title="Stock insuffisant">
-                                <span class="d-none d-md-inline">Manque {{ item.missing_amount|default(0)|round(2) }} {{ unit }}</span>
+                                <span class="d-none d-md-inline">
+                                  Manque {{ item.missing_amount|default(0)|round(2) }} {{ unit }}
+                                </span>
                                 <span class="d-inline d-md-none">
                                   <i class="fa-solid fa-triangle-exclamation"></i>
                                 </span>
