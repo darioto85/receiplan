@@ -10,7 +10,7 @@ use Doctrine\Migrations\AbstractMigration;
 /**
  * Auto-generated Migration: Please modify to your needs!
  */
-final class Version20251218193556 extends AbstractMigration
+final class Version20260101104909 extends AbstractMigration
 {
     public function getDescription(): string
     {
@@ -19,11 +19,13 @@ final class Version20251218193556 extends AbstractMigration
 
     public function up(Schema $schema): void
     {
-        $this->addSql('RENAME TABLE `user` TO `app_user`');
+        // this up() migration is auto-generated, please modify it to your needs
+        $this->addSql('ALTER TABLE ingredient CHANGE user_id user_id INT DEFAULT NULL');
     }
 
     public function down(Schema $schema): void
     {
-        $this->addSql('RENAME TABLE `app_user` TO `user`');
+        // this down() migration is auto-generated, please modify it to your needs
+        $this->addSql('ALTER TABLE ingredient CHANGE user_id user_id INT NOT NULL');
     }
 }

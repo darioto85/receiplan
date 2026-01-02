@@ -3,6 +3,7 @@ import { Controller } from '@hotwired/stimulus';
 export default class extends Controller {
   connect() {
     this.waitForTomSelect();
+    this._opening = false;
   }
 
   waitForTomSelect(tries = 0) {
@@ -19,12 +20,17 @@ export default class extends Controller {
     const selectId = this.element.id;
 
     tomselect.settings.create = (input, callback) => {
-      // on annule le callback TomSelect => on ne veut pas d’item "texte"
       if (typeof callback === 'function') callback(null);
+
+      if (this._opening) return;
+      this._opening = true;
 
       window.dispatchEvent(new CustomEvent('ingredient-create:open', {
         detail: { input, selectId }
       }));
+
+      // reset au prochain tick
+      setTimeout(() => { this._opening = false; }, 0);
     };
   }
 }

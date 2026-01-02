@@ -34,7 +34,7 @@ final class ShoppingController extends AbstractController
         ]);
     }
 
-    #[Route('/shopping/{id}/toggle', name: 'shopping_toggle', methods: ['POST'])]
+    #[Route('/{id}/toggle', name: 'shopping_toggle', methods: ['POST'])]
     public function toggle(
         \App\Entity\Shopping $shopping,
         Request $request,
@@ -60,7 +60,7 @@ final class ShoppingController extends AbstractController
         ]);
     }
 
-    #[Route('/shopping/validate-cart', name: 'shopping_validate_cart', methods: ['POST'])]
+    #[Route('/validate-cart', name: 'shopping_validate_cart', methods: ['POST'])]
     public function validateCart(
         Request $request,
         \App\Service\CartValidatorService $cartValidator
@@ -80,4 +80,49 @@ final class ShoppingController extends AbstractController
         ]);
     }
 
+    #[Route('/{id}/quantity', name: 'shopping_update_quantity', methods: ['POST'])]
+    public function updateQuantity(
+        \App\Entity\Shopping $shopping,
+        Request $request,
+        EntityManagerInterface $em
+    ): Response {
+        $user = $this->getUser();
+        if (!$user instanceof \App\Entity\User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        if (!$shopping) {
+            return $this->json(['ok' => true, 'removed' => true]);
+        }
+
+        if ($shopping->getUser() !== $user) {
+            return $this->json(['message' => 'Accès refusé.'], 403);
+        }
+
+        $raw = (string) $request->request->get('quantity', '');
+        $raw = str_replace(',', '.', trim($raw));
+        $qty = (float) $raw;
+
+        if ($qty <= 0) {
+            // Option UX : 0 => on retire de la liste
+            $em->remove($shopping);
+            $em->flush();
+
+            return $this->json([
+                'ok' => true,
+                'removed' => true,
+                'id' => $shopping->getId(),
+            ]);
+        }
+
+        $shopping->setQuantity($qty);
+        $em->flush();
+
+        return $this->json([
+            'ok' => true,
+            'removed' => false,
+            'id' => $shopping->getId(),
+            'quantity' => $shopping->getQuantity(),
+        ]);
+    }
 }

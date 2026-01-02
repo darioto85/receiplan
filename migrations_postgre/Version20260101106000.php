@@ -10,7 +10,7 @@ use Doctrine\Migrations\AbstractMigration;
 /**
  * Auto-generated Migration: Please modify to your needs!
  */
-final class Version20251218193556 extends AbstractMigration
+final class Version20260101106000 extends AbstractMigration
 {
     public function getDescription(): string
     {
@@ -19,11 +19,15 @@ final class Version20251218193556 extends AbstractMigration
 
     public function up(Schema $schema): void
     {
-        $this->addSql('RENAME TABLE `user` TO `app_user`');
+        $this->addSql("
+            CREATE UNIQUE INDEX uniq_ingredient_global_name_key
+            ON ingredient (name_key)
+            WHERE user_id IS NULL
+        ");
     }
 
     public function down(Schema $schema): void
     {
-        $this->addSql('RENAME TABLE `app_user` TO `user`');
+        $this->addSql('DROP INDEX IF EXISTS uniq_ingredient_global_name_key');
     }
 }

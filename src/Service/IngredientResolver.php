@@ -10,7 +10,7 @@ use Doctrine\ORM\EntityManagerInterface;
 final class IngredientResolver
 {
     /**
-     * Cache in-memory pour éviter de recréer le même ingrédient
+     * Cache in-memory pour éviter de recréer/rérequêter le même ingrédient
      * dans une même requête avant flush().
      *
      * @var array<string, Ingredient>
@@ -23,49 +23,79 @@ final class IngredientResolver
     ) {}
 
     /**
-     * Résout ou crée un Ingredient pour un user donné (clé unique: user + nameKey)
+     * Résout ou crée un Ingredient pour un user donné.
+     *
+     * Stratégie:
+     * 1) GLOBAL (user = null)
+     * 2) PRIVÉ (user = $user)
+     * 3) sinon création PRIVÉ (user = $user)
      */
     public function resolveOrCreate(User $user, string $normalizedName, ?string $unitGuess = null): Ingredient
     {
         $nameKey = $this->keyNormalizer->toKey($normalizedName);
-        $cacheKey = ((string) $user->getId()) . '|' . $nameKey;
 
-        // ✅ 1) Cache: évite les doublons dans la même requête avant flush()
-        if (isset($this->cache[$cacheKey])) {
-            $ingredient = $this->cache[$cacheKey];
+        // ✅ Cache: on privilégie un cache "global" si existant
+        $cacheKeyGlobal = 'global|' . $nameKey;
+        $cacheKeyPrivate = ((string) $user->getId()) . '|' . $nameKey;
+
+        // 1) Cache global
+        if (isset($this->cache[$cacheKeyGlobal])) {
+            $ingredient = $this->cache[$cacheKeyGlobal];
             $this->maybeCompleteUnit($ingredient, $unitGuess);
             return $ingredient;
         }
 
+        // 2) Cache privé
+        if (isset($this->cache[$cacheKeyPrivate])) {
+            $ingredient = $this->cache[$cacheKeyPrivate];
+            $this->maybeCompleteUnit($ingredient, $unitGuess);
+            return $ingredient;
+        }
+
+        $repo = $this->em->getRepository(Ingredient::class);
+
+        // ✅ 1) Cherche d'abord GLOBAL
         /** @var Ingredient|null $ingredient */
-        $ingredient = $this->em->getRepository(Ingredient::class)->findOneBy([
+        $ingredient = $repo->findOneBy([
+            'user' => null,
+            'nameKey' => $nameKey,
+        ]);
+
+        if ($ingredient) {
+            $this->maybeCompleteUnit($ingredient, $unitGuess);
+            $this->cache[$cacheKeyGlobal] = $ingredient;
+            return $ingredient;
+        }
+
+        // ✅ 2) Sinon cherche PRIVÉ du user
+        /** @var Ingredient|null $ingredient */
+        $ingredient = $repo->findOneBy([
             'user' => $user,
             'nameKey' => $nameKey,
         ]);
 
         if ($ingredient) {
             $this->maybeCompleteUnit($ingredient, $unitGuess);
-            $this->cache[$cacheKey] = $ingredient;
+            $this->cache[$cacheKeyPrivate] = $ingredient;
             return $ingredient;
         }
 
+        // ✅ 3) Sinon crée en PRIVÉ
         $ingredient = new Ingredient();
         $ingredient->setUser($user);
-        $ingredient->setName($normalizedName);
+        $ingredient->setName($normalizedName); // setName() remplit aussi nameKey
         $ingredient->setNameKey($nameKey);
 
-        // ✅ Conversion string -> Unit enum (Ingredient::setUnit attend un Unit)
-        if ($unitGuess !== null && method_exists($ingredient, 'setUnit')) {
-            $unitEnum = $this->toUnitEnum($unitGuess);
-            if ($unitEnum !== null) {
-                $ingredient->setUnit($unitEnum);
-            }
+        // ✅ Conversion string -> Unit enum
+        $unitEnum = $this->toUnitEnum($unitGuess);
+        if ($unitEnum !== null) {
+            $ingredient->setUnit($unitEnum);
         }
 
         $this->em->persist($ingredient);
 
-        // ✅ cache immédiat
-        $this->cache[$cacheKey] = $ingredient;
+        // ✅ cache immédiat (privé)
+        $this->cache[$cacheKeyPrivate] = $ingredient;
 
         return $ingredient;
     }
@@ -76,13 +106,15 @@ final class IngredientResolver
             return;
         }
 
-        if (!method_exists($ingredient, 'getUnit') || !method_exists($ingredient, 'setUnit')) {
+        $unitEnum = $this->toUnitEnum($unitGuess);
+        if ($unitEnum === null) {
             return;
         }
 
+        // ⚠️ Important: dans ton Entity, Unit n'est pas nullable et vaut Unit::G par défaut.
+        // Donc on "complète" seulement si l'unité actuelle est le défaut Unit::G.
         try {
-            $unitEnum = $this->toUnitEnum($unitGuess);
-            if ($unitEnum !== null && $ingredient->getUnit() === null) {
+            if ($ingredient->getUnit() === Unit::G) {
                 $ingredient->setUnit($unitEnum);
             }
         } catch (\Throwable) {

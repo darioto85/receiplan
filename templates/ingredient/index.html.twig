@@ -13,7 +13,7 @@
 
   <div class="card shadow-sm">
     <div class="table-responsive">
-      <table class="table table-hover mb-0">
+      <table class="table table-hover mb-0 align-middle">
         <thead class="table-light">
           <tr>
             <th>Nom</th>
@@ -23,19 +23,47 @@
         </thead>
         <tbody>
           {% for ingredient in ingredients %}
-            <tr>
-              <td>{{ ingredient.name }}</td>
+            <tr
+              data-controller="image-generate"
+              data-image-generate-url-value="{{ path('app_image_generate_ingredient', {id: ingredient.id}) }}"
+            >
               <td>
-                {# Enum Unit => afficher la valeur, fallback si jamais #}
+                <div class="d-flex align-items-center gap-2">
+                  <img
+                    src="{{ ingredient_image(ingredient) }}"
+                    alt="{{ ingredient.name }}"
+                    width="24"
+                    height="24"
+                    loading="lazy"
+                    style="object-fit: contain; border-radius: 6px;"
+                    data-image-generate-target="img"
+                  >
+                  <span>{{ ingredient.name }}</span>
+                </div>
+              </td>
+
+              <td>
                 {{ ingredient.unit is defined and ingredient.unit ? ingredient.unit.value : '' }}
               </td>
+
               <td class="text-end">
                 <a
                   href="{{ path('app_ingredient_edit', { id: ingredient.id }) }}"
-                  class="btn btn-sm btn-outline-secondary  rp-icon-btn"
+                  class="btn btn-sm btn-outline-secondary rp-icon-btn"
+                  title="Modifier"
+                  aria-label="Modifier"
                 >
-                 <i class="fa-solid fa-pen"></i>
+                  <i class="fa-solid fa-pen"></i>
                 </a>
+
+                <button
+                  class="btn btn-sm btn-outline-primary"
+                  data-action="click->image-generate#generate"
+                  title="Générer l’image"
+                  aria-label="Générer l’image"
+                >
+                  ✨ Générer l’image
+                </button>
 
                 {{ include('ingredient/_delete_form.html.twig', { ingredient }) }}
               </td>

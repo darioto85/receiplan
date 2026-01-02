@@ -11,6 +11,7 @@ import MealRefreshController from './controllers/meal_refresh_controller.js';
 import MealDeleteController from './controllers/meal_delete_controller.js';
 import TicketScanController from './controllers/ticket_scan_controller.js';
 import ShoppingController from './controllers/shopping_controller.js';
+import ImageGenerationController from './controllers/image_generate_controller.js';
 
 const app = startStimulusApp();
 app.register('collection', CollectionController);
@@ -25,3 +26,4 @@ app.register('meal-refresh', MealRefreshController);
 app.register('meal-delete', MealDeleteController);
 app.register('ticket-scan', TicketScanController);
 app.register('shopping', ShoppingController);
+app.register('ingredient-image-generate', ImageGenerationController);

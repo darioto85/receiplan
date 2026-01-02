@@ -1,8 +1,8 @@
 # Image de base PHP (CLI) récente
 FROM php:8.3-cli
 
-# Installer dépendances système + PostgreSQL + extensions PHP
-RUN apt-get update && apt-get install -y \
+# Installer dépendances système + extensions PHP
+RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         unzip \
         libicu-dev \
@@ -10,11 +10,17 @@ RUN apt-get update && apt-get install -y \
         libonig-dev \
         libxml2-dev \
         libpq-dev \
+        # ✅ GD deps (pour imagecreatefromstring + resize)
+        libpng-dev \
+        libjpeg-dev \
+        libfreetype6-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install \
         intl \
         zip \
         opcache \
         pdo_pgsql \
+        gd \
     && rm -rf /var/lib/apt/lists/*
 
 # Installer Composer
@@ -31,7 +37,7 @@ ENV APP_ENV=prod
 ENV APP_DEBUG=0
 
 # install deps PHP (prod)
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 
 # warmup/cache + assets
 RUN php bin/console cache:clear --env=prod \

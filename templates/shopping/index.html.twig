@@ -8,6 +8,7 @@
     data-controller="shopping"
     data-shopping-toggle-url-value="{{ path('shopping_toggle', { id: 0 }) }}"
     data-shopping-validate-url-value="{{ path('shopping_validate_cart') }}"
+    data-shopping-update-quantity-url-value="{{ path('shopping_update_quantity', { id: 0 }) }}"
     data-shopping-csrf-token-value="{{ csrf_token('shopping_cart') }}"
   >
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -44,7 +45,7 @@
             <tr>
               <th style="width: 44px;"></th>
               <th>Ingrédient</th>
-              <th class="text-nowrap">Quantité</th>
+              <th class="text-nowrap" style="width: 140px;">Quantité</th>
               <th>Unité</th>
               <th class="text-end">Actions</th>
             </tr>
@@ -69,11 +70,25 @@
                 <td>
                   <div class="d-flex align-items-center gap-2">
                     <span>{{ item.ingredient.name }}</span>
+
+                    {# Badge optionnel si tu as item.source #}
+                    {% if item.source is defined and item.source == 'auto' %}
+                      <span class="badge text-bg-light border">suggestion</span>
+                    {% endif %}
                   </div>
                 </td>
 
                 <td class="text-nowrap">
-                  {{ item.quantity }}
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="form-control form-control-sm"
+                    value="{{ item.quantity }}"
+                    data-action="change->shopping#updateQuantity"
+                    data-shopping-id-param="{{ item.id }}"
+                    title="Modifier la quantité (0 = retirer de la liste)"
+                  >
                 </td>
 
                 <td>

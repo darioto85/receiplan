@@ -4,11 +4,23 @@ export default class extends Controller {
   static targets = ['nameInput', 'unitInput', 'nameError', 'unitError', 'csrfToken'];
 
   connect() {
-    this.modalEl = this.element; // le controller est sur la div #ingredientCreateModal
+    this.modalEl = this.element; // controller sur la div #ingredientCreateModal
     this.modal = null;
 
+    // ✅ Important: si la modale est rendue dans un container AJAX, elle peut passer sous le backdrop.
+    // On la déplace dans <body> dès la connexion (safe) :
+    this.ensureInBody();
+
     if (window.bootstrap && window.bootstrap.Modal) {
-      this.modal = new window.bootstrap.Modal(this.modalEl);
+      this.modal = new window.bootstrap.Modal(this.modalEl, {
+        focus: true,
+        backdrop: true,
+        keyboard: true,
+      });
+
+      // ✅ Nettoyage robuste après fermeture
+      this._onHidden = () => this.cleanupBackdrops();
+      this.modalEl.addEventListener('hidden.bs.modal', this._onHidden);
     }
 
     // écoute les demandes d'ouverture venant des selects
@@ -18,6 +30,25 @@ export default class extends Controller {
 
   disconnect() {
     window.removeEventListener('ingredient-create:open', this._onOpen);
+
+    if (this._onHidden) {
+      this.modalEl.removeEventListener('hidden.bs.modal', this._onHidden);
+    }
+  }
+
+  ensureInBody() {
+    // Déplace la modale sous <body> pour éviter les problèmes de stacking context
+    if (this.modalEl.parentElement !== document.body) {
+      document.body.appendChild(this.modalEl);
+    }
+  }
+
+  cleanupBackdrops() {
+    // Supprime les backdrops "fantômes" + restore body state
+    document.querySelectorAll('.modal-backdrop').forEach((b) => b.remove());
+    document.body.classList.remove('modal-open');
+    document.body.style.removeProperty('padding-right');
+    document.body.style.removeProperty('overflow');
   }
 
   openFromEvent(event) {
@@ -33,6 +64,20 @@ export default class extends Controller {
       alert("Bootstrap Modal non chargé. Vérifie bootstrap.bundle.min.js");
       return;
     }
+
+    // ✅ Sécurité : si une autre modale est déjà ouverte, on la ferme (évite double backdrop)
+    document.querySelectorAll('.modal.show').forEach((el) => {
+      if (el !== this.modalEl) {
+        window.bootstrap.Modal.getInstance(el)?.hide();
+      }
+    });
+
+    // ✅ Au cas où il y a un backdrop orphelin
+    this.cleanupBackdrops();
+
+    // ✅ Re-garantie placement (utile si ton DOM est re-rendu)
+    this.ensureInBody();
+
     this.modal.show();
   }
 

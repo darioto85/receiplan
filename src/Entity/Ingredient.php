@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Enum\CategoryEnum;
 use App\Enum\Unit;
 use App\Repository\IngredientRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -29,15 +30,22 @@ class Ingredient
     private ?string $nameKey = null;
 
     /**
+     * ✅ Catégorie d'ingrédient (Enum stockée en string)
+     * Ex : fruit, legume, viande, poisson...
+     */
+    #[ORM\Column(enumType: CategoryEnum::class, nullable: true)]
+    private ?CategoryEnum $category = null;
+
+    /**
      * ✅ Unité NORMALISÉE via Enum (limite les possibilités)
      * Ex : g, kg, ml, l, piece, pot, boite...
      */
     #[ORM\Column(enumType: Unit::class)]
     private Unit $unit = Unit::G;
 
-    // 🔐 Propriétaire de l’ingrédient
+    // 🔐 Propriétaire de l’ingrédient (nullable => ingrédient global)
     #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'ingredients')]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
     private ?User $user = null;
 
     /** @var Collection<int, RecipeIngredient> */
@@ -67,7 +75,12 @@ class Ingredient
     public function setName(string $name): static
     {
         $this->name = $name;
-        $this->nameKey = self::normalizeName($name);
+
+        // ✅ Ne pas écraser si la clé a déjà été calculée en amont (Form/IA/Ticket/Quick-create)
+        if ($this->nameKey === null || $this->nameKey === '') {
+            // fallback legacy : tu peux laisser temporairement
+            $this->nameKey = self::normalizeName($name);
+        }
 
         return $this;
     }
@@ -83,6 +96,25 @@ class Ingredient
         return $this;
     }
 
+    public function getCategory(): ?CategoryEnum
+    {
+        return $this->category;
+    }
+
+    public function setCategory(?CategoryEnum $category): static
+    {
+        $this->category = $category;
+        return $this;
+    }
+
+    /**
+     * Optionnel: si tu veux facilement renvoyer la valeur string côté JSON
+     */
+    public function getCategoryValue(): ?string
+    {
+        return $this->category?->value;
+    }
+
     public function getUnit(): Unit
     {
         return $this->unit;
@@ -95,7 +127,6 @@ class Ingredient
 
     public function getUnitLabel(): string
     {
-        // si tu veux un affichage user-friendly
         return match ($this->unit) {
             \App\Enum\Unit::G => 'g',
             \App\Enum\Unit::KG => 'kg',
@@ -115,10 +146,6 @@ class Ingredient
         return $this;
     }
 
-    /**
-     * Optionnel (utile si tu reçois encore des strings depuis du legacy/IA/form)
-     * Exemple: setUnitFromString('pot') -> Unit::POT
-     */
     public function setUnitFromString(string $unit): static
     {
         $unit = trim(mb_strtolower($unit));
@@ -131,19 +158,13 @@ class Ingredient
         return $this->user;
     }
 
-    public function setUser(User $user): static
+    // ✅ accepte null : null => ingrédient global
+    public function setUser(?User $user): static
     {
         $this->user = $user;
         return $this;
     }
 
-    /**
-     * Normalise un nom d'ingrédient pour éviter les doublons :
-     * - trim
-     * - espaces multiples -> un seul
-     * - minuscule (UTF-8)
-     * - suppression des accents si l'extension intl est dispo
-     */
     public static function normalizeName(string $name): string
     {
         $name = trim($name);

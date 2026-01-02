@@ -35,3 +35,15 @@ services:
     arguments:
       $openAiApiKey: '%env(OPENAI_API_KEY)%'
       $model: 'gpt-4.1-mini'
+
+  App\Service\IngredientImageResolver:
+    arguments:
+      $projectDir: '%kernel.project_dir%'
+
+  App\Service\AiImageClient:
+      arguments:
+        $openAiApiKey: '%env(OPENAI_API_KEY)%'
+
+  App\Service\RecipeImageResolver:
+    arguments:
+      $projectDir: '%kernel.project_dir%'

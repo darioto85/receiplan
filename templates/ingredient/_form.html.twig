@@ -12,6 +12,12 @@
   {{ form_errors(form.unit) }}
 </div>
 
+<div class="mb-3">
+  {{ form_label(form.category, null, { label_attr: { class: 'form-label' } }) }}
+  {{ form_widget(form.category, { attr: { class: 'form-select' } }) }}
+  {{ form_errors(form.category) }}
+</div>
+
 <div class="d-flex justify-content-between mt-4">
   <a href="{{ path('app_ingredient_index') }}" class="btn btn-link">
     ← Retour
@@ -23,3 +29,4 @@
 </div>
 
 {{ form_end(form) }}
+maintenant j'aimerai voir un nouvel aspect du projet, lié aussi aux ingrédients masi peut être aussi aux recette, j'aimerai proposer des petites images pour representé les ingrédients et les recettes, des images au format carré
