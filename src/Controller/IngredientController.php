@@ -6,7 +6,7 @@ use App\Entity\Ingredient;
 use App\Entity\User;
 use App\Form\IngredientType;
 use App\Repository\IngredientRepository;
-use App\Service\IngredientNameKeyNormalizer;
+use App\Service\NameKeyNormalizer;
 use App\Service\IngredientImageGenerator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -142,7 +142,7 @@ final class IngredientController extends AbstractController
         IngredientRepository $ingredientRepository,
         EntityManagerInterface $entityManager,
         CsrfTokenManagerInterface $csrfTokenManager,
-        IngredientNameKeyNormalizer $nameKeyNormalizer,
+        NameKeyNormalizer $nameKeyNormalizer,
     ): JsonResponse {
         $user = $this->getUser();
         if (!$user instanceof User) {

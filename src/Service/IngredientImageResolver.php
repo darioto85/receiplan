@@ -3,7 +3,7 @@
 namespace App\Service;
 
 use App\Entity\Ingredient;
-use App\Image\Storage\ImageStorageInterface;
+use App\Service\Image\Storage\ImageStorageInterface;
 
 final class IngredientImageResolver
 {

@@ -2,10 +2,10 @@
 
 namespace App\Service;
 
-final class IngredientNameKeyNormalizer
+final class NameKeyNormalizer
 {
     /**
-     * Normalise un nom d’ingrédient en clé canonique :
+     * Normalise un nom en clé canonique :
      * - minuscules
      * - suppression des accents
      * - caractères non alphanumériques -> séparateur

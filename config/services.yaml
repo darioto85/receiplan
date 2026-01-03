@@ -43,12 +43,12 @@ services:
       - '@Aws\S3\S3Client'
       - '%env(R2_BUCKET)%'
 
-  App\Image\Storage\R2ImageStorage:
+  App\Service\Image\Storage\R2ImageStorage:
     arguments:
       $fs: '@receiplan.r2_filesystem'
       $publicBaseUrl: '%env(resolve:R2_PUBLIC_BASE_URL)%'
 
-  App\Image\Storage\ImageStorageInterface: '@App\Image\Storage\R2ImageStorage'
+  App\Service\Image\Storage\ImageStorageInterface: '@App\Service\Image\Storage\R2ImageStorage'
 
   App\Service\IngredientImageResolver: ~
   App\Service\RecipeImageResolver: ~

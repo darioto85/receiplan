@@ -3,14 +3,14 @@
 namespace App\Form\EventSubscriber;
 
 use App\Entity\Ingredient;
-use App\Service\IngredientNameKeyNormalizer;
+use App\Service\NameKeyNormalizer;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
 
 final class IngredientNameKeySubscriber implements EventSubscriberInterface
 {
-    public function __construct(private readonly IngredientNameKeyNormalizer $normalizer) {}
+    public function __construct(private readonly NameKeyNormalizer $normalizer) {}
 
     public static function getSubscribedEvents(): array
     {

@@ -19,11 +19,11 @@ final class Version20251218193556 extends AbstractMigration
 
     public function up(Schema $schema): void
     {
-        $this->addSql('ALTER TABLE public."user" RENAME TO app_user');
+        $this->addSql('RENAME TABLE `user` TO `app_user`');
     }
 
     public function down(Schema $schema): void
     {
-        $this->addSql('ALTER TABLE public.app_user RENAME TO "user"');
+        $this->addSql('RENAME TABLE `app_user` TO `user`');
     }
 }

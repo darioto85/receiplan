@@ -6,6 +6,7 @@ use App\Entity\Recipe;
 use App\Entity\User;
 use App\Form\RecipeType;
 use App\Repository\MealPlanRepository;
+use App\Service\NameKeyNormalizer;
 use App\Service\RecipeFeasibilityService;
 use App\Service\RecipeUpdater;
 use Doctrine\ORM\EntityManagerInterface;
@@ -33,8 +34,11 @@ final class RecipeController extends AbstractController
     }
 
     #[Route('/new', name: 'app_recipe_new', methods: ['GET', 'POST'])]
-    public function new(Request $request, EntityManagerInterface $entityManager): Response
-    {
+    public function new(
+        Request $request,
+        EntityManagerInterface $entityManager,
+        NameKeyNormalizer $nameKeyNormalizer,
+    ): Response {
         /** @var User|null $user */
         $user = $this->getUser();
         if (!$user instanceof User) {
@@ -49,6 +53,10 @@ final class RecipeController extends AbstractController
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
+            // ✅ Source de vérité unique pour nameKey (comme IngredientController)
+            $name = trim((string) ($recipe->getName() ?? ''));
+            $recipe->setNameKey($name !== '' ? $nameKeyNormalizer->toKey($name) : null);
+
             $entityManager->persist($recipe);
             $entityManager->flush();
 
@@ -80,8 +88,12 @@ final class RecipeController extends AbstractController
     }
 
     #[Route('/{id}/edit', name: 'app_recipe_edit', methods: ['GET', 'POST'])]
-    public function edit(Request $request, Recipe $recipe, EntityManagerInterface $entityManager): Response
-    {
+    public function edit(
+        Request $request,
+        Recipe $recipe,
+        EntityManagerInterface $entityManager,
+        NameKeyNormalizer $nameKeyNormalizer,
+    ): Response {
         /** @var User|null $user */
         $user = $this->getUser();
         if (!$user instanceof User) {
@@ -96,6 +108,10 @@ final class RecipeController extends AbstractController
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
+            // ✅ Recalcule toujours le nameKey à la sauvegarde
+            $name = trim((string) ($recipe->getName() ?? ''));
+            $recipe->setNameKey($name !== '' ? $nameKeyNormalizer->toKey($name) : null);
+
             $entityManager->flush();
 
             return $this->redirectToRoute('app_recipe_index', [], Response::HTTP_SEE_OTHER);
@@ -166,7 +182,6 @@ final class RecipeController extends AbstractController
             $from = new \DateTimeImmutable('today');
             $updates = $this->buildPendingUpdates($user, $from, $mealPlanRepository, $feasibility);
 
-            // HTML du bloc courant (validé)
             $html = $this->renderView('mealplan/_meal_item.html.twig', [
                 'meal' => $mealPlan,
                 'is_feasible' => true, // badge non affiché si validated=true
@@ -222,7 +237,6 @@ final class RecipeController extends AbstractController
             $from = new \DateTimeImmutable('today');
             $updates = $this->buildPendingUpdates($user, $from, $mealPlanRepository, $feasibility);
 
-            // HTML du bloc courant (redevient non-validé -> badge peut revenir)
             $recipe = $mealPlan->getRecipe();
             $ok = true;
             if ($recipe) {
@@ -258,8 +272,6 @@ final class RecipeController extends AbstractController
         MealPlanRepository $mealPlanRepository,
         RecipeFeasibilityService $feasibility,
     ): array {
-        // Il faut que tu aies cette méthode dans le repo:
-        // findPendingFrom(User $user, \DateTimeInterface $from)
         $pendingMeals = $mealPlanRepository->findPendingFrom($user, $from);
 
         $recipesById = [];

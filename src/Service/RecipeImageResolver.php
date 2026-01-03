@@ -3,11 +3,11 @@
 namespace App\Service;
 
 use App\Entity\Recipe;
-use App\Image\Storage\ImageStorageInterface;
+use App\Service\Image\Storage\ImageStorageInterface;
 
 final class RecipeImageResolver
 {
-    public const PLACEHOLDER_URL = '/img/recipes/placeholder.png';
+    private const PLACEHOLDER_KEY = '/img/recipes/placeholder.png';
 
     public function __construct(
         private readonly ImageStorageInterface $storage,
@@ -15,35 +15,43 @@ final class RecipeImageResolver
 
     public function getStorageKey(Recipe $recipe): string
     {
-        $id = $recipe->getId();
-        if (!$id) {
-            throw new \RuntimeException('Recipe id manquant.');
+        $key = $this->buildKey($recipe);
+        if ($key === null) {
+            throw new \RuntimeException('Recipe nameKey manquant.');
         }
 
-        return 'recipes/' . $id . '.png';
+        return $key;
     }
 
     public function hasImage(Recipe $recipe): bool
     {
-        $id = $recipe->getId();
-        if (!$id) {
+        $key = $this->buildKey($recipe);
+        if ($key === null) {
             return false;
         }
 
-        return $this->storage->exists('recipes/' . $id . '.png');
+        return $this->storage->exists($key);
     }
 
     public function getPublicUrl(Recipe $recipe): string
     {
-        $id = $recipe->getId();
-        if (!$id) {
-            return self::PLACEHOLDER_URL;
+        $key = $this->buildKey($recipe);
+        if ($key === null) {
+            return $this->storage->publicUrl(self::PLACEHOLDER_KEY);
         }
-
-        $key = 'recipes/' . $id . '.png';
 
         return $this->storage->exists($key)
             ? $this->storage->publicUrl($key)
-            : self::PLACEHOLDER_URL;
+            : $this->storage->publicUrl(self::PLACEHOLDER_KEY);
+    }
+
+    private function buildKey(Recipe $recipe): ?string
+    {
+        $nameKey = trim((string) ($recipe->getNameKey() ?? ''));
+        if ($nameKey === '') {
+            return null;
+        }
+
+        return 'recipes/' . $nameKey . '.png';
     }
 }

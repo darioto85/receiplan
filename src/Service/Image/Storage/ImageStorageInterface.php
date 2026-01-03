@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Image\Storage;
+namespace App\Service\Image\Storage;
 
 interface ImageStorageInterface
 {

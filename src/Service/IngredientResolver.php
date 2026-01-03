@@ -19,7 +19,7 @@ final class IngredientResolver
 
     public function __construct(
         private readonly EntityManagerInterface $em,
-        private readonly IngredientNameKeyNormalizer $keyNormalizer,
+        private readonly NameKeyNormalizer $keyNormalizer,
     ) {}
 
     /**

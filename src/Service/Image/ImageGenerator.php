@@ -2,7 +2,7 @@
 
 namespace App\Service\Image;
 
-use App\Image\Storage\ImageStorageInterface;
+use App\Service\Image\Storage\ImageStorageInterface;
 use App\Service\AiImageClient;
 
 final class ImageGenerator
