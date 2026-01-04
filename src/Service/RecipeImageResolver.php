@@ -7,7 +7,7 @@ use App\Service\Image\Storage\ImageStorageInterface;
 
 final class RecipeImageResolver
 {
-    private const PLACEHOLDER_KEY = '/img/recipes/placeholder.png';
+    public const PLACEHOLDER_URL = '/img/recipes/placeholder.png';
 
     public function __construct(
         private readonly ImageStorageInterface $storage,
@@ -37,12 +37,12 @@ final class RecipeImageResolver
     {
         $key = $this->buildKey($recipe);
         if ($key === null) {
-            return $this->storage->publicUrl(self::PLACEHOLDER_KEY);
+            return self::PLACEHOLDER_URL;
         }
 
         return $this->storage->exists($key)
             ? $this->storage->publicUrl($key)
-            : $this->storage->publicUrl(self::PLACEHOLDER_KEY);
+            : self::PLACEHOLDER_URL;
     }
 
     private function buildKey(Recipe $recipe): ?string
