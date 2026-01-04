@@ -1,7 +1,8 @@
-# Image de base PHP (CLI) récente
 FROM php:8.3-cli
 
-# Installer dépendances système + extensions PHP
+# =========================
+# System deps + PHP extensions
+# =========================
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         unzip \
@@ -10,7 +11,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libonig-dev \
         libxml2-dev \
         libpq-dev \
-        # ✅ GD deps (pour imagecreatefromstring + resize)
         libpng-dev \
         libjpeg-dev \
         libfreetype6-dev \
@@ -23,27 +23,53 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         gd \
     && rm -rf /var/lib/apt/lists/*
 
-# Installer Composer
+# =========================
+# Composer
+# =========================
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Dossier de travail
+# =========================
+# App files
+# =========================
 WORKDIR /app
-
-# Copier le projet
 COPY . .
 
-# prod env
+# =========================
+# Symfony prod env
+# =========================
 ENV APP_ENV=prod
 ENV APP_DEBUG=0
 
-# install deps PHP (prod) - IMPORTANT: no scripts to avoid cache:clear during build
-RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --no-scripts
+# =========================
+# Composer install (NO scripts)
+# =========================
+# Important: évite cache:clear pendant le build (R2_* pas encore présents)
+RUN composer install \
+    --no-dev \
+    --optimize-autoloader \
+    --no-interaction \
+    --prefer-dist \
+    --no-scripts
 
-# permissions
+# =========================
+# Runtime directories (var/ ignoré par .dockerignore)
+# =========================
+RUN mkdir -p var/cache var/log
+
+# =========================
+# Permissions
+# =========================
 RUN chown -R www-data:www-data var public
 
-# Port exposé
+# =========================
+# Runtime
+# =========================
 EXPOSE 8000
 
-# Au démarrage, on génère le cache quand les env vars (R2_*) existent
-CMD ["sh", "-lc", "php bin/console cache:clear --env=prod --no-debug && php bin/console cache:warmup --env=prod --no-debug && php bin/console asset-map:compile --env=prod && php -S 0.0.0.0:8000 -t public"]
+# Cache + assets AU RUNTIME (env vars disponibles)
+CMD ["sh", "-lc", "\
+    php bin/console cache:clear --env=prod --no-debug && \
+    php bin/console cache:warmup --env=prod --no-debug && \
+    php bin/console asset-map:compile --env=prod && \
+    php -S 0.0.0.0:8000 -t public \
+"]
