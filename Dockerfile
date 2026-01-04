@@ -36,18 +36,14 @@ COPY . .
 ENV APP_ENV=prod
 ENV APP_DEBUG=0
 
-# install deps PHP (prod)
-RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+# install deps PHP (prod) - IMPORTANT: no scripts to avoid cache:clear during build
+RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --no-scripts
 
-# warmup/cache + assets
-RUN php bin/console cache:clear --env=prod \
- && php bin/console asset-map:compile --env=prod
-
-# permissions (selon ton image)
+# permissions
 RUN chown -R www-data:www-data var public
 
 # Port exposé
 EXPOSE 8000
 
-# Serveur PHP interne
-CMD ["php", "-S", "0.0.0.0:8000", "-t", "public"]
+# Au démarrage, on génère le cache quand les env vars (R2_*) existent
+CMD ["sh", "-lc", "php bin/console cache:clear --env=prod --no-debug && php bin/console cache:warmup --env=prod --no-debug && php bin/console asset-map:compile --env=prod && php -S 0.0.0.0:8000 -t public"]
