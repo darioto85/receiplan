@@ -7,6 +7,7 @@ use App\Entity\RecipeIngredient;
 use App\Entity\User;
 use App\Service\AiIngredientNormalizer;
 use App\Service\IngredientResolver;
+use App\Service\NameKeyNormalizer;
 use Doctrine\ORM\EntityManagerInterface;
 
 final class AiAddRecipeHandler
@@ -15,6 +16,7 @@ final class AiAddRecipeHandler
         private readonly EntityManagerInterface $em,
         private readonly IngredientResolver $ingredientResolver,
         private readonly AiIngredientNormalizer $normalizer,
+        private readonly NameKeyNormalizer $nameKeyNormalizer,
     ) {}
 
     /**
@@ -35,7 +37,7 @@ final class AiAddRecipeHandler
      * } $payload
      *
      * @return array{
-     *   recipe: Recipe,
+     *   recipe: array{id:int|null, name:string|null},
      *   needs_confirmation: bool,
      *   warnings: array<int, array{index:int, warnings:string[]}>
      * }
@@ -47,7 +49,7 @@ final class AiAddRecipeHandler
             throw new \InvalidArgumentException('payload.recipe manquant.');
         }
 
-        $name = trim((string)($recipeData['name'] ?? ''));
+        $name = trim((string) ($recipeData['name'] ?? ''));
         if ($name === '') {
             $name = 'Recette sans titre';
         }
@@ -59,15 +61,20 @@ final class AiAddRecipeHandler
 
         $recipe = new Recipe();
         $recipe->setName($name);
+
+        // ✅ nameKey (important pour tes images recettes basées sur nameKey)
+        if (method_exists($recipe, 'setNameKey')) {
+            $recipe->setNameKey($this->nameKeyNormalizer->toKey($name));
+        }
+
         if (method_exists($recipe, 'setUser')) {
             $recipe->setUser($user);
         }
 
         $this->em->persist($recipe);
 
-        // Fusion des doublons par ingredient_id (après resolve)
-        /** @var array<int, RecipeIngredient> $lineByIngredientId */
-        $lineByIngredientId = [];
+        /** @var array<string, RecipeIngredient> $lineByMergeKey */
+        $lineByMergeKey = [];
 
         $globalNeedsConfirmation = false;
         $warningsByIndex = [];
@@ -78,57 +85,60 @@ final class AiAddRecipeHandler
             }
 
             $norm = $this->normalizer->normalize($item);
-            if ($norm['needs_confirmation']) {
+
+            if (!empty($norm['needs_confirmation'])) {
                 $globalNeedsConfirmation = true;
             }
             if (!empty($norm['warnings'])) {
-                $warningsByIndex[] = ['index' => (int)$idx, 'warnings' => $norm['warnings']];
+                $warningsByIndex[] = ['index' => (int) $idx, 'warnings' => $norm['warnings']];
             }
 
-            $ingName = trim((string)$norm['ingredient']['name']);
+            $ingName = trim((string) ($norm['ingredient']['name'] ?? ''));
             if ($ingName === '') {
                 $globalNeedsConfirmation = true;
-                $warningsByIndex[] = ['index' => (int)$idx, 'warnings' => ['empty_name']];
+                $warningsByIndex[] = ['index' => (int) $idx, 'warnings' => ['empty_name']];
                 continue;
             }
 
             // Unit "guess" pour Ingredient.unit (optionnel)
             $unitGuess = $norm['ingredient']['unit'] ?? null;
 
-            $ingredient = $this->ingredientResolver->resolveOrCreate($ingName, $unitGuess);
-            $ingredientId = (int) $ingredient->getId(); // peut être null avant flush, donc fallback:
-            // Comme l'id peut être null avant flush, on utilise le nameKey comme clé de fusion
-            $mergeKey = method_exists($ingredient, 'getNameKey') ? (string)$ingredient->getNameKey() : $ingName;
+            // ✅ FIX: passe bien User en 1er (sinon TypeError)
+            // Le resolver gère global/private + cache
+            $ingredient = $this->ingredientResolver->resolveOrCreate($user, $ingName, $unitGuess);
 
-            $quantity = $norm['ingredient']['quantity'];
-            $unit = $norm['ingredient']['unit'];
-            $ingredient->setUser($user);
+            // ✅ fusion par nameKey (ou par nom si pas de nameKey)
+            $mergeKey = method_exists($ingredient, 'getNameKey')
+                ? (string) $ingredient->getNameKey()
+                : $ingName;
+
+            $quantity = $norm['ingredient']['quantity'] ?? null;
+            $unit = $norm['ingredient']['unit'] ?? null; // utile pour needs_confirmation même si tu ne le stockes pas
 
             // Si quantity est null => on met 0 et on force confirmation
             if ($quantity === null) {
                 $globalNeedsConfirmation = true;
-                $warningsByIndex[] = ['index' => (int)$idx, 'warnings' => ['missing_quantity']];
+                $warningsByIndex[] = ['index' => (int) $idx, 'warnings' => ['missing_quantity']];
                 $quantity = 0.0;
             }
 
             // Créer ou fusionner ligne
-            if (!isset($lineByIngredientId[$mergeKey])) {
+            if (!isset($lineByMergeKey[$mergeKey])) {
                 $ri = new RecipeIngredient();
                 $ri->setRecipe($recipe);
                 $ri->setIngredient($ingredient);
-                $ri->setQuantity((float)$quantity);
+                $ri->setQuantity((float) $quantity);
 
                 // Si tu as un champ unit dans RecipeIngredient, adapte ici
                 // if (method_exists($ri, 'setUnit')) { $ri->setUnit($unit); }
 
                 $this->em->persist($ri);
-                $lineByIngredientId[$mergeKey] = $ri;
+                $lineByMergeKey[$mergeKey] = $ri;
             } else {
-                // fusion : somme des quantités (si tu veux être strict sur l'unité, fais un check ici)
-                $existing = $lineByIngredientId[$mergeKey];
-                $existing->setQuantity((float)$existing->getQuantity() + (float)$quantity);
+                $existing = $lineByMergeKey[$mergeKey];
+                $existing->setQuantity((float) $existing->getQuantity() + (float) $quantity);
                 $globalNeedsConfirmation = true;
-                $warningsByIndex[] = ['index' => (int)$idx, 'warnings' => ['merged_duplicate_ingredient']];
+                $warningsByIndex[] = ['index' => (int) $idx, 'warnings' => ['merged_duplicate_ingredient']];
             }
 
             // Unit null => confirmation
@@ -137,7 +147,6 @@ final class AiAddRecipeHandler
             }
         }
 
-        // Tu peux décider de flush ici ou laisser le controller décider
         $this->em->flush();
 
         return [
