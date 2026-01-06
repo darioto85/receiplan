@@ -5,15 +5,14 @@
 {% block body %}
 <div class="py-4">
   <div class="d-flex align-items-center justify-content-between mb-3">
-  <h1 class="h3 mb-0">Mon stock</h1>
+    <h1 class="h3 mb-0">Mon stock</h1>
 
-  <a href="{{ path('assistant') }}"
-     class="btn btn-outline-primary d-flex align-items-center gap-2">
-    <i class="fa-solid fa-receipt"></i>
-    <span class="d-none d-sm-inline">Ajouter via ticket</span>
-  </a>
-</div>
-
+    <a href="{{ path('assistant') }}"
+       class="btn btn-outline-primary d-flex align-items-center gap-2">
+      <i class="fa-solid fa-receipt"></i>
+      <span class="d-none d-sm-inline">Ajouter via ticket</span>
+    </a>
+  </div>
 
   {% for label, messages in app.flashes %}
     {% for message in messages %}
@@ -40,7 +39,6 @@
             {{ form_label(form.quantity) }}
             <div class="input-group">
               {{ form_widget(form.quantity, { attr: { class: 'form-control' } }) }}
-              {# Si tu veux afficher l’unité comme sur recette, on peut brancher ton stimulus ingredient-unit ici #}
               <span class="input-group-text">—</span>
             </div>
             {{ form_errors(form.quantity) }}
@@ -71,18 +69,35 @@
                 <th class="text-end">Actions</th>
               </tr>
             </thead>
+
             <tbody>
               {% for ui in items %}
+                {% set ing = ui.ingredient %}
                 <tr>
-                  <td>{{ ui.ingredient.name }}</td>
-                  <td class="text-end">{{ ui.quantity }}</td>
-                  <td class="text-end">
-                    {{ ui.ingredient.unit is defined and ui.ingredient.unit ? ui.ingredient.unit.value : '' }}
+                  <td>
+                    <div class="d-flex align-items-center gap-2">
+                      <img
+                        src="{{ ingredient_image(ing) }}"
+                        alt="{{ ing.name }}"
+                        width="24"
+                        height="24"
+                        loading="lazy"
+                        style="object-fit: contain; border-radius: 6px;"
+                      >
+                      <span>{{ ing.name }}</span>
+                    </div>
                   </td>
+
+                  <td class="text-end">{{ ui.quantity }}</td>
+
+                  <td class="text-end">
+                    {{ ing.unit is defined and ing.unit ? ing.unit.value : '' }}
+                  </td>
+
                   <td class="text-end">
                     <form method="post" action="{{ path('stock_delete', {id: ui.id}) }}" class="d-inline">
                       <input type="hidden" name="_token" value="{{ csrf_token('delete_stock_' ~ ui.id) }}">
-                      <button class="btn btn-sm btn-outline-danger rp-icon-btn" type="submit">
+                      <button class="btn btn-sm btn-outline-danger rp-icon-btn" type="submit" title="Supprimer">
                         <i class="fa-solid fa-trash"></i>
                       </button>
                     </form>
@@ -90,6 +105,7 @@
                 </tr>
               {% endfor %}
             </tbody>
+
           </table>
         </div>
       {% endif %}

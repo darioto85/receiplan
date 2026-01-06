@@ -16,6 +16,19 @@ class RecipeRepository extends ServiceEntityRepository
         parent::__construct($registry, Recipe::class);
     }
 
+    public function findOneNeedingImage(): ?Recipe
+    {
+        return $this->createQueryBuilder('r')
+            ->andWhere('r.imgGenerated = false')
+            ->andWhere('r.nameKey IS NOT NULL')
+            ->andWhere('r.nameKey <> :empty')
+            ->setParameter('empty', '')
+            ->orderBy('r.id', 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+    
     //    /**
     //     * @return Recipe[] Returns an array of Recipe objects
     //     */

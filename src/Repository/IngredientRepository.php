@@ -89,4 +89,17 @@ class IngredientRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    public function findOneNeedingImage(): ?Ingredient
+    {
+        return $this->createQueryBuilder('i')
+            ->andWhere('i.imgGenerated = false')
+            ->andWhere('i.nameKey IS NOT NULL')
+            ->andWhere('i.nameKey <> :empty')
+            ->setParameter('empty', '')
+            ->orderBy('i.id', 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
 }

@@ -56,6 +56,12 @@ class Ingredient
     #[ORM\OneToMany(mappedBy: 'ingredient', targetEntity: UserIngredient::class, orphanRemoval: true)]
     private Collection $userIngredients;
 
+    #[ORM\Column(options: ['default' => false])]
+    private bool $imgGenerated = false;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $imgGeneratedAt = null;
+
     public function __construct()
     {
         $this->recipeIngredients = new ArrayCollection();
@@ -162,6 +168,28 @@ class Ingredient
     public function setUser(?User $user): static
     {
         $this->user = $user;
+        return $this;
+    }
+
+    public function isImgGenerated(): bool
+    {
+        return $this->imgGenerated;
+    }
+
+    public function setImgGenerated(bool $imgGenerated): static
+    {
+        $this->imgGenerated = $imgGenerated;
+        return $this;
+    }
+
+    public function getImgGeneratedAt(): ?\DateTimeImmutable
+    {
+        return $this->imgGeneratedAt;
+    }
+
+    public function setImgGeneratedAt(?\DateTimeImmutable $at): static
+    {
+        $this->imgGeneratedAt = $at;
         return $this;
     }
 
