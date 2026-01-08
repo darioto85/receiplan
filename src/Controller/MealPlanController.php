@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Repository\MealPlanRepository;
+use App\Service\DailyMealSuggestionService;
 use App\Service\MealPlanProposer;
 use App\Service\RecipeFeasibilityService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -45,8 +46,14 @@ final class MealPlanController extends AbstractController
         Request $request,
         MealPlanRepository $mealPlanRepository,
         RecipeFeasibilityService $feasibility,
+        DailyMealSuggestionService $dailySuggestion,
         UserInterface $user,
     ): Response {
+
+        // auto-propose si aucun repas aujourd’hui
+        $today = new \DateTimeImmutable('today');
+        $dailySuggestion->ensureTodaySuggestion($user);
+
         $startStr = (string) $request->query->get('start', '');
         $weekStart = \DateTimeImmutable::createFromFormat('Y-m-d', $startStr);
 
