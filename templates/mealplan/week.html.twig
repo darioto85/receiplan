@@ -1,4 +1,23 @@
 {# templates/mealplan/week.html.twig #}
+{% set todayKey = today|date('Y-m-d') %}
+
+{# Hint : uniquement un repas non validé du jour, si présent dans cette semaine #}
+{% set hintMealId = null %}
+{% for i in 0..6 %}
+  {% if hintMealId is null %}
+    {% set day = weekStart|date_modify("+" ~ i ~ " days") %}
+    {% set dayKey = day|date('Y-m-d') %}
+    {% if dayKey == todayKey %}
+      {% set mealsToday = planningByDate[dayKey] ?? [] %}
+      {% for meal in mealsToday %}
+        {% if hintMealId is null and not meal.validated %}
+          {% set hintMealId = meal.id %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  {% endif %}
+{% endfor %}
+
 <section class="card shadow-sm" data-week-start="{{ weekStart|date('Y-m-d') }}">
   <div class="card-header d-flex justify-content-between align-items-center">
     <div class="fw-semibold">
@@ -11,11 +30,10 @@
       {% for i in 0..6 %}
         {% set day = weekStart|date_modify("+" ~ i ~ " days") %}
         {% set dayKey = day|date('Y-m-d') %}
-        {% set isToday = dayKey == today|date('Y-m-d') %}
+        {% set isToday = dayKey == todayKey %}
         {% set isPast = day < today %}
         {% set meals = planningByDate[dayKey] ?? [] %}
 
-        
         {% set dayClasses = [
           'list-group-item',
           isPast ? 'rp-day-past' : '',
@@ -36,7 +54,6 @@
             </div>
 
             <div class="d-flex align-items-center gap-2">
-
               <button
                 type="button"
                 class="btn btn-sm btn-outline-primary"
@@ -61,7 +78,8 @@
 
                 {{ include('mealplan/_meal_item.html.twig', {
                   meal: meal,
-                  is_feasible: ok
+                  is_feasible: ok,
+                  swipe_hint: (isToday and hintMealId is not null and meal.id == hintMealId)
                 }) }}
               {% endfor %}
             {% endif %}
