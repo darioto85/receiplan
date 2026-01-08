@@ -1,26 +1,147 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Recipe{% endblock %}
+{% block title %}{{ recipe.name }}{% endblock %}
 
 {% block body %}
-    <h1>Recipe</h1>
 
-    <table class="table">
-        <tbody>
-            <tr>
-                <th>Id</th>
-                <td>{{ recipe.id }}</td>
-            </tr>
-            <tr>
-                <th>Name</th>
-                <td>{{ recipe.name }}</td>
-            </tr>
-        </tbody>
-    </table>
+  {# ===== Action header (boutons uniquement) ===== #}
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    {# Retour: history(-1) pour pouvoir venir d'autres pages #}
+    <button
+      type="button"
+      class="btn btn-outline-secondary rp-icon-btn"
+      onclick="history.back()"
+      aria-label="Retour"
+      title="Retour"
+    >
+      <i class="fa-solid fa-arrow-left"></i>
+    </button>
 
-    <a href="{{ path('app_recipe_index') }}">back to list</a>
+    <div class="d-flex gap-2">
+      <a
+        href="{{ path('app_recipe_edit', { id: recipe.id }) }}"
+        class="btn btn-outline-primary rp-icon-btn"
+        aria-label="Modifier la recette"
+        title="Modifier"
+      >
+        <i class="fa-solid fa-pen"></i>
+      </a>
 
-    <a href="{{ path('app_recipe_edit', {'id': recipe.id}) }}">edit</a>
+      {# delete form inline #}
+      {{ include('recipe/_delete_form.html.twig', { recipe: recipe }) }}
+    </div>
+  </div>
 
-    {{ include('recipe/_delete_form.html.twig') }}
+  {# ===== Title centered ===== #}
+  <h1 class="h3 fw-bold text-center mb-4">
+    {{ recipe.name }}
+  </h1>
+
+  {# ===== Main row: image + ingredients (image first on mobile) ===== #}
+  <div class="row g-3 align-items-start mb-4">
+
+    {# Image (right on desktop, first on mobile) #}
+    <div class="col-12 col-lg-5 order-1 order-lg-2">
+      <div class="card">
+        <div class="card-body text-center">
+          {% set recipeImg = recipe_image(recipe) %}
+          <img
+            src="{{ recipeImg }}"
+            alt="{{ recipe.name }}"
+            width="200"
+            height="200"
+            loading="lazy"
+            decoding="async"
+            style="object-fit: contain; background:#fff; border-radius: 16px;"
+          >
+        </div>
+      </div>
+    </div>
+
+    {# Ingredients list (left on desktop, second on mobile) #}
+    <div class="col-12 col-lg-7 order-2 order-lg-1">
+      <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <div class="fw-semibold">🧂 Ingrédients</div>
+          <span class="badge text-bg-light">{{ recipe.recipeIngredients|length }}</span>
+        </div>
+
+        <div class="card-body p-0">
+          {% if recipe.recipeIngredients|length == 0 %}
+            <div class="p-3 text-muted">
+              Aucun ingrédient pour l’instant.
+            </div>
+          {% else %}
+            <div class="table-responsive">
+              <table class="table mb-0 align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th>Ingrédient</th>
+                    <th class="text-end" style="width: 160px;">Quantité</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for ri in recipe.recipeIngredients %}
+                    {% set ing = ri.ingredient %}
+                    {# unité via l'ingrédient (RecipeIngredient n'a pas unit) #}
+                    {% set unit = (ing and ing.unit) ? ing.unit.value : '' %}
+
+                    <tr>
+                      <td>
+                        {% if ing %}
+                          {% set ingImg = ingredient_image(ing) %}
+                          <div class="d-flex align-items-center gap-2">
+                            <img
+                              src="{{ ingImg }}"
+                              alt="{{ ing.name }}"
+                              width="28"
+                              height="28"
+                              loading="lazy"
+                              decoding="async"
+                              style="object-fit: contain; border-radius: 8px; background:#fff;"
+                            >
+                            <span class="fw-semibold">{{ ing.name }}</span>
+                          </div>
+                        {% else %}
+                          <span class="text-muted">Ingrédient supprimé</span>
+                        {% endif %}
+                      </td>
+
+                      <td class="text-end">
+                        {% if ri.quantity is null %}
+                          <span class="text-muted">—</span>
+                        {% else %}
+                          <span class="fw-semibold">{{ ri.quantity }}</span>
+                          {% if unit %}
+                            <span class="text-muted ms-1">{{ unit }}</span>
+                          {% endif %}
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  {# ===== Steps full width (placeholder) ===== #}
+  <div class="card">
+    <div class="card-header fw-semibold">
+      ✅ Étapes
+    </div>
+    <div class="card-body">
+      <div class="border rounded-3 p-3 bg-light">
+        <div class="fw-semibold mb-1">Emplacement des étapes</div>
+        <div class="text-muted small">
+          Ici on affichera bientôt les étapes de la recette (1, 2, 3…).
+        </div>
+      </div>
+    </div>
+  </div>
+
 {% endblock %}

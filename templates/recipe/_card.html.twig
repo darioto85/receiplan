@@ -1,0 +1,100 @@
+{# templates/recipe/_card.html.twig #}
+{% set recipe = view.recipe %}
+{% set recipeImg = recipe_image(recipe) %}
+{% set missingItems = view.items|filter(i => i.is_missing ?? false) %}
+{% set missingCount = missingItems|length %}
+
+<a href="{{ path('app_recipe_show', { id: recipe.id }) }}"
+   class="card text-decoration-none text-reset hover-shadow-sm">
+  <div class="card-body">
+
+    <div class="d-flex align-items-center justify-content-between gap-3">
+      <div class="d-flex align-items-center gap-2 flex-grow-1" style="min-width: 0;">
+        <img
+          src="{{ recipeImg }}"
+          alt="{{ recipe.name }}"
+          width="36"
+          height="36"
+          loading="lazy"
+          decoding="async"
+          style="object-fit: contain; border-radius: 10px; background: #fff;"
+        >
+
+        <div class="flex-grow-1" style="min-width: 0;">
+          <div class="fw-semibold text-truncate">{{ recipe.name }}</div>
+
+          {% if is_feasible %}
+            <div class="small text-muted">Tous les ingrédients sont disponibles.</div>
+          {% else %}
+            <div class="small text-muted">
+              {{ missingCount }} ingrédient{{ missingCount > 1 ? 's' : '' }} manquant{{ missingCount > 1 ? 's' : '' }}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="d-flex align-items-center gap-2 flex-shrink-0">
+        {% if is_feasible %}
+          <span class="badge text-bg-success">OK</span>
+        {% else %}
+          <span class="badge text-bg-danger">Manque</span>
+        {% endif %}
+        <span class="text-muted"><i class="fa-solid fa-chevron-right"></i></span>
+      </div>
+    </div>
+
+    {# Détails uniquement si non faisable: on liste seulement les manquants #}
+    {% if not is_feasible %}
+      <hr class="my-3">
+
+      {% if missingCount == 0 %}
+        <div class="small text-muted">Détails indisponibles.</div>
+      {% else %}
+        <ul class="list-unstyled mb-0 d-grid gap-2">
+          {% set maxLines = 3 %}
+          {% for item in missingItems|slice(0, maxLines) %}
+            {% set ing = item.ingredient %}
+            {% set unit = item.unitLabel ?? (item.unit is defined and item.unit ? item.unit.value : '') %}
+
+            <li class="d-flex align-items-center justify-content-between gap-2">
+              <div class="d-flex align-items-center gap-2" style="min-width: 0;">
+                {% if ing %}
+                  {% set ingImg = ingredient_image(ing) %}
+                  <img
+                    src="{{ ingImg }}"
+                    alt="{{ ing.name }}"
+                    width="24"
+                    height="24"
+                    loading="lazy"
+                    decoding="async"
+                    style="object-fit: contain; border-radius: 8px; background: #fff;"
+                  >
+                  <span class="text-truncate">{{ ing.name }}</span>
+                {% else %}
+                  <span class="text-muted">Ingrédient supprimé</span>
+                {% endif %}
+              </div>
+
+              {# Badge directement sur "Besoin" (ton idée #5) #}
+              <div class="text-end flex-shrink-0">
+                {% if item.needed is null %}
+                  <span class="text-muted">—</span>
+                {% else %}
+                  <span class="badge text-bg-danger">
+                    Manque {{ item.missing_amount|default(0)|round(2) }}
+                    {% if unit %}{{ unit }}{% endif %}
+                  </span>
+                {% endif %}
+              </div>
+            </li>
+          {% endfor %}
+
+          {% if missingCount > maxLines %}
+            <li class="small text-muted">+{{ missingCount - maxLines }} autre{{ (missingCount - maxLines) > 1 ? 's' : '' }}</li>
+          {% endif %}
+        </ul>
+      {% endif %}
+    {% endif %}
+
+  </div>
+</a>

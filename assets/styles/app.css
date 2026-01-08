@@ -1,3 +1,57 @@
 body {
     background-color: #CDDEF5;
 }
+/* --- swipe reveal base (si pas déjà ajouté) --- */
+.swipe-item {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  background: var(--bs-body-bg);
+}
+
+.swipe-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.swipe-trash {
+  width: 44px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.swipe-content {
+  background: var(--bs-body-bg);
+  padding: 0.5rem 0.75rem;
+  transform: translateX(0);
+  transition: transform 160ms ease;
+  will-change: transform;
+  touch-action: pan-y;
+}
+
+.swipe-item.is-revealed .swipe-content {
+  transform: translateX(-68px);
+}
+
+/* --- swipe hint on first item (plays once) --- */
+@keyframes swipeHint {
+  0%   { transform: translateX(0); }
+  18%  { transform: translateX(-20px); }
+  36%  { transform: translateX(0); }
+  54%  { transform: translateX(-12px); }
+  72%  { transform: translateX(0); }
+  100% { transform: translateX(0); }
+}
+
+/* petite pause pour laisser la page se stabiliser */
+.swipe-hint .swipe-content {
+  animation: swipeHint 900ms ease 450ms 1;
+}

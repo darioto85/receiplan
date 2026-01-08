@@ -91,35 +91,19 @@ export default class extends Controller {
 
   /**
    * Edition quantité (change) => POST updateQuantityUrl
-   * Règle UX: 0 => suppression (si ton endpoint retourne removed:true)
+   * Règle UX: 0 => suppression (endpoint retourne removed:true)
    */
   async updateQuantity(event) {
     const input = event.currentTarget;
     const id = event.params.id;
     if (!id) return;
 
-    // Support virgule FR (optionnel)
     const raw = String(input.value ?? "").trim().replace(",", ".");
     input.disabled = true;
 
     try {
-      const url = this.buildUrlWithId(this.updateQuantityUrlValue, id);
-
-      const form = new URLSearchParams();
-      form.set("quantity", raw);
-
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-          Accept: "application/json",
-          ...this.csrfHeader(),
-        },
-        body: form.toString(),
-      });
-
-      const data = await this.safeJson(res);
-      if (!res.ok || !data?.ok) {
+      const data = await this.postQuantity(id, raw);
+      if (!data?.ok) {
         console.error("updateQuantity failed", data);
         return;
       }
@@ -128,7 +112,6 @@ export default class extends Controller {
         const row = this.findRowForId(id);
         if (row) row.remove();
       } else if (typeof data.quantity !== "undefined") {
-        // Normaliser la valeur affichée (selon ce que renvoie le back)
         input.value = data.quantity;
       }
     } catch (e) {
@@ -141,9 +124,46 @@ export default class extends Controller {
   }
 
   /**
+   * Action "Supprimer" (menu ⋯) :
+   * - envoie quantity=0 au même endpoint
+   * - retire la ligne/card du DOM
+   */
+  async remove(event) {
+    event?.preventDefault?.();
+
+    const id = event.params.id;
+    if (!id) return;
+
+    if (!confirm("Supprimer cet article de la liste ?")) return;
+
+    const row = this.findRowForId(id);
+
+    // Désactive les inputs/checkbox de la ligne pendant l'action
+    const checkbox = row?.querySelector('[data-shopping-target="checkbox"]');
+    const qtyInput = row?.querySelector('input[type="number"]');
+    if (checkbox) checkbox.disabled = true;
+    if (qtyInput) qtyInput.disabled = true;
+
+    try {
+      const data = await this.postQuantity(id, "0");
+      if (!data?.ok) {
+        console.error("remove failed", data);
+        return;
+      }
+
+      if (row) row.remove();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      this.refreshValidateButtonState();
+      this.refreshCountBadge();
+    }
+  }
+
+  /**
    * Valider le caddie :
-   * - envoie POST validateUrl
-   * - si ok : supprime de l'UI les lignes cochées (qui ont été ajoutées au stock côté serveur)
+   * - POST validateUrl
+   * - si ok : supprime de l'UI les lignes cochées
    */
   async validateCart(event) {
     event?.preventDefault?.();
@@ -170,7 +190,11 @@ export default class extends Controller {
       this.checkboxTargets.forEach((cb) => {
         if (!cb.checked) return;
 
-        const id = cb.dataset.shoppingIdParam || cb.getAttribute("data-shopping-id-param");
+        // On préfère l'API Stimulus (event.params) mais ici on lit le dataset
+        const id =
+          cb.dataset.shoppingIdParam ||
+          cb.getAttribute("data-shopping-id-param");
+
         const row = id ? this.findRowForId(id) : cb.closest("tr");
         if (row) row.remove();
       });
@@ -190,6 +214,31 @@ export default class extends Controller {
     return String(templateUrl).replace("/0/", `/${id}/`).replace("0", String(id));
   }
 
+  async postQuantity(id, rawQty) {
+    const url = this.buildUrlWithId(this.updateQuantityUrlValue, id);
+
+    const form = new URLSearchParams();
+    form.set("quantity", String(rawQty).trim().replace(",", "."));
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+        Accept: "application/json",
+        ...this.csrfHeader(),
+      },
+      body: form.toString(),
+    });
+
+    const data = await this.safeJson(res);
+    if (!res.ok) {
+      // on renvoie quand même le payload pour debug
+      return data ?? { ok: false };
+    }
+
+    return data;
+  }
+
   csrfHeader() {
     if (this.hasCsrfTokenValue && this.csrfTokenValue) {
       return { "X-CSRF-TOKEN": this.csrfTokenValue };
@@ -204,8 +253,9 @@ export default class extends Controller {
   }
 
   findRowForId(id) {
+    // Support table row ET card (div) : on cherche n'importe quel élément porteur
     return this.element.querySelector(
-      `tr[data-shopping-row-id="${CSS.escape(String(id))}"]`
+      `[data-shopping-row-id="${CSS.escape(String(id))}"]`
     );
   }
 
@@ -222,6 +272,7 @@ export default class extends Controller {
 
   refreshCountBadge() {
     if (!this.hasCountBadgeTarget) return;
+
     const checkedCount = this.hasCheckboxTarget
       ? this.checkboxTargets.filter((cb) => cb.checked).length
       : 0;
