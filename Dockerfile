@@ -11,6 +11,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libpng-dev \
         libjpeg-dev \
         libfreetype6-dev \
+        libgmp-dev \
+        libcurl4-openssl-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install \
         intl \
@@ -18,6 +20,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         opcache \
         pdo_pgsql \
         gd \
+        gmp \
+        bcmath \
+        curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -27,6 +32,7 @@ COPY . .
 
 ENV APP_ENV=prod
 ENV APP_DEBUG=0
+ENV COMPOSER_ALLOW_SUPERUSER=1
 
 # composer sans scripts (évite cache:clear au build)
 RUN composer install \
@@ -44,7 +50,7 @@ RUN chown -R www-data:www-data var public assets
 
 EXPOSE 8000
 
-# ✅ Runtime: cache + importmap + asset-map, puis serveur
+# Runtime: cache + importmap + asset-map, puis serveur
 CMD ["sh", "-lc", "\
     php bin/console cache:clear --env=prod --no-debug && \
     php bin/console cache:warmup --env=prod --no-debug && \
