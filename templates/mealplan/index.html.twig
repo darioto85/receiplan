@@ -3,6 +3,31 @@
 {% block title %}Planning de repas{% endblock %}
 
 {% block body %}
+
+<div
+  class="card p-3"
+  data-controller="push"
+  data-push-vapid-public-key-value="{{ vapid_public_key }}"
+  data-push-subscribe-url-value="{{ path('push_subscribe') }}"
+  data-push-unsubscribe-url-value="{{ path('push_unsubscribe') }}"
+>
+  <div class="d-flex justify-content-between align-items-center gap-2">
+    <div>
+      <div class="fw-semibold">Notifications push</div>
+      <div class="text-muted small" data-push-target="status">…</div>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-primary btn-sm" data-action="push#subscribe">
+        Activer
+      </button>
+      <button type="button" class="btn btn-outline-secondary btn-sm" data-action="push#unsubscribe">
+        Désactiver
+      </button>
+    </div>
+  </div>
+</div>
+
+
 <div 
      data-turbo="false"
      data-controller="agenda"

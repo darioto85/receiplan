@@ -45,6 +45,8 @@ security:
         - { path: ^/logout, roles: PUBLIC_ACCESS }
         - { path: ^/api, roles: PUBLIC_ACCESS }
         - { path: ^/cron, roles: PUBLIC_ACCESS }
+        - { path: ^/push/test, roles: PUBLIC_ACCESS }
+        - { path: ^/push, roles: ROLE_USER }
         - { path: ^/, roles: ROLE_USER }
         # - { path: ^/admin, roles: ROLE_ADMIN }
         # - { path: ^/profile, roles: ROLE_USER }

@@ -22,6 +22,10 @@ services:
       - '../src/Entity/'
       - '../src/Kernel.php'
 
+  App\Controller\:
+      resource: '../src/Controller/'
+      tags: ['controller.service_arguments']
+      
   Aws\S3\S3Client:
     arguments:
       - version: 'latest'

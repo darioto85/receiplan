@@ -2,6 +2,7 @@
 
 namespace App\Service;
 
+use App\Dto\DailySuggestionResult;
 use App\Entity\DailyMealSuggestion;
 use App\Entity\User;
 use App\Repository\DailyMealSuggestionRepository;
@@ -18,16 +19,23 @@ final class DailyMealSuggestionService
         private readonly MealPlanProposer $proposer,
     ) {}
 
-    public function ensureTodaySuggestion(User $user, string $context = DailyMealSuggestion::CONTEXT_TODAY_AUTO): DailyMealSuggestion
-    {
+    /**
+     * Assure qu'il existe une suggestion pour aujourd'hui.
+     * Retourne un DTO avec created=true si on vient de la créer pendant ce call.
+     */
+    public function ensureTodaySuggestion(
+        User $user,
+        string $context = DailyMealSuggestion::CONTEXT_TODAY_AUTO
+    ): DailySuggestionResult {
         $today = new \DateTimeImmutable('today');
 
+        // 1) Déjà existante => created=false
         $existing = $this->suggestionRepo->findOneForUserDate($user, $today);
         if ($existing) {
-            return $existing;
+            return new DailySuggestionResult($existing, false);
         }
 
-        // ✅ Si l'utilisateur a déjà planifié quelque chose aujourd'hui, on ne crée PAS un nouveau mealplan
+        // 2) Si déjà planifié aujourd'hui => on crée une suggestion "accepted"
         $alreadyPlanned = $this->mealPlanRepo->findForUserOnDate($user, $today);
         if ($alreadyPlanned !== []) {
             $s = (new DailyMealSuggestion())
@@ -40,13 +48,21 @@ final class DailyMealSuggestionService
             try {
                 $this->em->persist($s);
                 $this->em->flush();
-                return $s;
+
+                return new DailySuggestionResult($s, true);
             } catch (UniqueConstraintViolationException) {
-                return $this->suggestionRepo->findOneForUserDate($user, $today) ?? $s;
+                // Concurrence : quelqu'un l'a créée juste avant
+                $fresh = $this->suggestionRepo->findOneForUserDate($user, $today);
+                if ($fresh) {
+                    return new DailySuggestionResult($fresh, false);
+                }
+
+                // Fallback (très rare)
+                return new DailySuggestionResult($s, false);
             }
         }
 
-        // Sinon, on crée une proposition via ton service existant
+        // 3) Sinon on crée une proposition via MealPlanProposer
         $s = (new DailyMealSuggestion())
             ->setUser($user)
             ->setDate($today)
@@ -61,18 +77,25 @@ final class DailyMealSuggestionService
             $this->em->persist($s);
             $this->em->flush();
 
-            return $s;
+            return new DailySuggestionResult($s, true);
         } catch (\DomainException) {
-            // aucune recette faisable / toutes déjà planifiées etc.
+            // Aucune recette faisable / toutes déjà planifiées / etc.
             $s->setStatus(DailyMealSuggestion::STATUS_NONE_POSSIBLE);
             $s->setMealPlan(null);
 
             try {
                 $this->em->persist($s);
                 $this->em->flush();
-                return $s;
+
+                return new DailySuggestionResult($s, true);
             } catch (UniqueConstraintViolationException) {
-                return $this->suggestionRepo->findOneForUserDate($user, $today) ?? $s;
+                // Concurrence : quelqu'un l'a créée juste avant
+                $fresh = $this->suggestionRepo->findOneForUserDate($user, $today);
+                if ($fresh) {
+                    return new DailySuggestionResult($fresh, false);
+                }
+
+                return new DailySuggestionResult($s, false);
             }
         }
     }

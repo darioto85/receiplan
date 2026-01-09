@@ -13,6 +13,7 @@ import TicketScanController from './controllers/ticket_scan_controller.js';
 import ShoppingController from './controllers/shopping_controller.js';
 import ImageGenerationController from './controllers/image_generate_controller.js';
 import SwipeController from './controllers/swipe_reveal_controller.js';
+import PushController from './controllers/push_controller.js';
 
 const app = startStimulusApp();
 app.register('collection', CollectionController);
@@ -29,3 +30,4 @@ app.register('ticket-scan', TicketScanController);
 app.register('shopping', ShoppingController);
 app.register('ingredient-image-generate', ImageGenerationController);
 app.register('swipe-reveal', SwipeController);
+app.register('push', PushController);

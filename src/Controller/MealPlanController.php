@@ -8,18 +8,22 @@ use App\Service\MealPlanProposer;
 use App\Service\RecipeFeasibilityService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\User\UserInterface;
 
+
 #[Route('/meal-plan')]
 final class MealPlanController extends AbstractController
 {
     #[Route('', name: 'meal_plan_index', methods: ['GET'])]
-    public function index(Request $request): Response
-    {
+    public function index(
+        Request $request,
+        #[Autowire('%env(VAPID_PUBLIC_KEY)%')] string $vapidPublicKey,
+    ): Response {
         $today = new \DateTimeImmutable('today');
 
         $dateStr = $request->query->get('date');
@@ -31,9 +35,10 @@ final class MealPlanController extends AbstractController
         $weekEnd   = $weekStart->modify('+6 days');
 
         return $this->render('mealplan/index.html.twig', [
-            'today'     => $today,
+            'today' => $today,
             'weekStart' => $weekStart,
-            'weekEnd'   => $weekEnd,
+            'weekEnd' => $weekEnd,
+            'vapid_public_key' => $vapidPublicKey,
         ]);
     }
 

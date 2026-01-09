@@ -11,7 +11,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\UniqueConstraint(name: 'uniq_daily_suggestion_user_date', columns: ['user_id', 'date'])]
 #[ORM\Index(name: 'idx_daily_suggestion_date', columns: ['date'])]
 #[ORM\Index(name: 'idx_daily_suggestion_user', columns: ['user_id'])]
-final class DailyMealSuggestion
+class DailyMealSuggestion
 {
     public const STATUS_PROPOSED      = 'proposed';
     public const STATUS_NONE_POSSIBLE = 'none_possible';
