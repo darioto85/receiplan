@@ -27,13 +27,19 @@ final class PushNotifier
                 'privateKey' => $vapidPrivateKey,
             ],
         ]);
-
-        // Optionnel : tu peux régler des defaults ici si tu veux
-        // $this->webPush->setReuseVAPIDHeaders(true);
     }
 
     /**
-     * @param array{title?:string, body?:string, url?:string, icon?:string, badge?:string} $payload
+     * @param array{
+     *   title?:string,
+     *   body?:string,
+     *   url?:string,
+     *   icon?:string,
+     *   badge?:string,
+     *   image?:string,
+     *   tag?:string,
+     *   renotify?:bool
+     * } $payload
      * @return array{sent:int, failed:int, deleted:int}
      */
     public function notifyUser(User $user, array $payload): array
@@ -44,17 +50,21 @@ final class PushNotifier
             return ['sent' => 0, 'failed' => 0, 'deleted' => 0];
         }
 
-        // ✅ Payload "béton" (évite les push vides)
         $finalPayload = array_merge([
             'title' => 'Receiplan',
             'body' => '',
             'url' => '/meal-plan',
+            // bonus: tu peux définir des defaults si tu veux
+            // 'icon' => 'https://.../assets/push-icon.png',
+            // 'badge' => 'https://.../assets/push-badge.png',
         ], $payload);
 
         try {
-            $jsonPayload = json_encode($finalPayload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+            $jsonPayload = json_encode(
+                $finalPayload,
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+            );
         } catch (\JsonException) {
-            // fallback ultra safe
             $jsonPayload = '{"title":"Receiplan","body":"","url":"/meal-plan"}';
         }
 
@@ -68,16 +78,15 @@ final class PushNotifier
                     'endpoint' => $ps->getEndpoint(),
                     'publicKey' => $ps->getP256dh(),
                     'authToken' => $ps->getAuth(),
-                    'contentEncoding' => $ps->getContentEncoding(), // souvent "aesgcm"
+                    'contentEncoding' => $ps->getContentEncoding(),
                 ]);
 
-                // ✅ Options utiles : TTL/urgency (surtout pour "du jour")
                 $report = $this->webPush->sendOneNotification(
                     $subscription,
                     $jsonPayload,
                     [
-                        'TTL' => 60 * 60 * 6,      // 6h (à ajuster)
-                        'urgency' => 'normal',     // 'very-low'|'low'|'normal'|'high'
+                        'TTL' => 60 * 60 * 6, // 6h
+                        'urgency' => 'normal',
                     ]
                 );
 
@@ -88,13 +97,12 @@ final class PushNotifier
                     $failed++;
 
                     $statusCode = $report->getResponse()?->getStatusCode();
-                    if (in_array($statusCode, [404, 410], true)) {
+                    if (\in_array($statusCode, [404, 410], true)) {
                         $this->em->remove($ps);
                         $deleted++;
                     }
                 }
             } catch (\Throwable) {
-                // En cas d'erreur sur une subscription, on continue les autres
                 $failed++;
             }
         }

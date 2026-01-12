@@ -19,6 +19,7 @@ final class CronController extends AbstractController
         AutoImageGenerationService $service,
         #[Autowire('%env(CRON_SECRET)%')] string $cronSecret,
     ): JsonResponse {
+        
         $token = (string) $request->headers->get('X-CRON-SECRET', '');
 
         if ($cronSecret === '' || !hash_equals($cronSecret, $token)) {

@@ -11,6 +11,7 @@ final class DailyMealSuggestionBackfillService
         private readonly UserRepository $userRepo,
         private readonly DailyMealSuggestionService $service,
         private readonly PushNotifier $pushNotifier,
+        private readonly RecipeImageResolver $recipeImageResolver,
     ) {}
 
     public function backfillToday(): array
@@ -26,8 +27,13 @@ final class DailyMealSuggestionBackfillService
         $pushFailedTotal = 0;
         $pushDeletedTotal = 0;
 
+        $today = new \DateTimeImmutable('today');
+
         foreach ($users as $user) {
-            $result = $this->service->ensureTodaySuggestion($user, DailyMealSuggestion::CONTEXT_CRON_BACKFILL);
+            $result = $this->service->ensureTodaySuggestion(
+                $user,
+                DailyMealSuggestion::CONTEXT_CRON_BACKFILL
+            );
 
             if ($result->created) {
                 $created++;
@@ -35,33 +41,51 @@ final class DailyMealSuggestionBackfillService
                 $existing++;
             }
 
-            $s = $result->suggestion;
+            $suggestion = $result->suggestion;
 
-            if ($s->getStatus() === DailyMealSuggestion::STATUS_NONE_POSSIBLE) {
+            if ($suggestion->getStatus() === DailyMealSuggestion::STATUS_NONE_POSSIBLE) {
                 $nonePossible++;
                 continue;
             }
 
-            // ✅ Push uniquement si on vient de créer une suggestion "PROPOSED"
-            if (!$result->created || $s->getStatus() !== DailyMealSuggestion::STATUS_PROPOSED) {
+            // ✅ Push uniquement si on vient de créer une suggestion PROPOSED
+            if (!$result->created || $suggestion->getStatus() !== DailyMealSuggestion::STATUS_PROPOSED) {
                 continue;
             }
 
-            $mealPlan = $s->getMealPlan();
+            $mealPlan = $suggestion->getMealPlan();
             $recipe = $mealPlan?->getRecipe();
 
             if (!$mealPlan || !$recipe) {
                 continue;
             }
 
-            $dateStr = $mealPlan->getDate()?->format('Y-m-d') ?? (new \DateTimeImmutable('today'))->format('Y-m-d');
-            $recipeName = $recipe->getName();
+            $date = $mealPlan->getDate() ?? $today;
+            $dateStr = $date->format('Y-m-d');
 
-            $pushResult = $this->pushNotifier->notifyUser($user, [
-                'title' => 'Receiplan',
-                'body'  => "Ta proposition du jour est prête : {$recipeName}",
+            // ✅ Image publique (ou placeholder automatique)
+            $recipeImageUrl = $this->recipeImageResolver->getPublicUrl($recipe);
+
+            $payload = [
+                // 🎯 Titre = nom de la recette
+                'title' => 'Votre proposition "Receiplan" du jour : ' . (string) $recipe->getName(),
+
+                // 📝 Texte demandé
+                'body'  => 'Vous pouvez la changer à tout moment en cliquant ici.',
+
+                // 👉 Clic = planning du jour
                 'url'   => "/meal-plan?date={$dateStr}",
-            ]);
+
+                // 🖼️ Image riche de la recette
+                'image' => $recipeImageUrl,
+                'icon' => $recipeImageUrl,
+
+                // 🧯 Anti-spam : une seule notif par jour
+                'tag' => "daily-meal-{$dateStr}",
+                'renotify' => false,
+            ];
+
+            $pushResult = $this->pushNotifier->notifyUser($user, $payload);
 
             $sent = (int) ($pushResult['sent'] ?? 0);
             $failed = (int) ($pushResult['failed'] ?? 0);
@@ -77,7 +101,7 @@ final class DailyMealSuggestionBackfillService
         }
 
         return [
-            'users' => count($users),
+            'users' => \count($users),
             'created' => $created,
             'existing' => $existing,
             'none_possible' => $nonePossible,
