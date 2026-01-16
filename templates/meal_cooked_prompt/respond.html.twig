@@ -1,0 +1,77 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Receiplan{% endblock %}
+
+{% block body %}
+<div class="container py-4">
+  <div class="mx-auto" style="max-width: 560px;">
+    <h1 class="h4 mb-3">Receiplan</h1>
+
+    {% if mode == 'already' %}
+      <div class="alert alert-info">
+        Vous avez déjà répondu à cette question.
+      </div>
+
+      {% if recipeName %}
+        <p class="mb-2"><strong>Recette :</strong> {{ recipeName }}</p>
+      {% endif %}
+
+      {% if answer %}
+        <p class="mb-0"><strong>Réponse :</strong> {{ answer == 'YES' ? 'Oui' : 'Non' }}</p>
+      {% endif %}
+
+      <a class="btn btn-primary mt-3" href="/meal-plan">Retour au planning</a>
+
+    {% else %}
+      <p class="lead mb-3">
+        Avez-vous cuisiné votre <strong>{{ recipeName }}</strong> hier ?
+      </p>
+
+      <div class="d-grid gap-2">
+        <button id="btn-yes" class="btn btn-success btn-lg" type="button">Oui</button>
+        <button id="btn-no" class="btn btn-outline-danger btn-lg" type="button">Non</button>
+      </div>
+
+      <div id="result" class="mt-3"></div>
+
+      <p class="text-muted small mt-3 mb-0">
+        Votre réponse est enregistrée immédiatement.
+      </p>
+
+      <script>
+        (function () {
+          const yesUrl = {{ yesUrl ? yesUrl|json_encode|raw : 'null' }};
+          const noUrl = {{ noUrl ? noUrl|json_encode|raw : 'null' }};
+          const resultEl = document.getElementById('result');
+
+          async function send(url) {
+            try {
+              const res = await fetch(url, { method: 'POST' });
+              const json = await res.json().catch(() => null);
+
+              if (!res.ok || !json || json.ok !== true) {
+                throw new Error('Request failed');
+              }
+
+              resultEl.innerHTML =
+                '<div class="alert alert-success mb-0">Merci ! Réponse enregistrée ✅</div>';
+
+              document.getElementById('btn-yes').disabled = true;
+              document.getElementById('btn-no').disabled = true;
+
+              // Optionnel : rediriger après 1s
+              setTimeout(() => { window.location.href = '/meal-plan'; }, 900);
+            } catch (e) {
+              resultEl.innerHTML =
+                '<div class="alert alert-danger mb-0">Impossible d’enregistrer la réponse. Réessayez.</div>';
+            }
+          }
+
+          document.getElementById('btn-yes').addEventListener('click', () => yesUrl && send(yesUrl));
+          document.getElementById('btn-no').addEventListener('click', () => noUrl && send(noUrl));
+        })();
+      </script>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -4,57 +4,117 @@ self.addEventListener("push", (event) => {
       title: "Receiplan",
       body: "",
       url: "/meal-plan",
+
+      icon: undefined,
       image: undefined,
+      badge: undefined,
+
       tag: undefined,
       renotify: false,
+      requireInteraction: false,
+
+      actions: undefined,
+      yesUrl: undefined,
+      noUrl: undefined,
     };
 
     if (event.data) {
       try {
-        const json = await event.data.json(); // ✅ IMPORTANT
-        if (json && typeof json === "object") {
-          data = { ...data, ...json };
-        }
+        const json = await event.data.json();
+        if (json && typeof json === "object") data = { ...data, ...json };
       } catch (e) {
         try {
-          const text = await event.data.text(); // ✅ IMPORTANT
+          const text = await event.data.text();
           if (text) data.body = text;
         } catch (e2) {}
       }
     }
 
-    await self.registration.showNotification(data.title || "Receiplan", {
+    const options = {
       body: data.body || "",
-      icon: data.icon || undefined,   // ✅
-      image: data.image || undefined, // ✅
+      icon: data.icon || undefined,
+      image: data.image || undefined,
+      badge: data.badge || undefined,
+
       tag: data.tag || undefined,
-      data: { url: data.url || "/meal-plan" },
-    });
+      renotify: !!data.renotify,
+      requireInteraction: !!data.requireInteraction,
+
+      actions: Array.isArray(data.actions) ? data.actions : undefined,
+
+      data: {
+        url: data.url || "/meal-plan",
+        yesUrl: data.yesUrl,
+        noUrl: data.noUrl,
+      },
+    };
+
+    console.log("[SW] push received", options);
+
+    await self.registration.showNotification(data.title || "Receiplan", options);
   })());
 });
 
-
 self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
-  const url = event.notification?.data?.url || "/meal-plan";
-
   event.waitUntil((async () => {
+    const notifData = event.notification?.data || {};
+    const action = event.action || "";
+    const origin = self.location.origin;
+
+    // Convertit toute URL en absolu (plus fiable sur Windows)
+    const toAbs = (u) => {
+      if (!u) return null;
+      try {
+        return new URL(u, origin).href;
+      } catch (_) {
+        return null;
+      }
+    };
+
+    const fallbackUrl = toAbs(notifData.url) || toAbs("/meal-plan");
+
+    console.log("[SW] notificationclick", { action, notifData, fallbackUrl });
+
+    // Toujours fermer après (sinon parfois le click bug visuellement)
+    event.notification.close();
+
+    // ✅ Boutons Oui/Non
+    if (action === "yes" && notifData.yesUrl) {
+      const yesUrl = toAbs(notifData.yesUrl);
+      console.log("[SW] action YES ->", yesUrl);
+      if (yesUrl) {
+        try { await fetch(yesUrl, { method: "POST" }); } catch (_) {}
+      }
+      return;
+    }
+
+    if (action === "no" && notifData.noUrl) {
+      const noUrl = toAbs(notifData.noUrl);
+      console.log("[SW] action NO ->", noUrl);
+      if (noUrl) {
+        try { await fetch(noUrl, { method: "POST" }); } catch (_) {}
+      }
+      return;
+    }
+
+    // ✅ Clic sur la notif (fallback)
+    if (!fallbackUrl) return;
+
     const allClients = await clients.matchAll({ type: "window", includeUncontrolled: true });
+    console.log("[SW] clients:", allClients.length);
 
     for (const c of allClients) {
-      // Si une fenêtre existe déjà, on la focus et on navigue
       if ("focus" in c) {
         try {
-          if ("navigate" in c) await c.navigate(url);
+          if ("navigate" in c) await c.navigate(fallbackUrl);
         } catch (_) {}
         await c.focus();
         return;
       }
     }
 
-    // Sinon on en ouvre une nouvelle
     if (clients.openWindow) {
-      await clients.openWindow(url);
+      await clients.openWindow(fallbackUrl);
     }
   })());
 });

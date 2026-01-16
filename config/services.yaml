@@ -77,3 +77,6 @@ services:
       arguments:
         $openAiApiKey: '%env(OPENAI_API_KEY)%'
 
+  App\Service\PushActionTokenService:
+      arguments:
+        $secret: '%env(CRON_SECRET)%'

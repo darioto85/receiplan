@@ -16,6 +16,23 @@ final class MealPlanRepository extends ServiceEntityRepository
         parent::__construct($registry, MealPlan::class);
     }
 
+    /**
+     * Retourne au max 1 MealPlan non validé pour un user à une date donnée.
+     */
+    public function findOneUnvalidatedForUserOnDate(User $user, \DateTimeImmutable $date): ?MealPlan
+    {
+        return $this->createQueryBuilder('mp')
+            ->andWhere('mp.user = :user')
+            ->andWhere('mp.date = :date')
+            ->andWhere('mp.validated = false')
+            ->setParameter('user', $user)
+            ->setParameter('date', $date, Types::DATE_IMMUTABLE)
+            ->orderBy('mp.id', 'ASC') // déterministe
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     public function existsForUserRecipeDateExcludingMealPlan(
         User $user,
         int $recipeId,
