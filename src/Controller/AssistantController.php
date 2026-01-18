@@ -24,7 +24,6 @@ final class AssistantController extends AbstractController
         private readonly AssistantMessageRepository $messageRepo,
         private readonly EntityManagerInterface $em,
 
-        // IA
         private readonly AiStockParser $aiStockParser,
         private readonly AiAddRecipeHandler $aiAddRecipeHandler,
         private readonly AiAddStockHandler $aiAddStockHandler,
@@ -47,13 +46,10 @@ final class AssistantController extends AbstractController
         }
 
         $today = new \DateTimeImmutable('today');
-
         $conversation = $this->conversationRepo->findForUserAndDay($user, $today);
+
         if (!$conversation instanceof AssistantConversation) {
-            return $this->json([
-                'day' => $today->format('Y-m-d'),
-                'messages' => [],
-            ]);
+            return $this->json(['day' => $today->format('Y-m-d'), 'messages' => []]);
         }
 
         $messages = $this->messageRepo->findForConversation($conversation);
@@ -64,6 +60,9 @@ final class AssistantController extends AbstractController
         ]);
     }
 
+    /**
+     * Étape 1: Proposer une action (confirm/clarify) sans appliquer.
+     */
     #[Route('/assistant/message', name: 'assistant_message', methods: ['POST'])]
     public function message(Request $request): JsonResponse
     {
@@ -84,41 +83,80 @@ final class AssistantController extends AbstractController
 
         $today = new \DateTimeImmutable('today');
 
-        // 1) get or create conversation du jour
         $conversation = $this->conversationRepo->findForUserAndDay($user, $today);
         if (!$conversation instanceof AssistantConversation) {
             $conversation = new AssistantConversation($user, $today);
             $this->em->persist($conversation);
         }
 
-        // 2) persist message user
         $userMsg = new AssistantMessage($conversation, AssistantMessage::ROLE_USER, $text);
         $this->em->persist($userMsg);
 
-        // 3) IA: parse uniquement -> on propose une action à confirmer
         try {
             $parse = $this->aiStockParser->parse($text);
 
             $action = (string)($parse['action'] ?? 'unknown');
             $payloadAi = $parse['payload'] ?? null;
 
-            $assistantText = match ($action) {
-                'add_stock'  => $this->buildConfirmTextForStock($payloadAi),
-                'add_recipe' => $this->buildConfirmTextForRecipe($payloadAi),
-                default      => "Je ne suis pas sûr de ce que tu veux faire. Tu peux reformuler ?",
-            };
-
+            $assistantText = "Je ne suis pas sûr de ce que tu veux faire. Tu peux reformuler ?";
             $assistantPayload = null;
 
-            if (in_array($action, ['add_stock', 'add_recipe'], true) && is_array($payloadAi)) {
-                $assistantPayload = [
-                    'type' => 'confirm',
-                    'action' => $action,
-                    'action_payload' => $payloadAi,
-                    'confirmed' => null, // yes/no plus tard
-                    'confirmed_at' => null,
-                    'parse' => $parse, // utile debug
-                ];
+            if ($action === 'add_stock' && is_array($payloadAi)) {
+                $payloadAi = $this->normalizeStockDraft($payloadAi);
+                $questions = $this->buildClarifyQuestionsForStock($payloadAi);
+
+                if (count($questions) > 0) {
+                    $assistantText = "J’ai besoin d’une précision avant d’ajouter au stock :";
+                    $assistantPayload = [
+                        'type' => 'clarify',
+                        'action' => 'add_stock',
+                        'action_payload' => $payloadAi,
+                        'questions' => $questions,
+                        'clarified' => null,
+                        'clarified_at' => null,
+                        'parse' => $parse,
+                    ];
+                } else {
+                    $assistantText = $this->buildConfirmTextForStock($payloadAi);
+                    $assistantPayload = [
+                        'type' => 'confirm',
+                        'action' => 'add_stock',
+                        'action_payload' => $payloadAi,
+                        'confirmed' => null,
+                        'confirmed_at' => null,
+                        'parse' => $parse,
+                    ];
+                }
+            } elseif ($action === 'add_recipe' && is_array($payloadAi)) {
+                // ✅ IMPORTANT : AiStockParser::parseRecipe() renvoie payloadAi['recipe']['name']
+                $name = trim((string)(
+                    $payloadAi['name']
+                    ?? $payloadAi['recipe_name']
+                    ?? ($payloadAi['recipe']['name'] ?? null)
+                    ?? ''
+                ));
+
+                if ($name === '') {
+                    $assistantText = "Je peux ajouter une recette, mais j’ai besoin du nom. Tu peux me le redonner ?";
+
+                    // ✅ DEBUG: on renvoie le parse brut en dev pour comprendre la shape
+                    $assistantPayload = $this->kernel->isDebug() ? [
+                        'type' => 'debug_recipe_missing_name',
+                        'action' => $action,
+                        'action_payload' => $payloadAi,
+                        'parse' => $parse,
+                    ] : null;
+                } else {
+                    $assistantText = $this->buildConfirmTextForRecipe($payloadAi);
+                    $assistantPayload = [
+                        'type' => 'confirm',
+                        'action' => 'add_recipe',
+                        'action_payload' => $payloadAi,
+                        'confirmed' => null,
+                        'confirmed_at' => null,
+                        'parse' => $parse,
+                    ];
+                }
             }
 
             $assistantMsg = new AssistantMessage(
@@ -133,9 +171,7 @@ final class AssistantController extends AbstractController
 
             return $this->json([
                 'day' => $today->format('Y-m-d'),
-                'messages' => [
-                    $this->serializeMessage($assistantMsg),
-                ],
+                'messages' => [$this->serializeMessage($assistantMsg)],
             ]);
         } catch (\Throwable $e) {
             $debug = $this->kernel->isDebug();
@@ -156,6 +192,10 @@ final class AssistantController extends AbstractController
         }
     }
 
+    /**
+     * Étape 2 (+ Étape 4 override): appliquer / annuler après confirmation user.
+     * Body: { "message_id": 123, "decision": "yes"|"no", "action_payload"?: {...} }
+     */
     #[Route('/assistant/confirm', name: 'assistant_confirm', methods: ['POST'])]
     public function confirm(Request $request): JsonResponse
     {
@@ -164,13 +204,14 @@ final class AssistantController extends AbstractController
             return $this->json(['error' => ['code' => 'unauthorized', 'message' => 'Non authentifié.']], 401);
         }
 
-        $payload = json_decode($request->getContent() ?: '{}', true);
-        if (!is_array($payload)) {
+        $body = json_decode($request->getContent() ?: '{}', true);
+        if (!is_array($body)) {
             return $this->json(['error' => ['code' => 'invalid_json', 'message' => 'JSON invalide.']], 400);
         }
 
-        $messageId = $payload['message_id'] ?? null;
-        $decision = (string)($payload['decision'] ?? '');
+        $messageId = $body['message_id'] ?? null;
+        $decision = (string)($body['decision'] ?? '');
+        $overridePayload = $body['action_payload'] ?? null;
 
         if (!is_numeric($messageId)) {
             return $this->json(['error' => ['code' => 'missing_message_id', 'message' => 'message_id requis.']], 422);
@@ -185,7 +226,6 @@ final class AssistantController extends AbstractController
             return $this->json(['error' => ['code' => 'message_not_found', 'message' => 'Message introuvable.']], 404);
         }
 
-        // sécurité : le message doit appartenir au user courant
         $conversation = $confirmMsg->getConversation();
         if ($conversation->getUser()->getId() !== $user->getId()) {
             return $this->json(['error' => ['code' => 'forbidden', 'message' => 'Accès interdit.']], 403);
@@ -196,30 +236,31 @@ final class AssistantController extends AbstractController
             return $this->json(['error' => ['code' => 'not_confirmable', 'message' => 'Ce message ne demande pas de confirmation.']], 422);
         }
 
-        // idempotence : si déjà confirmé
         if (($p['confirmed'] ?? null) !== null) {
             $assistantMsg = new AssistantMessage(
                 $conversation,
                 AssistantMessage::ROLE_ASSISTANT,
-                "ℹ️ C’est déjà pris en compte.",
+                "C’est déjà pris en compte.",
                 ['type' => 'info', 'ref_message_id' => $confirmMsg->getId()]
             );
             $this->em->persist($assistantMsg);
             $this->em->flush();
 
-            return $this->json([
-                'messages' => [$this->serializeMessage($assistantMsg)],
-            ]);
+            return $this->json(['messages' => [$this->serializeMessage($assistantMsg)]]);
         }
 
-        // marquer la décision sur le message de confirmation
         $p['confirmed'] = $decision;
         $p['confirmed_at'] = (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM);
 
         $action = (string)($p['action'] ?? 'unknown');
         $actionPayload = $p['action_payload'] ?? null;
 
-        $newAssistantMessages = [];
+        if ($decision === 'yes' && is_array($overridePayload)) {
+            $actionPayload = $overridePayload;
+
+            $p['edited'] = true;
+            $p['edited_at'] = (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM);
+        }
 
         try {
             if ($decision === 'no') {
@@ -228,22 +269,21 @@ final class AssistantController extends AbstractController
                 $assistantMsg = new AssistantMessage(
                     $conversation,
                     AssistantMessage::ROLE_ASSISTANT,
-                    "OK, je ne fais rien 👍",
+                    "OK, j’annule 👍",
                     ['type' => 'cancel', 'ref_message_id' => $confirmMsg->getId()]
                 );
                 $this->em->persist($assistantMsg);
-
                 $this->em->flush();
 
-                return $this->json([
-                    'messages' => [$this->serializeMessage($assistantMsg)],
-                ]);
+                return $this->json(['messages' => [$this->serializeMessage($assistantMsg)]]);
             }
 
-            // decision === 'yes' => APPLY
             if (!is_array($actionPayload)) {
                 throw new \RuntimeException('missing_action_payload');
             }
+
+            $p['action_payload'] = $actionPayload;
+            $confirmMsg->setPayload($p);
 
             $result = null;
             $assistantText = null;
@@ -264,8 +304,6 @@ final class AssistantController extends AbstractController
                     break;
             }
 
-            $confirmMsg->setPayload($p);
-
             $assistantMsg = new AssistantMessage(
                 $conversation,
                 AssistantMessage::ROLE_ASSISTANT,
@@ -281,13 +319,10 @@ final class AssistantController extends AbstractController
 
             $this->em->flush();
 
-            return $this->json([
-                'messages' => [$this->serializeMessage($assistantMsg)],
-            ]);
+            return $this->json(['messages' => [$this->serializeMessage($assistantMsg)]]);
         } catch (\Throwable $e) {
             $debug = $this->kernel->isDebug();
 
-            // On enregistre quand même le choix "yes" mais on note l'erreur
             $p['apply_error'] = $debug
                 ? ['type' => get_class($e), 'detail' => $e->getMessage()]
                 : true;
@@ -301,12 +336,113 @@ final class AssistantController extends AbstractController
                 $debug ? ['error' => ['type' => get_class($e), 'detail' => $e->getMessage()]] : null
             );
             $this->em->persist($assistantMsg);
+            $this->em->flush();
+
+            return $this->json(['messages' => [$this->serializeMessage($assistantMsg)]], 200);
+        }
+    }
+
+    #[Route('/assistant/clarify', name: 'assistant_clarify', methods: ['POST'])]
+    public function clarify(Request $request): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user) {
+            return $this->json(['error' => ['code' => 'unauthorized', 'message' => 'Non authentifié.']], 401);
+        }
+
+        $body = json_decode($request->getContent() ?: '{}', true);
+        if (!is_array($body)) {
+            return $this->json(['error' => ['code' => 'invalid_json', 'message' => 'JSON invalide.']], 400);
+        }
+
+        $messageId = $body['message_id'] ?? null;
+        $answers = $body['answers'] ?? null;
+
+        if (!is_numeric($messageId)) {
+            return $this->json(['error' => ['code' => 'missing_message_id', 'message' => 'message_id requis.']], 422);
+        }
+        if (!is_array($answers)) {
+            return $this->json(['error' => ['code' => 'missing_answers', 'message' => 'answers requis.']], 422);
+        }
+
+        /** @var AssistantMessage|null $clarifyMsg */
+        $clarifyMsg = $this->em->getRepository(AssistantMessage::class)->find((int)$messageId);
+        if (!$clarifyMsg instanceof AssistantMessage) {
+            return $this->json(['error' => ['code' => 'message_not_found', 'message' => 'Message introuvable.']], 404);
+        }
+
+        $conversation = $clarifyMsg->getConversation();
+        if ($conversation->getUser()->getId() !== $user->getId()) {
+            return $this->json(['error' => ['code' => 'forbidden', 'message' => 'Accès interdit.']], 403);
+        }
+
+        $p = $clarifyMsg->getPayload();
+        if (!is_array($p) || ($p['type'] ?? null) !== 'clarify') {
+            return $this->json(['error' => ['code' => 'not_clarifiable', 'message' => 'Ce message ne demande pas de précision.']], 422);
+        }
+
+        if (($p['clarified'] ?? null) === true) {
+            $assistantMsg = new AssistantMessage(
+                $conversation,
+                AssistantMessage::ROLE_ASSISTANT,
+                "C’est déjà pris en compte.",
+                ['type' => 'info', 'ref_message_id' => $clarifyMsg->getId()]
+            );
+            $this->em->persist($assistantMsg);
+            $this->em->flush();
+
+            return $this->json(['messages' => [$this->serializeMessage($assistantMsg)]]);
+        }
+
+        $action = (string)($p['action'] ?? 'unknown');
+        $draft = $p['action_payload'] ?? null;
+
+        if ($action !== 'add_stock' || !is_array($draft)) {
+            return $this->json(['error' => ['code' => 'unsupported_action', 'message' => 'Clarify non supporté pour cette action.']], 422);
+        }
+
+        try {
+            $updatedDraft = $this->applyClarifyAnswersToStockDraft($draft, $answers);
+
+            $p['action_payload'] = $updatedDraft;
+            $p['clarified'] = true;
+            $p['clarified_at'] = (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM);
+            $p['answers'] = $answers;
+            $clarifyMsg->setPayload($p);
+
+            $assistantText = $this->buildConfirmTextForStock($updatedDraft);
+
+            $confirmMsg = new AssistantMessage(
+                $conversation,
+                AssistantMessage::ROLE_ASSISTANT,
+                $assistantText,
+                [
+                    'type' => 'confirm',
+                    'action' => 'add_stock',
+                    'action_payload' => $updatedDraft,
+                    'confirmed' => null,
+                    'confirmed_at' => null,
+                    'from_clarify_message_id' => $clarifyMsg->getId(),
+                ]
+            );
+            $this->em->persist($confirmMsg);
 
             $this->em->flush();
 
-            return $this->json([
-                'messages' => [$this->serializeMessage($assistantMsg)],
-            ], 200);
+            return $this->json(['messages' => [$this->serializeMessage($confirmMsg)]]);
+        } catch (\Throwable $e) {
+            $debug = $this->kernel->isDebug();
+
+            $assistantMsg = new AssistantMessage(
+                $conversation,
+                AssistantMessage::ROLE_ASSISTANT,
+                "⚠️ Je n’ai pas réussi à prendre en compte ces précisions. Réessaie.",
+                $debug ? ['error' => ['type' => get_class($e), 'detail' => $e->getMessage()]] : null
+            );
+            $this->em->persist($assistantMsg);
+            $this->em->flush();
+
+            return $this->json(['messages' => [$this->serializeMessage($assistantMsg)]], 200);
         }
     }
 
@@ -316,7 +452,6 @@ final class AssistantController extends AbstractController
 
     private function buildConfirmTextForStock(mixed $payloadAi): string
     {
-        // attendu: ['items' => [...]] souvent
         if (!is_array($payloadAi)) {
             return "Je peux ajouter au stock. Tu confirmes ?";
         }
@@ -326,24 +461,27 @@ final class AssistantController extends AbstractController
             return "Je peux ajouter au stock. Tu confirmes ?";
         }
 
-        $lines = [];
+        $parts = [];
         foreach (array_slice($items, 0, 5) as $it) {
             if (!is_array($it)) continue;
-            $name = (string)($it['name'] ?? $it['name_raw'] ?? '');
+
+            $name = trim((string)($it['name'] ?? $it['name_raw'] ?? ''));
             if ($name === '') continue;
 
             $q = $it['quantity'] ?? null;
-            $u = $it['unit'] ?? null;
+            $qRaw = trim((string)($it['quantity_raw'] ?? ''));
 
-            $part = $name;
-            if ($q !== null && $q !== '') $part = $q.' '.$part;
-            if ($u !== null && $u !== '') $part .= ' ('.$u.')';
-
-            $lines[] = $part;
+            if ($q !== null && $q !== '' && is_numeric($q)) {
+                $parts[] = rtrim(rtrim((string)$q, '0'), '.') . ' ' . $name;
+            } elseif ($qRaw !== '') {
+                $parts[] = $qRaw . ' ' . $name;
+            } else {
+                $parts[] = $name;
+            }
         }
 
-        $summary = count($lines) > 0 ? implode(', ', $lines) : "des éléments";
-        $more = (is_array($items) && count($items) > 5) ? " (+".(count($items) - 5).")" : "";
+        $summary = count($parts) > 0 ? implode(', ', $parts) : "des éléments";
+        $more = (count($items) > 5) ? " (+".(count($items) - 5).")" : "";
 
         return "Je peux ajouter au stock : ".$summary.$more.". Tu confirmes ?";
     }
@@ -354,7 +492,14 @@ final class AssistantController extends AbstractController
             return "Je peux ajouter une recette. Tu confirmes ?";
         }
 
-        $name = (string)($payloadAi['name'] ?? $payloadAi['recipe_name'] ?? '');
+        // ✅ payload recette v2 = { recipe: { name: ..., ingredients: [...] } }
+        $name = trim((string)(
+            $payloadAi['name']
+            ?? $payloadAi['recipe_name']
+            ?? ($payloadAi['recipe']['name'] ?? null)
+            ?? ''
+        ));
+
         if ($name !== '') {
             return "Je peux ajouter la recette « ".$name." ». Tu confirmes ?";
         }
@@ -427,5 +572,125 @@ final class AssistantController extends AbstractController
             'payload' => $m->getPayload(),
             'created_at' => $m->getCreatedAt()->format(\DateTimeInterface::ATOM),
         ];
+    }
+
+    private function applyClarifyAnswersToStockDraft(array $draft, array $answers): array
+    {
+        if (!isset($draft['items']) || !is_array($draft['items'])) {
+            return $draft;
+        }
+
+        foreach ($answers as $path => $value) {
+            if (!is_string($path)) continue;
+
+            if (!preg_match('/^items\.(\d+)\.(quantity|unit)$/', $path, $m)) {
+                continue;
+            }
+
+            $idx = (int) $m[1];
+            $field = $m[2];
+
+            if (!isset($draft['items'][$idx]) || !is_array($draft['items'][$idx])) {
+                continue;
+            }
+
+            if ($field === 'quantity') {
+                if ($value === null || $value === '' || !is_numeric($value)) continue;
+                $draft['items'][$idx]['quantity'] = (float) $value;
+                $draft['items'][$idx]['quantity_raw'] = (string) $value;
+            }
+
+            if ($field === 'unit') {
+                $v = is_string($value) ? trim($value) : '';
+                if ($v === '') continue;
+                $draft['items'][$idx]['unit'] = $v;
+                $draft['items'][$idx]['unit_raw'] = null;
+            }
+        }
+
+        return $draft;
+    }
+
+    private function buildClarifyQuestionsForStock(array $payloadAi): array
+    {
+        $items = $payloadAi['items'] ?? null;
+        if (!is_array($items) || count($items) === 0) return [];
+
+        $questions = [];
+
+        foreach ($items as $idx => $it) {
+            if (!is_array($it)) continue;
+
+            $name = trim((string)($it['name'] ?? $it['name_raw'] ?? ''));
+            if ($name === '') $name = 'cet ingrédient';
+
+            $confidence = isset($it['confidence']) ? (float) $it['confidence'] : 0.0;
+            $quantity = $it['quantity'] ?? null;
+            $unit = $it['unit'] ?? null;
+
+            $missingQty = ($quantity === null || $quantity === '' || (is_string($quantity) && trim($quantity) === ''));
+            $missingUnit = ($unit === null || $unit === '' || (is_string($unit) && trim($unit) === ''));
+
+            if (!$missingQty && $missingUnit) {
+                $missingUnit = false;
+            }
+
+            $needs = false;
+            if ($confidence > 0 && $confidence < 0.6) $needs = true;
+            if ($missingQty) $needs = true;
+            if ($missingUnit) $needs = true;
+
+            if (!$needs) continue;
+
+            if ($missingQty) {
+                $questions[] = [
+                    'path' => "items.$idx.quantity",
+                    'label' => "Quelle quantité pour $name ?",
+                    'kind' => 'number',
+                    'placeholder' => 'ex: 2',
+                ];
+            }
+
+            if ($missingUnit) {
+                $questions[] = [
+                    'path' => "items.$idx.unit",
+                    'label' => "Quelle unité pour $name ?",
+                    'kind' => 'select',
+                    'options' => [
+                        ['value' => 'piece', 'label' => 'pièce(s)'],
+                        ['value' => 'g', 'label' => 'g'],
+                        ['value' => 'kg', 'label' => 'kg'],
+                        ['value' => 'ml', 'label' => 'mL'],
+                        ['value' => 'l', 'label' => 'L'],
+                    ],
+                ];
+            }
+
+            if (count($questions) >= 6) break;
+        }
+
+        return $questions;
+    }
+
+    private function normalizeStockDraft(array $payloadAi): array
+    {
+        $items = $payloadAi['items'] ?? null;
+        if (!is_array($items)) return $payloadAi;
+
+        foreach ($items as $i => $it) {
+            if (!is_array($it)) continue;
+
+            $q = $it['quantity'] ?? null;
+            $unit = $it['unit'] ?? null;
+
+            if (($unit === null || $unit === '' || (is_string($unit) && trim($unit) === ''))
+                && $q !== null && $q !== '' && is_numeric($q)
+            ) {
+                $payloadAi['items'][$i]['unit'] = 'piece';
+                $payloadAi['items'][$i]['unit_raw'] = null;
+            }
+        }
+
+        return $payloadAi;
     }
 }

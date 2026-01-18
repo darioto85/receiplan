@@ -5,40 +5,32 @@ export default class extends Controller {
   static values = {
     historyUrl: String,
     messageUrl: String,
-    confirmUrl: String, // ✅ NEW
-    transcribeUrl: { type: String, default: "/api/ai/transcribe" },
+    confirmUrl: String,
+    clarifyUrl: String,
 
+    transcribeUrl: { type: String, default: "/api/ai/transcribe" },
     locale: { type: String, default: "fr-FR" },
 
-    // Firefox (WebAudio)
     prerollSeconds: { type: Number, default: 2 },
   };
 
   connect() {
-    // Chat state
     this.isLoading = false;
     this.isSending = false;
 
-    // Voice state
+    // Voice
     this.mediaSupported = !!(navigator.mediaDevices && window.MediaRecorder);
     this.mediaRecorder = null;
     this.mediaStream = null;
-
     this.isRecording = false;
     this.isTranscribing = false;
-
     this.audioChunks = [];
     this.recordedBlob = null;
 
     this.isFirefox = /firefox/i.test(navigator.userAgent);
-
-    // WebAudio (Firefox)
     this.audioCtx = null;
     this.sourceNode = null;
     this.processorNode = null;
-
-    this.ringBuffer = [];
-    this.ringBufferSamples = 0;
     this.sampleRate = 48000;
     this.isWebAudioRecording = false;
 
@@ -47,7 +39,6 @@ export default class extends Controller {
       if (this.hasInputTarget) this.inputTarget.focus();
     });
 
-    // Micro unsupported
     if (!this.mediaSupported && !this.isFirefox) {
       if (this.hasMicButtonTarget) this.micButtonTarget.disabled = true;
     }
@@ -58,13 +49,11 @@ export default class extends Controller {
       if (this.isRecording) this.stopRecord();
       this.stopStream();
       this.stopWebAudioGraph();
-    } catch {
-      // no-op
-    }
+    } catch {}
   }
 
   // =========================================================
-  // Chat: history + display
+  // History
   // =========================================================
   async loadHistory() {
     if (!this.hasMessagesTarget) return;
@@ -73,10 +62,7 @@ export default class extends Controller {
     this.setStatus("⏳ Chargement…");
 
     try {
-      const res = await fetch(this.historyUrlValue, {
-        headers: { Accept: "application/json" },
-      });
-
+      const res = await fetch(this.historyUrlValue, { headers: { Accept: "application/json" } });
       if (!res.ok) {
         this.setStatus("⚠️ Impossible de charger la conversation.");
         return;
@@ -103,11 +89,13 @@ export default class extends Controller {
     }
   }
 
+  // =========================================================
+  // Rendering
+  // =========================================================
   addMessage(message) {
     const role = (message?.role || "assistant").toLowerCase();
     const content = (message?.content || "").toString();
     const payload = message?.payload || null;
-
     const isUser = role === "user";
 
     const wrapper = document.createElement("div");
@@ -120,71 +108,184 @@ export default class extends Controller {
     bubble.className = isUser
       ? "px-3 py-2 rounded-4 text-white"
       : "px-3 py-2 rounded-4 border bg-white";
-
     if (isUser) bubble.style.background = "#0d6efd";
     bubble.textContent = content;
 
     bubbleContainer.appendChild(bubble);
 
-    // ✅ Confirmation UI (assistant only)
-    if (!isUser && payload && payload.type === "confirm" && message?.id) {
-      const actions = document.createElement("div");
-      actions.className = "d-flex gap-2 mt-2";
-
-      const yesBtn = document.createElement("button");
-      yesBtn.type = "button";
-      yesBtn.className = "btn btn-sm btn-success";
-      yesBtn.textContent = "Oui";
-
-      const noBtn = document.createElement("button");
-      noBtn.type = "button";
-      noBtn.className = "btn btn-sm btn-outline-secondary";
-      noBtn.textContent = "Non";
-
-      // Si déjà confirmé (history reload), on désactive
-      if (payload.confirmed === "yes" || payload.confirmed === "no") {
-        yesBtn.disabled = true;
-        noBtn.disabled = true;
+    // ✅ CLARIFY
+    if (!isUser && payload?.type === "clarify" && message?.id) {
+      const alreadyClarified = payload.clarified === true;
+      if (!alreadyClarified) {
+        const clarifyBlock = this.buildClarifyBlock(message.id, payload);
+        if (clarifyBlock) bubbleContainer.appendChild(clarifyBlock);
       }
+    }
 
-      const lock = () => {
-        yesBtn.disabled = true;
-        noBtn.disabled = true;
-      };
+    // ✅ CONFIRM
+    if (!isUser && payload?.type === "confirm" && message?.id) {
+      const alreadyConfirmed = payload.confirmed === "yes" || payload.confirmed === "no";
+      if (!alreadyConfirmed) {
+        // details + edit
+        const detailBlock = this.buildDetailsBlock(payload, message.id);
+        if (detailBlock) bubbleContainer.appendChild(detailBlock);
 
-      yesBtn.addEventListener("click", async () => {
-        lock();
-        await this.confirmAction(message.id, "yes");
-      });
+        const actions = document.createElement("div");
+        actions.className = "d-flex gap-2 mt-2";
 
-      noBtn.addEventListener("click", async () => {
-        lock();
-        await this.confirmAction(message.id, "no");
-      });
+        const yesBtn = document.createElement("button");
+        yesBtn.type = "button";
+        yesBtn.className = "btn btn-sm btn-success";
+        yesBtn.textContent = "Oui";
 
-      actions.appendChild(yesBtn);
-      actions.appendChild(noBtn);
-      bubbleContainer.appendChild(actions);
+        const noBtn = document.createElement("button");
+        noBtn.type = "button";
+        noBtn.className = "btn btn-sm btn-outline-secondary";
+        noBtn.textContent = "Non";
+
+        const removeConfirmUi = () => {
+          try { if (actions.parentNode) actions.parentNode.removeChild(actions); } catch {}
+          try { if (detailBlock && detailBlock.parentNode) detailBlock.parentNode.removeChild(detailBlock); } catch {}
+        };
+
+        yesBtn.addEventListener("click", async () => {
+          // récupérer un payload édité si présent
+          const edited = detailBlock?.dataset?.editedPayload
+            ? JSON.parse(detailBlock.dataset.editedPayload)
+            : null;
+
+          removeConfirmUi();
+          await this.confirmAction(message.id, "yes", edited);
+        });
+
+        noBtn.addEventListener("click", async () => {
+          removeConfirmUi();
+          await this.confirmAction(message.id, "no", null);
+        });
+
+        actions.appendChild(yesBtn);
+        actions.appendChild(noBtn);
+        bubbleContainer.appendChild(actions);
+      }
     }
 
     wrapper.appendChild(bubbleContainer);
     this.messagesTarget.appendChild(wrapper);
   }
 
-  async confirmAction(messageId, decision) {
-    if (!this.hasConfirmUrlValue || !this.confirmUrlValue) {
-      this.addMessage({ role: "assistant", content: "⚠️ confirmUrl manquant côté front." });
-      this.scrollToBottom();
-      return;
+  // =========================================================
+  // Étape 3: Clarify UI
+  // =========================================================
+  buildClarifyBlock(messageId, payload) {
+    if (!this.hasClarifyUrlValue || !this.clarifyUrlValue) return null;
+
+    const questions = Array.isArray(payload.questions) ? payload.questions : [];
+    if (questions.length === 0) return null;
+
+    const container = document.createElement("div");
+    container.className = "mt-2";
+
+    const form = document.createElement("div");
+    form.className = "border rounded-3 bg-light p-2";
+
+    const inputs = new Map();
+
+    for (const q of questions) {
+      if (!q?.path || !q?.label) continue;
+
+      const row = document.createElement("div");
+      row.className = "mb-2";
+
+      const label = document.createElement("div");
+      label.className = "small mb-1";
+      label.textContent = q.label;
+      row.appendChild(label);
+
+      let input;
+
+      if (q.kind === "select") {
+        input = document.createElement("select");
+        input.className = "form-select form-select-sm";
+
+        const opt0 = document.createElement("option");
+        opt0.value = "";
+        opt0.textContent = "—";
+        input.appendChild(opt0);
+
+        const options = Array.isArray(q.options) ? q.options : [];
+        for (const opt of options) {
+          const o = document.createElement("option");
+          o.value = (opt?.value ?? "").toString();
+          o.textContent = (opt?.label ?? opt?.value ?? "").toString();
+          input.appendChild(o);
+        }
+      } else {
+        input = document.createElement("input");
+        input.className = "form-control form-control-sm";
+        input.type = q.kind === "number" ? "number" : "text";
+        if (q.placeholder) input.placeholder = q.placeholder;
+        if (q.kind === "number") {
+          input.step = "any";
+          input.inputMode = "decimal";
+        }
+      }
+
+      inputs.set(q.path, input);
+      row.appendChild(input);
+      form.appendChild(row);
     }
 
-    try {
-      this.setStatus("⏳ Confirmation…");
+    const actions = document.createElement("div");
+    actions.className = "d-flex justify-content-end";
 
-      const res = await fetch(this.confirmUrlValue, {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-sm btn-primary";
+    btn.textContent = "Continuer";
+
+    const removeClarifyUi = () => {
+      try { if (container.parentNode) container.parentNode.removeChild(container); } catch {}
+    };
+
+    btn.addEventListener("click", async () => {
+      const answers = {};
+
+      // exige réponse à tous les champs affichés
+      for (const q of questions) {
+        if (!q?.path) continue;
+        const el = inputs.get(q.path);
+        const v = (el?.value ?? "").toString().trim();
+        if (v === "") {
+          el?.classList.add("is-invalid");
+          return;
+        }
+        el?.classList.remove("is-invalid");
+
+        if (el.tagName === "INPUT" && el.type === "number") {
+          const n = Number(v);
+          answers[q.path] = Number.isFinite(n) ? n : v;
+        } else {
+          answers[q.path] = v;
+        }
+      }
+
+      removeClarifyUi();
+      await this.submitClarify(messageId, answers);
+    });
+
+    actions.appendChild(btn);
+    form.appendChild(actions);
+
+    container.appendChild(form);
+    return container;
+  }
+
+  async submitClarify(messageId, answers) {
+    try {
+      const res = await fetch(this.clarifyUrlValue, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ message_id: messageId, decision }),
+        body: JSON.stringify({ message_id: messageId, answers }),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -192,30 +293,369 @@ export default class extends Controller {
         const msg = data?.error?.message || "Erreur serveur.";
         this.addMessage({ role: "assistant", content: `⚠️ ${msg}` });
         this.scrollToBottom();
-        this.setStatus("");
         return;
       }
 
       const returned = Array.isArray(data.messages) ? data.messages : [];
       for (const m of returned) this.addMessage(m);
-
       this.scrollToBottom();
-      this.setStatus("");
+    } catch (e) {
+      console.error("[assistant-chat] clarify failed", e);
+      this.addMessage({ role: "assistant", content: "⚠️ Erreur réseau." });
+      this.scrollToBottom();
+    }
+  }
+
+  // =========================================================
+  // Étape 4: Details + édition inline (confirm)
+  // =========================================================
+  buildDetailsBlock(payload, messageId) {
+    const action = payload.action;
+    const ap = payload.action_payload;
+
+    const container = document.createElement("div");
+    container.className = "mt-2";
+    container.dataset.messageId = String(messageId);
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "btn btn-sm btn-link p-0";
+    toggle.textContent = "Détails";
+    toggle.style.textDecoration = "none";
+
+    const body = document.createElement("div");
+    body.className = "border rounded-3 bg-light mt-1 p-2";
+    body.style.display = "none";
+
+    // Draft éditable (on copie profondément le payload)
+    let draft = ap ? JSON.parse(JSON.stringify(ap)) : null;
+
+    // Helpers de rendu
+    const renderReadOnlyList = () => {
+      body.innerHTML = "";
+
+      const lines = this.detailsLinesForAction(action, draft);
+      if (lines.length === 0) return;
+
+      const ul = document.createElement("ul");
+      ul.className = "mb-2 ps-3";
+
+      for (const l of lines.slice(0, 12)) {
+        const li = document.createElement("li");
+        li.className = "small";
+        li.textContent = l;
+        ul.appendChild(li);
+      }
+      if (lines.length > 12) {
+        const li = document.createElement("li");
+        li.className = "small text-muted";
+        li.textContent = `+${lines.length - 12} autres…`;
+        ul.appendChild(li);
+      }
+      body.appendChild(ul);
+
+      // ✅ bouton Modifier uniquement pour add_stock pour l’instant
+      if (action === "add_stock" && draft?.items && Array.isArray(draft.items)) {
+        const row = document.createElement("div");
+        row.className = "d-flex justify-content-end";
+
+        const editBtn = document.createElement("button");
+        editBtn.type = "button";
+        editBtn.className = "btn btn-sm btn-outline-primary";
+        editBtn.textContent = "Modifier";
+
+        editBtn.addEventListener("click", () => renderEditor());
+
+        row.appendChild(editBtn);
+        body.appendChild(row);
+      }
+    };
+
+    const renderEditor = () => {
+      body.innerHTML = "";
+
+      const items = Array.isArray(draft?.items) ? draft.items : [];
+      if (items.length === 0) {
+        renderReadOnlyList();
+        return;
+      }
+
+      // Editor list
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i] || {};
+        const card = document.createElement("div");
+        card.className = "border rounded-3 bg-white p-2 mb-2";
+
+        // name
+        const nameInput = document.createElement("input");
+        nameInput.className = "form-control form-control-sm mb-2";
+        nameInput.type = "text";
+        nameInput.placeholder = "Nom";
+        nameInput.value = (it.name || it.name_raw || "").toString();
+
+        // quantity
+        const qtyInput = document.createElement("input");
+        qtyInput.className = "form-control form-control-sm mb-2";
+        qtyInput.type = "number";
+        qtyInput.step = "any";
+        qtyInput.inputMode = "decimal";
+        qtyInput.placeholder = "Quantité";
+        qtyInput.value = it.quantity ?? it.quantity_raw ?? "";
+
+        // unit
+        const unitSelect = document.createElement("select");
+        unitSelect.className = "form-select form-select-sm";
+        const unitOptions = [
+          { value: "", label: "—" },
+          { value: "piece", label: "pièce(s)" },
+          { value: "g", label: "g" },
+          { value: "kg", label: "kg" },
+          { value: "ml", label: "mL" },
+          { value: "l", label: "L" },
+        ];
+        for (const opt of unitOptions) {
+          const o = document.createElement("option");
+          o.value = opt.value;
+          o.textContent = opt.label;
+          unitSelect.appendChild(o);
+        }
+        unitSelect.value = (it.unit || it.unit_raw || "").toString();
+
+        // remove item (optionnel)
+        const removeRow = document.createElement("div");
+        removeRow.className = "d-flex justify-content-end mt-2";
+
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "btn btn-sm btn-outline-danger";
+        removeBtn.textContent = "Supprimer";
+
+        removeBtn.addEventListener("click", () => {
+          draft.items.splice(i, 1);
+          renderEditor();
+        });
+
+        removeRow.appendChild(removeBtn);
+
+        card.appendChild(nameInput);
+        card.appendChild(qtyInput);
+        card.appendChild(unitSelect);
+        card.appendChild(removeRow);
+
+        // bind changes
+        const applyItemChanges = () => {
+          const name = nameInput.value.trim();
+          const qtyStr = qtyInput.value.toString().trim();
+          const unit = unitSelect.value.trim();
+
+          if (name) {
+            it.name = name;
+            it.name_raw = name;
+          }
+
+          if (qtyStr !== "" && !Number.isNaN(Number(qtyStr))) {
+            const n = Number(qtyStr);
+            it.quantity = n;
+            it.quantity_raw = qtyStr;
+          } else {
+            it.quantity = null;
+            it.quantity_raw = qtyStr || null;
+          }
+
+          it.unit = unit || null;
+          it.unit_raw = null;
+        };
+
+        nameInput.addEventListener("input", applyItemChanges);
+        qtyInput.addEventListener("input", applyItemChanges);
+        unitSelect.addEventListener("change", applyItemChanges);
+
+        // ensure initial sync
+        applyItemChanges();
+
+        body.appendChild(card);
+      }
+
+      // actions save/cancel
+      const footer = document.createElement("div");
+      footer.className = "d-flex justify-content-end gap-2";
+
+      const cancelBtn = document.createElement("button");
+      cancelBtn.type = "button";
+      cancelBtn.className = "btn btn-sm btn-outline-secondary";
+      cancelBtn.textContent = "Annuler";
+
+      const saveBtn = document.createElement("button");
+      saveBtn.type = "button";
+      saveBtn.className = "btn btn-sm btn-primary";
+      saveBtn.textContent = "OK";
+
+      cancelBtn.addEventListener("click", () => {
+        // reset draft depuis payload initial
+        draft = ap ? JSON.parse(JSON.stringify(ap)) : null;
+        container.dataset.editedPayload = "";
+        renderReadOnlyList();
+      });
+
+      saveBtn.addEventListener("click", () => {
+        // simple validation: enlever items vides
+        if (draft?.items && Array.isArray(draft.items)) {
+          draft.items = draft.items
+            .map((it) => it || {})
+            .filter((it) => (it.name || it.name_raw || "").toString().trim() !== "");
+        }
+
+        // stocker le payload édité sur le container (lu au clic Oui)
+        container.dataset.editedPayload = JSON.stringify(draft);
+        renderReadOnlyList();
+      });
+
+      footer.appendChild(cancelBtn);
+      footer.appendChild(saveBtn);
+      body.appendChild(footer);
+    };
+
+    toggle.addEventListener("click", () => {
+      const show = body.style.display === "none";
+      body.style.display = show ? "block" : "none";
+      if (show) renderReadOnlyList();
+    });
+
+    container.appendChild(toggle);
+    container.appendChild(body);
+
+    return container;
+  }
+
+  detailsLinesForAction(action, draft) {
+    let lines = [];
+    if (action === "add_stock") {
+      const items = Array.isArray(draft?.items) ? draft.items : [];
+      lines = items.map((it) => this.formatStockLine(it)).filter(Boolean);
+    } else if (action === "add_recipe") {
+      const name = (draft?.name || draft?.recipe_name || "").toString().trim();
+      if (name) lines.push(`Recette : ${name}`);
+      const ingredients = Array.isArray(draft?.ingredients) ? draft.ingredients : [];
+      for (const ing of ingredients.slice(0, 10)) {
+        const line = this.formatRecipeIngredientLine(ing);
+        if (line) lines.push(line);
+      }
+      if (ingredients.length > 10) lines.push(`+${ingredients.length - 10} autres ingrédients…`);
+    }
+    return lines;
+  }
+
+  unitLabel(unit, qty) {
+    const u = (unit || "").toString().trim().toLowerCase();
+    const q = Number(qty);
+    const isOne = Number.isFinite(q) && q === 1;
+
+    switch (u) {
+      case "piece":
+        return isOne ? "pièce" : "pièces";
+      case "g":
+        return "g";
+      case "kg":
+        return "kg";
+      case "ml":
+        return "mL";
+      case "l":
+        return "L";
+      default:
+        return u || "";
+    }
+  }
+
+  formatStockLine(it) {
+    if (!it || typeof it !== "object") return null;
+
+    const name = (it.name || it.name_raw || "").toString().trim();
+    if (!name) return null;
+
+    const qty =
+      it.quantity !== undefined && it.quantity !== null && `${it.quantity}` !== ""
+        ? Number(it.quantity)
+        : null;
+
+    const qtyRaw = (it.quantity_raw || "").toString().trim();
+    const unit = (it.unit || it.unit_raw || "").toString().trim();
+
+    let line = name;
+
+    if (qty !== null && Number.isFinite(qty)) {
+      const uLbl = this.unitLabel(unit, qty);
+      line = uLbl ? `${name} — ${qty} ${uLbl}` : `${name} — ${qty}`;
+    } else if (qtyRaw) {
+      line = unit ? `${name} — ${qtyRaw} ${unit}` : `${name} — ${qtyRaw}`;
+    }
+
+    const notes = (it.notes || "").toString().trim();
+    if (notes) line += ` (${notes})`;
+
+    const conf = Number(it.confidence);
+    if (Number.isFinite(conf) && conf < 0.8) line += ` (confiance ${conf.toFixed(2)})`;
+
+    return line;
+  }
+
+  formatRecipeIngredientLine(ing) {
+    if (!ing || typeof ing !== "object") return null;
+    const name = (ing.name || ing.ingredient || ing.name_raw || "").toString().trim();
+    if (!name) return null;
+
+    const qty =
+      ing.quantity !== undefined && ing.quantity !== null && `${ing.quantity}` !== ""
+        ? Number(ing.quantity)
+        : null;
+
+    const qtyRaw = (ing.quantity_raw || "").toString().trim();
+    const unit = (ing.unit || ing.unit_raw || "").toString().trim();
+
+    if (qty !== null && Number.isFinite(qty)) {
+      const uLbl = this.unitLabel(unit, qty);
+      return uLbl ? `${name} — ${qty} ${uLbl}` : `${name} — ${qty}`;
+    }
+    if (qtyRaw) return unit ? `${name} — ${qtyRaw} ${unit}` : `${name} — ${qtyRaw}`;
+    return `${name}`;
+  }
+
+  // =========================================================
+  // Confirm (avec override payload)
+  // =========================================================
+  async confirmAction(messageId, decision, actionPayloadOverride) {
+    try {
+      const body = { message_id: messageId, decision };
+      if (decision === "yes" && actionPayloadOverride && typeof actionPayloadOverride === "object") {
+        body.action_payload = actionPayloadOverride;
+      }
+
+      const res = await fetch(this.confirmUrlValue, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data?.error?.message || "Erreur serveur.";
+        this.addMessage({ role: "assistant", content: `⚠️ ${msg}` });
+        this.scrollToBottom();
+        return;
+      }
+
+      const returned = Array.isArray(data.messages) ? data.messages : [];
+      for (const m of returned) this.addMessage(m);
+      this.scrollToBottom();
     } catch (e) {
       console.error("[assistant-chat] confirm failed", e);
       this.addMessage({ role: "assistant", content: "⚠️ Erreur réseau." });
       this.scrollToBottom();
-      this.setStatus("");
     }
   }
 
-  scrollToBottom() {
-    if (!this.hasMessagesTarget) return;
-    requestAnimationFrame(() => {
-      this.messagesTarget.scrollTop = this.messagesTarget.scrollHeight;
-    });
-  }
-
+  // =========================================================
+  // Send
+  // =========================================================
   async send(event) {
     if (event?.isComposing) return;
     if (this.isSending || this.isLoading || this.isTranscribing) return;
@@ -229,16 +669,12 @@ export default class extends Controller {
 
     this.inputTarget.value = "";
     this.isSending = true;
-    this.setStatus("⏳ Envoi…");
     this.setSendingState(true);
 
     try {
       const res = await fetch(this.messageUrlValue, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ text, source: "typed" }),
       });
 
@@ -248,7 +684,6 @@ export default class extends Controller {
         const msg = data?.error?.message || "Erreur serveur.";
         this.addMessage({ role: "assistant", content: `⚠️ ${msg}` });
         this.scrollToBottom();
-        this.setStatus("");
         return;
       }
 
@@ -259,12 +694,10 @@ export default class extends Controller {
       }
 
       this.scrollToBottom();
-      this.setStatus("");
     } catch (e) {
       console.error("[assistant-chat] send failed", e);
       this.addMessage({ role: "assistant", content: "⚠️ Erreur réseau." });
       this.scrollToBottom();
-      this.setStatus("");
     } finally {
       this.isSending = false;
       this.setSendingState(false);
@@ -272,47 +705,40 @@ export default class extends Controller {
     }
   }
 
+  scrollToBottom() {
+    if (!this.hasMessagesTarget) return;
+    requestAnimationFrame(() => {
+      this.messagesTarget.scrollTop = this.messagesTarget.scrollHeight;
+    });
+  }
+
   // =========================================================
-  // Voice: mic toggle start/stop + auto transcribe into input
+  // Voice (inchangé)
   // =========================================================
   async toggleMic() {
     if (this.isTranscribing) return;
+    if (!this.mediaSupported && !this.isFirefox) return;
 
-    if (!this.mediaSupported && !this.isFirefox) {
-      this.setStatus("⚠️ Enregistrement audio non supporté ici.");
-      return;
-    }
-
-    if (this.isRecording) {
-      this.stopRecord();
-    } else {
-      await this.startRecord();
-    }
+    if (this.isRecording) this.stopRecord();
+    else await this.startRecord();
   }
 
   async ensureStream() {
     if (this.mediaStream) return this.mediaStream;
-    this.setStatus("🎙️ Activation du micro…");
     this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     return this.mediaStream;
   }
 
   stopStream() {
     if (!this.mediaStream) return;
-    try {
-      this.mediaStream.getTracks().forEach((t) => t.stop());
-    } catch {
-      // no-op
-    }
+    try { this.mediaStream.getTracks().forEach((t) => t.stop()); } catch {}
     this.mediaStream = null;
   }
 
   async startRecord() {
     this.recordedBlob = null;
-
     this.isRecording = true;
     this._setMicButtonState(true);
-    this.setStatus("⏳ Préparation…");
 
     if (this.isFirefox) {
       await this.startFirefoxWebAudio();
@@ -320,7 +746,6 @@ export default class extends Controller {
     }
 
     if (!this.mediaSupported) {
-      this.setStatus("⚠️ MediaRecorder non supporté ici.");
       this.isRecording = false;
       this._setMicButtonState(false);
       return;
@@ -331,10 +756,7 @@ export default class extends Controller {
       await this.ensureStream();
 
       const mimeType = this.pickAudioMimeType();
-      this.mediaRecorder = new MediaRecorder(
-        this.mediaStream,
-        mimeType ? { mimeType } : undefined
-      );
+      this.mediaRecorder = new MediaRecorder(this.mediaStream, mimeType ? { mimeType } : undefined);
 
       this.mediaRecorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) this.audioChunks.push(e.data);
@@ -343,21 +765,14 @@ export default class extends Controller {
       this.mediaRecorder.onstop = async () => {
         const type = this.mediaRecorder?.mimeType || "audio/webm";
         this.recordedBlob = new Blob(this.audioChunks, { type });
-
-        if (this.recordedBlob.size === 0) {
-          this.setStatus("⚠️ Audio vide. Réessaie.");
-          return;
-        }
-
+        if (this.recordedBlob.size === 0) return;
         await this.autoTranscribeIntoInput();
       };
 
       this.mediaRecorder.start(250);
       this.beep();
-      this.setStatus("🔴 Enregistrement… (re-clique pour arrêter)");
     } catch (e) {
       console.error("[assistant-chat] startRecord error", e);
-      this.setStatus("⚠️ Micro refusé ou indisponible.");
       this.isRecording = false;
       this._setMicButtonState(false);
       this.stopStream();
@@ -369,7 +784,6 @@ export default class extends Controller {
 
     this.isRecording = false;
     this._setMicButtonState(false);
-    this.setStatus("⏳ Arrêt…");
 
     if (this.isFirefox) {
       this.stopFirefoxWebAudio();
@@ -378,30 +792,16 @@ export default class extends Controller {
 
     if (!this.mediaRecorder) return;
 
-    try {
-      if (typeof this.mediaRecorder.requestData === "function") {
-        this.mediaRecorder.requestData();
-      }
-    } catch {
-      // ignore
-    }
-
-    try {
-      setTimeout(() => this.mediaRecorder.stop(), 50);
-    } catch (e) {
-      console.error("[assistant-chat] stop error", e);
-      this.setStatus("⚠️ Impossible d’arrêter l’enregistrement.");
-    }
+    try { if (typeof this.mediaRecorder.requestData === "function") this.mediaRecorder.requestData(); } catch {}
+    try { setTimeout(() => this.mediaRecorder.stop(), 50); } catch {}
   }
 
-  // Firefox WebAudio
   async startFirefoxWebAudio() {
     try {
       await this.ensureStream();
 
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtx) {
-        this.setStatus("⚠️ WebAudio non supporté.");
         this.isRecording = false;
         this._setMicButtonState(false);
         return;
@@ -416,14 +816,7 @@ export default class extends Controller {
       const bufferSize = 4096;
       const numChannels = 1;
 
-      this.processorNode = this.audioCtx.createScriptProcessor(
-        bufferSize,
-        numChannels,
-        numChannels
-      );
-
-      this.ringBuffer = [];
-      this.ringBufferSamples = 0;
+      this.processorNode = this.audioCtx.createScriptProcessor(bufferSize, numChannels, numChannels);
 
       this.recordBuffers = [];
       this.recordSamples = 0;
@@ -433,8 +826,6 @@ export default class extends Controller {
         const input = event.inputBuffer.getChannelData(0);
         const chunk = new Float32Array(input.length);
         chunk.set(input);
-
-        this.pushToRing(chunk);
 
         if (this.isWebAudioRecording) {
           this.recordBuffers.push(chunk);
@@ -446,10 +837,8 @@ export default class extends Controller {
       this.processorNode.connect(this.audioCtx.destination);
 
       this.beep();
-      this.setStatus("🔴 Enregistrement (Firefox)… (re-clique pour arrêter)");
     } catch (e) {
       console.error("[assistant-chat] Firefox WebAudio start error", e);
-      this.setStatus("⚠️ Erreur démarrage audio (Firefox).");
       this.isWebAudioRecording = false;
       this.stopWebAudioGraph();
       this.isRecording = false;
@@ -462,18 +851,13 @@ export default class extends Controller {
       this.isWebAudioRecording = false;
 
       const recorded = this.concatFloat32(this.recordBuffers, this.recordSamples);
-
       const wavArrayBuffer = this.encodeWav16(recorded, this.sampleRate);
       this.recordedBlob = new Blob([wavArrayBuffer], { type: "audio/wav" });
 
       this.stopWebAudioGraph();
-
-      this.autoTranscribeIntoInput().catch((e) => {
-        console.error("[assistant-chat] auto transcribe (Firefox) failed", e);
-      });
+      this.autoTranscribeIntoInput().catch(() => {});
     } catch (e) {
       console.error("[assistant-chat] Firefox stop error", e);
-      this.setStatus("⚠️ Erreur arrêt audio (Firefox).");
       this.stopWebAudioGraph();
     }
   }
@@ -484,25 +868,10 @@ export default class extends Controller {
         this.processorNode.disconnect();
         this.processorNode.onaudioprocess = null;
       }
-      if (this.sourceNode) {
-        this.sourceNode.disconnect();
-      }
-    } catch {
-      // ignore
-    }
+      if (this.sourceNode) this.sourceNode.disconnect();
+    } catch {}
     this.processorNode = null;
     this.sourceNode = null;
-  }
-
-  pushToRing(chunk) {
-    const maxSamples = Math.floor(this.sampleRate * this.prerollSecondsValue);
-    this.ringBuffer.push(chunk);
-    this.ringBufferSamples += chunk.length;
-
-    while (this.ringBufferSamples > maxSamples && this.ringBuffer.length > 0) {
-      const removed = this.ringBuffer.shift();
-      this.ringBufferSamples -= removed.length;
-    }
   }
 
   concatFloat32(chunks, totalSamples) {
@@ -554,36 +923,23 @@ export default class extends Controller {
   }
 
   writeString(view, offset, str) {
-    for (let i = 0; i < str.length; i++) {
-      view.setUint8(offset + i, str.charCodeAt(i));
-    }
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
   }
 
   async autoTranscribeIntoInput() {
     if (this.isTranscribing) return;
-
-    if (!this.recordedBlob || this.recordedBlob.size === 0) {
-      this.setStatus("⚠️ Audio vide. Réessaie.");
-      return;
-    }
+    if (!this.recordedBlob || this.recordedBlob.size === 0) return;
 
     this.isTranscribing = true;
-    this.setStatus("⏳ Transcription…");
-    this.setSendingState(true);
-
     try {
       const text = await this.transcribeAudio();
       if (!text) return;
-
       if (this.hasInputTarget) {
         this.inputTarget.value = text;
         this.inputTarget.focus();
       }
-
-      this.setStatus("✅ Transcription prête.");
     } finally {
       this.isTranscribing = false;
-      this.setSendingState(false);
     }
   }
 
@@ -600,31 +956,15 @@ export default class extends Controller {
     let res;
     try {
       res = await fetch(this.transcribeUrlValue, { method: "POST", body: fd });
-    } catch (e) {
-      console.error("[assistant-chat] fetch transcribe failed", e);
-      this.setStatus("❌ Erreur réseau transcription.");
+    } catch {
       return null;
     }
 
     const data = await res.json().catch(() => null);
-    if (!data) {
-      this.setStatus("❌ Réponse transcription invalide.");
-      return null;
-    }
-
-    if (!res.ok) {
-      const msg = data?.error?.message || "Erreur transcription serveur.";
-      this.setStatus(`❌ ${msg}`);
-      return null;
-    }
+    if (!data || !res.ok) return null;
 
     const text = (data.text || "").trim();
-    if (!text) {
-      this.setStatus("⚠️ Transcription vide.");
-      return null;
-    }
-
-    return text;
+    return text || null;
   }
 
   pickAudioMimeType() {
@@ -642,9 +982,6 @@ export default class extends Controller {
     return null;
   }
 
-  // =========================================================
-  // UI helpers
-  // =========================================================
   setStatus(msg) {
     if (this.hasStatusTarget) this.statusTarget.textContent = msg;
   }
@@ -665,24 +1002,15 @@ export default class extends Controller {
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtx) return;
-
       const ctx = new AudioCtx();
       const o = ctx.createOscillator();
       const g = ctx.createGain();
-
       o.connect(g);
       g.connect(ctx.destination);
-
       o.frequency.value = 880;
       g.gain.value = 0.05;
-
       o.start();
-      setTimeout(() => {
-        o.stop();
-        ctx.close();
-      }, 120);
-    } catch {
-      // ignore
-    }
+      setTimeout(() => { o.stop(); ctx.close(); }, 120);
+    } catch {}
   }
 }

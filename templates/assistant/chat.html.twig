@@ -9,7 +9,8 @@
   data-assistant-chat-history-url-value="/assistant/history"
   data-assistant-chat-message-url-value="/assistant/message"
   data-assistant-chat-transcribe-url-value="/api/ai/transcribe"
-  data-assistant-chat-confirm-url-value="/assistant/confirm"
+  data-assistant-chat-confirm-url-value="{{ path('assistant_confirm') }}"
+  data-assistant-chat-clarify-url-value="{{ path('assistant_clarify') }}"
 >
   {# Zone messages #}
   <div
