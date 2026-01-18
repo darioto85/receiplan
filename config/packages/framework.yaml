@@ -12,7 +12,6 @@ framework:
         cookie_secure: auto
         cookie_samesite: lax
         cookie_httponly: true
-        # optionnel: peut éviter certains soucis de navigation / redirection
         cookie_path: /
 
     #esi: true
