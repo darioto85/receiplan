@@ -8,12 +8,6 @@
     <h1 class="h3 mb-0">Mon stock</h1>
 
     <div class="d-flex gap-2 flex-wrap">
-      {# 1) Ajouter via ticket #}
-      <a href="{{ path('assistant') }}"
-         class="btn btn-outline-primary d-flex align-items-center gap-2">
-        <i class="fa-solid fa-receipt"></i>
-        <span class="d-none d-sm-inline">Ajouter via ticket</span>
-      </a>
 
       {# 2) Ajouter manuellement (toggle collapse) #}
       <button
@@ -30,7 +24,7 @@
       </button>
 
       {# 3) Ajouter via l’assistant #}
-      <a href="{{ path('voice_index') }}"
+      <a href="{{ path('assistant') }}"
          class="btn btn-outline-secondary d-flex align-items-center gap-2">
         <i class="fa-solid fa-microphone"></i>
         <span class="d-none d-sm-inline">Ajouter via l’assistant</span>

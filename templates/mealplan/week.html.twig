@@ -47,6 +47,9 @@
           data-day-propose-date-value="{{ dayKey }}"
           data-day-propose-csrf-value="{{ csrf_token('mealplan_propose') }}"
           data-day-key="{{ dayKey }}"
+
+          {# ✅ IMPORTANT pour insertion AJAX (nouveau repas) #}
+          data-day="{{ dayKey }}"
         >
           <div class="d-flex justify-content-between align-items-center mb-2">
             <div class="{{ isToday ? 'fw-semibold rp-day-title' : 'fw-semibold' }}">
@@ -66,15 +69,19 @@
             </div>
           </div>
 
-          <div class="d-flex flex-column gap-2" data-day-propose-target="meals">
+          {# ✅ IMPORTANT: .meal-list pour que le JS puisse faire:
+             document.querySelector(`[data-day="${dateStr}"] .meal-list`)
+          #}
+          <div class="d-flex flex-column gap-2 meal-list" data-day-propose-target="meals">
             {% if meals is empty %}
               <div class="text-body-secondary small fst-italic" data-day-propose-target="empty">
                 Aucun repas planifié
               </div>
             {% else %}
               {% for meal in meals %}
-                {% set recipeId = meal.recipe.id %}
-                {% set ok = feasibleByRecipeId[recipeId] ?? true %}
+                {# ✅ safe: recipe peut être null si supprimée #}
+                {% set recipeId = meal.recipe ? meal.recipe.id : null %}
+                {% set ok = recipeId ? (feasibleByRecipeId[recipeId] ?? true) : true %}
 
                 {{ include('mealplan/_meal_item.html.twig', {
                   meal: meal,

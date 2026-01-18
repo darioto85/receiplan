@@ -77,8 +77,8 @@
             </a>
 
             <a
-              href="{{ path('voice_index') }}"
-              class="rp-topnav-link rp-topnav-link-assistant {{ app.request.attributes.get('_route') starts with 'voice' ? 'is-active' : '' }}"
+              href="{{ path('assistant') }}"
+              class="rp-topnav-link rp-topnav-link-assistant {{ app.request.attributes.get('_route') starts with 'assistant' ? 'is-active' : '' }}"
             >
               <i class="fa-solid fa-wand-magic-sparkles me-2"></i>
               Assistant
@@ -90,7 +90,7 @@
             {# CTA contextual (optionnel): tu peux remplacer par un block Twig par page #}
             {% block header_cta %}{% endblock %}
 
-            <a href="{{ path('voice_index') }}"
+            <a href="{{ path('assistant') }}"
                class="btn btn-sm btn-primary rp-header-cta">
               <i class="fa-solid fa-wand-magic-sparkles me-2"></i>
               Aide
@@ -99,7 +99,7 @@
 
           {# Mobile: right side (optional quick action) #}
           <div class="d-lg-none d-flex align-items-center gap-2">
-            <a href="{{ path('voice_index') }}"
+            <a href="{{ path('assistant') }}"
                class="btn btn-sm btn-primary">
               <i class="fa-solid fa-wand-magic-sparkles"></i>
             </a>
@@ -142,8 +142,8 @@
         <span>Courses</span>
       </a>
 
-      <a href="{{ path('voice_index') }}"
-         class="rp-tab rp-tab-assistant {{ app.request.attributes.get('_route') starts with 'voice' ? 'is-active' : '' }}">
+      <a href="{{ path('assistant') }}"
+         class="rp-tab rp-tab-assistant {{ app.request.attributes.get('_route') starts with 'assistant' ? 'is-active' : '' }}">
         <i class="fa-solid fa-wand-magic-sparkles"></i>
         <span>Assistant</span>
       </a>

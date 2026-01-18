@@ -35,8 +35,9 @@ final class IngredientImageTarget implements ImageTargetInterface
             throw new \InvalidArgumentException('IngredientImageTarget attend un Ingredient.');
         }
 
-        $name = $entity->getName() ?? 'ingredient';
+        $name = $entity->getName() ?? 'ingrédient';
 
+        // Prompt plus concis, mêmes contraintes clés
         return
             "Illustration stylisée semi-réaliste d'un(e) {$name}, " .
             "style kawaii doux et moderne, SANS visage (pas d'yeux, pas de bouche). " .

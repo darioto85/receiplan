@@ -2,8 +2,18 @@
 framework:
     secret: '%env(APP_SECRET)%'
 
+    # Important en prod derrière proxy (Koyeb/Cloudflare) pour détecter HTTPS correctement
+    trusted_proxies: '%env(TRUSTED_PROXIES)%'
+    trusted_headers: [ 'x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-port', 'x-forwarded-host' ]
+
     # Note that the session will be started ONLY if you read or write from it.
-    session: true
+    session:
+        enabled: true
+        cookie_secure: auto
+        cookie_samesite: lax
+        cookie_httponly: true
+        # optionnel: peut éviter certains soucis de navigation / redirection
+        cookie_path: /
 
     #esi: true
     #fragments: true

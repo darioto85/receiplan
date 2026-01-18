@@ -8,7 +8,18 @@ use App\Service\AiImageClient;
 final class ImageGenerator
 {
     private const TARGET_SIZE = 200;
+
+    // GPT image models: 1024/1536/auto (pas 512/256)
     private const GENERATE_SIZE = '1024x1024';
+
+    // Réduction coût:
+    private const IMAGE_MODEL = 'gpt-image-1-mini';
+    private const IMAGE_QUALITY = 'low';
+
+    // Sortie plus légère (moins de data à transférer / potentiellement moins de coût output)
+    private const OUTPUT_FORMAT = 'webp';
+    private const OUTPUT_COMPRESSION = 80; // 0-100
+    private const BACKGROUND = 'opaque';   // opaque | transparent | auto
 
     public function __construct(
         private readonly AiImageClient $aiImageClient,
@@ -23,20 +34,27 @@ final class ImageGenerator
 
         $prompt = $target->buildPrompt($entity);
 
-        $png1024 = $this->aiImageClient->generatePng($prompt, self::GENERATE_SIZE);
+        $sourceBytes = $this->aiImageClient->generateImageBytes($prompt, [
+            'model' => self::IMAGE_MODEL,
+            'size' => self::GENERATE_SIZE,
+            'quality' => self::IMAGE_QUALITY,
+            'output_format' => self::OUTPUT_FORMAT,
+            'output_compression' => self::OUTPUT_COMPRESSION,
+            'background' => self::BACKGROUND,
+        ]);
 
-        $finalPng200 = $this->resizeAndOptimizePng($png1024, self::TARGET_SIZE);
+        // On garde ton format final PNG 200x200 fond blanc
+        $finalPng200 = $this->resizeAndOptimizePng($sourceBytes, self::TARGET_SIZE);
 
         $key = $target->getStorageKey($entity);
-
         $this->storage->put($key, $finalPng200, 'image/png');
     }
 
-    private function resizeAndOptimizePng(string $pngBytes, int $size): string
+    private function resizeAndOptimizePng(string $imageBytes, int $size): string
     {
-        $src = imagecreatefromstring($pngBytes);
+        $src = imagecreatefromstring($imageBytes);
         if ($src === false) {
-            throw new \RuntimeException('Impossible de lire le PNG source (GD).');
+            throw new \RuntimeException('Impossible de lire l’image source (GD).');
         }
 
         $srcW = imagesx($src);

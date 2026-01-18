@@ -28,6 +28,7 @@ export default class extends Controller {
       return;
     }
 
+    // Le controller est sur la zone de boutons ; on remonte au wrapper repas
     const currentWrapper = this.element.closest("[data-meal-id]");
     const currentMealId = currentWrapper?.getAttribute("data-meal-id") || null;
 
@@ -64,8 +65,17 @@ export default class extends Controller {
         throw new Error("Réponse invalide: mealId/html manquants.");
       }
 
-      // 1) Remplacement du bloc principal
-      this.#replaceMealBlock(Number(data.mealId), data.html, currentWrapper, currentMealId);
+      // ✅ date peut être renvoyée par proposeAjax (pour insertion si le repas n'existe pas encore)
+      const dateStr = typeof data.date === "string" ? data.date : null;
+
+      // 1) Remplacement (ou insertion) du bloc principal
+      this.#replaceMealBlock(
+        Number(data.mealId),
+        data.html,
+        currentWrapper,
+        currentMealId,
+        dateStr
+      );
 
       // 2) Remplacement des autres blocs (updates[])
       if (Array.isArray(data.updates) && data.updates.length > 0) {
@@ -73,7 +83,10 @@ export default class extends Controller {
 
         for (const u of data.updates) {
           if (!u?.mealId || !u?.html) continue;
-          this.#replaceMealBlock(Number(u.mealId), u.html);
+
+          const uDate = typeof u.date === "string" ? u.date : null;
+
+          this.#replaceMealBlock(Number(u.mealId), u.html, null, null, uDate);
         }
       } else {
         console.log("[meal-plan] no updates[]");
@@ -88,7 +101,12 @@ export default class extends Controller {
     }
   }
 
-  #replaceMealBlock(mealId, html, currentWrapper = null, currentMealId = null) {
+  /**
+   * Remplace un bloc existant [data-meal-id="X"].
+   * Si le bloc n'existe pas (cas "proposer" => nouveau MealPlan), insertion dans la journée:
+   *   [data-day="YYYY-MM-DD"] .meal-list
+   */
+  #replaceMealBlock(mealId, html, currentWrapper = null, currentMealId = null, dateStr = null) {
     let target = null;
 
     if (currentWrapper && currentMealId && String(mealId) === String(currentMealId)) {
@@ -97,19 +115,30 @@ export default class extends Controller {
       target = document.querySelector(`[data-meal-id="${mealId}"]`);
     }
 
-    if (!target) {
-      // Très fréquent si le repas n'est pas dans les semaines actuellement chargées en infinite scroll
-      console.warn(`[meal-plan] update ignored: [data-meal-id="${mealId}"] not found in DOM`);
-      return;
-    }
-
     const node = this.#parseHtmlRoot(html);
     if (!node) {
       console.warn("[meal-plan] parse failed for mealId", mealId);
       return;
     }
 
-    target.replaceWith(node);
+    if (target) {
+      target.replaceWith(node);
+      return;
+    }
+
+    // ✅ Cas nouveau repas: pas dans le DOM, on insère dans la date
+    if (dateStr) {
+      const list = document.querySelector(`[data-day="${dateStr}"] .meal-list`);
+      if (list) {
+        list.prepend(node); // ou append, selon ton UX
+        return;
+      }
+      console.warn(`[meal-plan] cannot insert: list not found for date ${dateStr}`);
+      return;
+    }
+
+    // Très fréquent si le repas n'est pas dans les semaines actuellement chargées en infinite scroll
+    console.warn(`[meal-plan] update ignored: [data-meal-id="${mealId}"] not found in DOM`);
   }
 
   #parseHtmlRoot(html) {

@@ -43,12 +43,15 @@ final class RecipeImageTarget implements ImageTargetInterface
                 if (method_exists($ri, 'getIngredient') && $ri->getIngredient()) {
                     $keywords[] = $ri->getIngredient()->getName();
                 }
-                if (count($keywords) >= 3) break;
+                if (count($keywords) >= 3) {
+                    break;
+                }
             }
         }
 
-        $kw = $keywords ? (' (avec ' . implode(', ', $keywords) . ')') : '';
+        $kw = $keywords ? (' (ingrédients: ' . implode(', ', $keywords) . ')') : '';
 
+        // Prompt plus concis, mêmes contraintes clés
         return
             "Illustration stylisée semi-réaliste d'un plat : {$name}{$kw}, " .
             "style kawaii doux et moderne, sans visage, sans personnage. " .
