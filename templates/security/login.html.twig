@@ -26,6 +26,7 @@
           Mot de passe mis à jour. Tu peux te connecter.
         </div>
       {% endif %}
+
       <div class="row justify-content-center align-items-center min-vh-100">
         <div class="col-12 col-sm-10 col-md-8 col-lg-5 col-xl-4">
 
@@ -46,6 +47,21 @@
                   <a href="{{ path('app_logout') }}" class="alert-link">Se déconnecter</a>
                 </div>
               {% endif %}
+
+              {# --- Google OAuth --- #}
+              <div class="d-grid gap-2 mb-3">
+                <a
+                  href="{{ path('connect_google_start') }}"
+                  class="btn btn-outline-dark"
+                  data-turbo="false"
+                >
+                  Continuer avec Google
+                </a>
+              </div>
+
+              <div class="text-center text-body-secondary small mb-3">
+                — ou —
+              </div>
 
               <form method="post" novalidate>
                 <div class="mb-3">
@@ -84,6 +100,12 @@
                   <button class="btn btn-primary" type="submit">
                     Se connecter
                   </button>
+                </div>
+
+                <div class="text-center mt-3">
+                  <a href="{{ path('forgot_password') }}" class="link-secondary small" data-turbo="false">
+                    Mot de passe oublié ?
+                  </a>
                 </div>
               </form>
 
