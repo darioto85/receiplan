@@ -12,6 +12,9 @@ use Symfony\Component\Security\Core\User\UserInterface;
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: 'app_user')]
 #[ORM\UniqueConstraint(name: 'uniq_user_email', fields: ['email'])]
+#[ORM\UniqueConstraint(name: 'uniq_user_google_id', fields: ['googleId'])]
+#[ORM\UniqueConstraint(name: 'uniq_user_apple_id', fields: ['appleId'])]
+#[ORM\UniqueConstraint(name: 'uniq_user_password_reset_token', fields: ['passwordResetToken'])]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
@@ -28,8 +31,41 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private array $roles = [];
 
-    #[ORM\Column]
+    /**
+     * Nullable to allow OAuth-only accounts.
+     */
+    #[ORM\Column(nullable: true)]
     private ?string $password = null;
+
+    #[ORM\Column(options: ['default' => false])]
+    private bool $isVerified = false;
+
+    #[ORM\Column]
+    private \DateTimeImmutable $createdAt;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $lastLoginAt = null;
+
+    /**
+     * OAuth provider subject identifiers (unique per provider).
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $googleId = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $appleId = null;
+
+    /**
+     * Password reset fields.
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $passwordResetToken = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $passwordResetRequestedAt = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $passwordResetExpiresAt = null;
 
     /** @var Collection<int, Recipe> */
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: Recipe::class, orphanRemoval: true)]
@@ -48,6 +84,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->recipes = new ArrayCollection();
         $this->ingredients = new ArrayCollection();
         $this->userIngredients = new ArrayCollection();
+        $this->createdAt = new \DateTimeImmutable();
+        $this->isVerified = false;
     }
 
     public function getId(): ?int
@@ -76,7 +114,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $roles = $this->roles;
         $roles[] = 'ROLE_USER';
 
-        return array_unique($roles);
+        return array_values(array_unique($roles));
     }
 
     /**
@@ -93,10 +131,127 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->password;
     }
 
-    public function setPassword(string $password): static
+    /**
+     * Set to null to make the account OAuth-only.
+     */
+    public function setPassword(?string $password): static
     {
         $this->password = $password;
         return $this;
+    }
+
+    public function hasPassword(): bool
+    {
+        return $this->password !== null && $this->password !== '';
+    }
+
+    public function isVerified(): bool
+    {
+        return $this->isVerified;
+    }
+
+    public function setIsVerified(bool $isVerified): static
+    {
+        $this->isVerified = $isVerified;
+        return $this;
+    }
+
+    public function getCreatedAt(): \DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
+
+    public function setCreatedAt(\DateTimeImmutable $createdAt): static
+    {
+        $this->createdAt = $createdAt;
+        return $this;
+    }
+
+    public function getLastLoginAt(): ?\DateTimeImmutable
+    {
+        return $this->lastLoginAt;
+    }
+
+    public function setLastLoginAt(?\DateTimeImmutable $lastLoginAt): static
+    {
+        $this->lastLoginAt = $lastLoginAt;
+        return $this;
+    }
+
+    public function getGoogleId(): ?string
+    {
+        return $this->googleId;
+    }
+
+    public function setGoogleId(?string $googleId): static
+    {
+        $this->googleId = $googleId;
+        return $this;
+    }
+
+    public function getAppleId(): ?string
+    {
+        return $this->appleId;
+    }
+
+    public function setAppleId(?string $appleId): static
+    {
+        $this->appleId = $appleId;
+        return $this;
+    }
+
+    public function getPasswordResetToken(): ?string
+    {
+        return $this->passwordResetToken;
+    }
+
+    public function setPasswordResetToken(?string $passwordResetToken): static
+    {
+        $this->passwordResetToken = $passwordResetToken;
+        return $this;
+    }
+
+    public function getPasswordResetRequestedAt(): ?\DateTimeImmutable
+    {
+        return $this->passwordResetRequestedAt;
+    }
+
+    public function setPasswordResetRequestedAt(?\DateTimeImmutable $passwordResetRequestedAt): static
+    {
+        $this->passwordResetRequestedAt = $passwordResetRequestedAt;
+        return $this;
+    }
+
+    public function getPasswordResetExpiresAt(): ?\DateTimeImmutable
+    {
+        return $this->passwordResetExpiresAt;
+    }
+
+    public function setPasswordResetExpiresAt(?\DateTimeImmutable $passwordResetExpiresAt): static
+    {
+        $this->passwordResetExpiresAt = $passwordResetExpiresAt;
+        return $this;
+    }
+
+    public function clearPasswordReset(): static
+    {
+        $this->passwordResetToken = null;
+        $this->passwordResetRequestedAt = null;
+        $this->passwordResetExpiresAt = null;
+        return $this;
+    }
+
+    public function isPasswordResetTokenValid(string $token, \DateTimeImmutable $now = new \DateTimeImmutable()): bool
+    {
+        if ($this->passwordResetToken === null || $this->passwordResetExpiresAt === null) {
+            return false;
+        }
+
+        if (!hash_equals($this->passwordResetToken, $token)) {
+            return false;
+        }
+
+        return $this->passwordResetExpiresAt > $now;
     }
 
     /** @return Collection<int, Recipe> */
@@ -171,7 +326,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function __serialize(): array
     {
         $data = (array) $this;
-        $data["\0".self::class."\0password"] = hash('crc32c', (string) $this->password);
+        $data["\0" . self::class . "\0password"] = hash('crc32c', (string) $this->password);
 
         return $data;
     }

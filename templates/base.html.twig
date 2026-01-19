@@ -109,6 +109,33 @@
       </div>
     </header>
 
+    {% for label, messages in app.flashes %}
+      {% for message in messages %}
+        <div class="alert alert-{{ label }} alert-dismissible fade show mt-2" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endfor %}
+
+    {% if app.user and not app.user.isVerified %}
+      <div class="alert alert-warning d-flex align-items-center justify-content-between mt-2" role="alert">
+        <div class="me-2">
+          <div class="fw-semibold">Ton email n’est pas confirmé.</div>
+          <div class="small text-body-secondary">Certaines fonctionnalités peuvent être limitées tant que ce n’est pas fait.</div>
+        </div>
+        <div class="d-flex gap-2">
+          <form method="post" action="{{ path('register_resend') }}" data-turbo="false">
+            <input type="hidden" name="email" value="{{ app.user.email }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('resend_verification') }}">
+            <button type="submit" class="btn btn-sm btn-outline-dark">Renvoyer</button>
+          </form>
+          <a href="{{ path('register_check_email', {email: app.user.email}) }}" class="btn btn-sm btn-dark">Détails</a>
+        </div>
+      </div>
+    {% endif %}
+
+
     {# Main content #}
     <main class="container min-vh-100">
       <div class="rp-page">

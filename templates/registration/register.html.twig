@@ -1,0 +1,75 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Créer un compte{% endblock %}
+
+{% block body %}
+<div class="container py-3 py-md-4" style="max-width: 720px;">
+  <div class="mb-3">
+    <h1 class="h3 mb-1">Créer un compte</h1>
+    <div class="text-body-secondary">
+      Accède à ton stock, tes recettes et ton assistant.
+    </div>
+  </div>
+
+  {# OAuth buttons (tu brancheras les routes plus tard) #}
+  <div class="d-grid gap-2 mb-3">
+    <a class="btn btn-outline-dark disabled" href="#" aria-disabled="true" tabindex="-1">
+        Continuer avec Google (bientôt)
+    </a>
+    <a class="btn btn-outline-dark disabled" href="#" aria-disabled="true" tabindex="-1">
+        Continuer avec Apple (bientôt)
+    </a>
+    </div>
+
+
+  <div class="text-center text-body-secondary small mb-3">
+    — ou —
+  </div>
+
+  {{ form_start(form) }}
+    <div class="mb-3">
+      {{ form_label(form.email, 'Email', {'label_attr': {'class': 'form-label'}}) }}
+      {{ form_widget(form.email, {'attr': {'class': 'form-control', 'autocomplete': 'email', 'inputmode': 'email'}}) }}
+      {{ form_errors(form.email) }}
+    </div>
+
+    <div class="mb-3">
+      {{ form_label(form.plainPassword, 'Mot de passe', {'label_attr': {'class': 'form-label'}}) }}
+      {{ form_widget(form.plainPassword, {'attr': {'class': 'form-control', 'autocomplete': 'new-password'}}) }}
+      <div class="form-text">Minimum 8 caractères.</div>
+      {{ form_errors(form.plainPassword) }}
+    </div>
+
+    <div class="d-grid">
+      <button type="submit" class="btn btn-primary btn-lg">
+        Créer mon compte
+      </button>
+    </div>
+  {{ form_end(form) }}
+
+  <div class="card mt-3">
+    <div class="card-body">
+        <div class="row align-items-center g-3">
+        <div class="col-12 col-md-6">
+            <div class="fw-semibold">Vous avez déjà un compte ?</div>
+            <div class="text-body-secondary small">
+            Connectez-vous pour retrouver votre stock et vos recettes.
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6 text-md-end">
+            <div class="d-grid d-md-inline-block">
+            <a href="{{ path('app_login') }}" class="btn btn-outline-primary">
+                Se connecter
+            </a>
+            </div>
+        </div>
+        </div>
+    </div>
+    </div>
+
+  <div class="text-body-secondary small mt-3">
+    En créant un compte, tu acceptes l’utilisation de Receiplan.
+  </div>
+</div>
+{% endblock %}

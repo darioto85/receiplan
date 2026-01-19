@@ -39,6 +39,18 @@ security:
     access_control:
         - { path: ^/login, roles: PUBLIC_ACCESS }
         - { path: ^/logout, roles: PUBLIC_ACCESS }
+
+        # Registration + email verify
+        - { path: ^/register, roles: PUBLIC_ACCESS }
+        - { path: ^/verify/email, roles: PUBLIC_ACCESS }
+
+        # Password reset
+        - { path: ^/forgot-password, roles: PUBLIC_ACCESS }
+        - { path: ^/reset-password, roles: PUBLIC_ACCESS }
+
+        # (optionnel) si tu exposes des pages email-only
+        # - { path: ^/emails, roles: PUBLIC_ACCESS }
+
         - { path: ^/api, roles: PUBLIC_ACCESS }
         - { path: ^/cron, roles: PUBLIC_ACCESS }
         - { path: ^/push/test, roles: PUBLIC_ACCESS }

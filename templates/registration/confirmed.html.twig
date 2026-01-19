@@ -1,0 +1,24 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Compte confirmé{% endblock %}
+
+{% block body %}
+<div class="container py-3 py-md-4" style="max-width: 520px;">
+  <div class="mb-3">
+    <h1 class="h3 mb-1">Compte confirmé ✅</h1>
+    <div class="text-body-secondary">
+      Ton email est vérifié. Tu peux maintenant te connecter et commencer.
+    </div>
+  </div>
+
+  <div class="d-grid gap-2">
+    <a href="{{ path('app_login') }}" class="btn btn-primary btn-lg">
+      Se connecter
+    </a>
+    {# Si tu veux un autre CTA #}
+    <a href="{{ path('register') }}" class="btn btn-outline-secondary">
+      Créer un autre compte
+    </a>
+  </div>
+</div>
+{% endblock %}

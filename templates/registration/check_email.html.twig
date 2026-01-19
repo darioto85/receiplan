@@ -1,0 +1,44 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Confirme ton email{% endblock %}
+
+{% block body %}
+<div class="container py-3 py-md-4" style="max-width: 520px;">
+  <div class="mb-3">
+    <h1 class="h3 mb-1">Confirme ton email</h1>
+    <div class="text-body-secondary">
+      On t’a envoyé un lien de confirmation{% if email %} à <span class="fw-semibold">{{ email }}</span>{% endif %}.
+    </div>
+  </div>
+
+  <div class="alert alert-info" role="alert">
+    Pense à vérifier les spams / promotions. Le lien expire au bout de 24h.
+  </div>
+
+  <form method="post" action="{{ path('register_resend') }}" class="card">
+    <div class="card-body">
+      <input type="hidden" name="email" value="{{ email }}">
+      <div class="d-grid gap-2">
+        <button type="submit" class="btn btn-outline-primary">
+          Renvoyer l’email
+        </button>
+        <a href="{{ path('register') }}" class="btn btn-link">
+          Changer d’email
+        </a>
+      </div>
+    </div>
+  </form>
+
+  <div class="card mt-3">
+    <div class="card-body d-flex align-items-center justify-content-between">
+      <div class="me-2">
+        <div class="fw-semibold">Déjà confirmé ?</div>
+        <div class="text-body-secondary small">Tu peux te connecter directement.</div>
+      </div>
+      <a href="{{ path('app_login') }}" class="btn btn-outline-primary">
+        Se connecter
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}
