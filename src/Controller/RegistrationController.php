@@ -15,7 +15,6 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
-use Symfony\Component\Uid\Uuid;
 
 final class RegistrationController extends AbstractController
 {
@@ -185,7 +184,8 @@ final class RegistrationController extends AbstractController
                 $user = $this->em->getRepository(User::class)->findOneBy(['email' => $email]);
 
                 if ($user instanceof User) {
-                    $token = Uuid::v4()->toRfc4122();
+                    $token = bin2hex(random_bytes(32)); // 64 chars, sécurisé
+
                     $now = new \DateTimeImmutable();
                     $expiresAt = $now->modify('+1 hour');
 
@@ -239,8 +239,7 @@ final class RegistrationController extends AbstractController
             $user->clearPasswordReset();
             $this->em->flush();
 
-            $this->addFlash('success', 'Mot de passe mis à jour. Tu peux te connecter.');
-            return $this->redirectToRoute('app_login');
+            return $this->redirectToRoute('app_login', ['reset' => 1]);
         }
 
         return $this->render('security/reset_password.html.twig', [

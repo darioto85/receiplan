@@ -21,6 +21,11 @@
 
   <body>
     <div class="container">
+      {% if app.request.query.get('reset') %}
+        <div class="alert alert-success mt-2">
+          Mot de passe mis à jour. Tu peux te connecter.
+        </div>
+      {% endif %}
       <div class="row justify-content-center align-items-center min-vh-100">
         <div class="col-12 col-sm-10 col-md-8 col-lg-5 col-xl-4">
 
