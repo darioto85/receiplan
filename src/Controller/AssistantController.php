@@ -6,9 +6,8 @@ use App\Entity\AssistantConversation;
 use App\Entity\AssistantMessage;
 use App\Repository\AssistantConversationRepository;
 use App\Repository\AssistantMessageRepository;
-use App\Service\AiStockParser;
-use App\Service\Ai\AiAddRecipeHandler;
-use App\Service\Ai\AiAddStockHandler;
+use App\Service\Ai\AssistantOrchestrator;
+use App\Service\Ai\Action\AiContext;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -23,11 +22,7 @@ final class AssistantController extends AbstractController
         private readonly AssistantConversationRepository $conversationRepo,
         private readonly AssistantMessageRepository $messageRepo,
         private readonly EntityManagerInterface $em,
-
-        private readonly AiStockParser $aiStockParser,
-        private readonly AiAddRecipeHandler $aiAddRecipeHandler,
-        private readonly AiAddStockHandler $aiAddStockHandler,
-
+        private readonly AssistantOrchestrator $assistantOrchestrator,
         private readonly KernelInterface $kernel,
     ) {}
 
@@ -89,75 +84,14 @@ final class AssistantController extends AbstractController
             $this->em->persist($conversation);
         }
 
+        // Persist user message
         $userMsg = new AssistantMessage($conversation, AssistantMessage::ROLE_USER, $text);
         $this->em->persist($userMsg);
 
         try {
-            $parse = $this->aiStockParser->parse($text);
+            $ctx = new AiContext(locale: (string)($payload['locale'] ?? 'fr-FR'), debug: $this->kernel->isDebug());
 
-            $action = (string)($parse['action'] ?? 'unknown');
-            $payloadAi = $parse['payload'] ?? null;
-
-            $assistantText = "Je ne suis pas sûr de ce que tu veux faire. Tu peux reformuler ?";
-            $assistantPayload = null;
-
-            if ($action === 'add_stock' && is_array($payloadAi)) {
-                $payloadAi = $this->normalizeStockDraft($payloadAi);
-                $questions = $this->buildClarifyQuestionsForStock($payloadAi);
-
-                if (count($questions) > 0) {
-                    $assistantText = "J’ai besoin d’une précision avant d’ajouter au stock :";
-                    $assistantPayload = [
-                        'type' => 'clarify',
-                        'action' => 'add_stock',
-                        'action_payload' => $payloadAi,
-                        'questions' => $questions,
-                        'clarified' => null,
-                        'clarified_at' => null,
-                        'parse' => $parse,
-                    ];
-                } else {
-                    $assistantText = $this->buildConfirmTextForStock($payloadAi);
-                    $assistantPayload = [
-                        'type' => 'confirm',
-                        'action' => 'add_stock',
-                        'action_payload' => $payloadAi,
-                        'confirmed' => null,
-                        'confirmed_at' => null,
-                        'parse' => $parse,
-                    ];
-                }
-            } elseif ($action === 'add_recipe' && is_array($payloadAi)) {
-                // ✅ IMPORTANT : AiStockParser::parseRecipe() renvoie payloadAi['recipe']['name']
-                $name = trim((string)(
-                    $payloadAi['name']
-                    ?? $payloadAi['recipe_name']
-                    ?? ($payloadAi['recipe']['name'] ?? null)
-                    ?? ''
-                ));
-
-                if ($name === '') {
-                    $assistantText = "Je peux ajouter une recette, mais j’ai besoin du nom. Tu peux me le redonner ?";
-
-                    // ✅ DEBUG: on renvoie le parse brut en dev pour comprendre la shape
-                    $assistantPayload = $this->kernel->isDebug() ? [
-                        'type' => 'debug_recipe_missing_name',
-                        'action' => $action,
-                        'action_payload' => $payloadAi,
-                        'parse' => $parse,
-                    ] : null;
-                } else {
-                    $assistantText = $this->buildConfirmTextForRecipe($payloadAi);
-                    $assistantPayload = [
-                        'type' => 'confirm',
-                        'action' => 'add_recipe',
-                        'action_payload' => $payloadAi,
-                        'confirmed' => null,
-                        'confirmed_at' => null,
-                        'parse' => $parse,
-                    ];
-                }
-            }
+            [$assistantText, $assistantPayload] = $this->assistantOrchestrator->propose($user, $text, $ctx);
 
             $assistantMsg = new AssistantMessage(
                 $conversation,
@@ -236,6 +170,7 @@ final class AssistantController extends AbstractController
             return $this->json(['error' => ['code' => 'not_confirmable', 'message' => 'Ce message ne demande pas de confirmation.']], 422);
         }
 
+        // idempotence
         if (($p['confirmed'] ?? null) !== null) {
             $assistantMsg = new AssistantMessage(
                 $conversation,
@@ -253,11 +188,10 @@ final class AssistantController extends AbstractController
         $p['confirmed_at'] = (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM);
 
         $action = (string)($p['action'] ?? 'unknown');
-        $actionPayload = $p['action_payload'] ?? null;
+        $draft = $p['action_payload'] ?? ($p['draft'] ?? null);
 
         if ($decision === 'yes' && is_array($overridePayload)) {
-            $actionPayload = $overridePayload;
-
+            $draft = $overridePayload;
             $p['edited'] = true;
             $p['edited_at'] = (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM);
         }
@@ -278,42 +212,31 @@ final class AssistantController extends AbstractController
                 return $this->json(['messages' => [$this->serializeMessage($assistantMsg)]]);
             }
 
-            if (!is_array($actionPayload)) {
+            if (!is_array($draft)) {
                 throw new \RuntimeException('missing_action_payload');
             }
 
-            $p['action_payload'] = $actionPayload;
+            // persist final draft used
+            $p['action_payload'] = $draft;
+            $p['draft'] = $draft;
             $confirmMsg->setPayload($p);
 
-            $result = null;
-            $assistantText = null;
+            // apply
+            [$fallbackText, $appliedPayload] = $this->assistantOrchestrator->apply($user, $action, $draft);
 
-            switch ($action) {
-                case 'add_stock':
-                    $result = $this->aiAddStockHandler->handle($user, $actionPayload);
-                    $assistantText = $this->formatStockAppliedResult($result);
-                    break;
-
-                case 'add_recipe':
-                    $result = $this->aiAddRecipeHandler->handle($user, $actionPayload);
-                    $assistantText = $this->formatRecipeAppliedResult($result);
-                    break;
-
-                default:
-                    $assistantText = "Je ne sais pas appliquer cette action pour le moment.";
-                    break;
-            }
+            // nicer user-facing text (keep your current behavior)
+            $result = $appliedPayload['result'] ?? null;
+            $assistantText = match ($action) {
+                'add_stock' => $this->formatStockAppliedResult($result),
+                'add_recipe' => $this->formatRecipeAppliedResult($result),
+                default => "✅ C’est fait.",
+            };
 
             $assistantMsg = new AssistantMessage(
                 $conversation,
                 AssistantMessage::ROLE_ASSISTANT,
-                $assistantText ?? "✅ C’est fait.",
-                [
-                    'type' => 'applied',
-                    'action' => $action,
-                    'result' => $result,
-                    'ref_message_id' => $confirmMsg->getId(),
-                ]
+                $assistantText ?: ($fallbackText ?: "✅ C’est fait."),
+                array_merge($appliedPayload, ['ref_message_id' => $confirmMsg->getId()])
             );
             $this->em->persist($assistantMsg);
 
@@ -381,6 +304,7 @@ final class AssistantController extends AbstractController
             return $this->json(['error' => ['code' => 'not_clarifiable', 'message' => 'Ce message ne demande pas de précision.']], 422);
         }
 
+        // idempotence
         if (($p['clarified'] ?? null) === true) {
             $assistantMsg = new AssistantMessage(
                 $conversation,
@@ -395,21 +319,30 @@ final class AssistantController extends AbstractController
         }
 
         $action = (string)($p['action'] ?? 'unknown');
-        $draft = $p['action_payload'] ?? null;
+        $draft = $p['action_payload'] ?? ($p['draft'] ?? null);
 
+        // Safe: clarify only for add_stock (same as before)
         if ($action !== 'add_stock' || !is_array($draft)) {
             return $this->json(['error' => ['code' => 'unsupported_action', 'message' => 'Clarify non supporté pour cette action.']], 422);
         }
 
         try {
-            $updatedDraft = $this->applyClarifyAnswersToStockDraft($draft, $answers);
+            $updatedDraft = $this->assistantOrchestrator->applyClarifyAnswers($action, $draft, $answers);
 
             $p['action_payload'] = $updatedDraft;
+            $p['draft'] = $updatedDraft;
             $p['clarified'] = true;
             $p['clarified_at'] = (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM);
             $p['answers'] = $answers;
             $clarifyMsg->setPayload($p);
 
+            // Build a confirm message after clarify:
+            // We keep behavior stable by re-using the orchestrator propose() confirm text builder:
+            // (No new OpenAI call; we just generate confirm text)
+            $ctx = new AiContext(locale: (string)($body['locale'] ?? 'fr-FR'), debug: $this->kernel->isDebug());
+
+            // We can't call propose() because it would re-run classification+extraction.
+            // So we generate confirm text locally for add_stock (stable).
             $assistantText = $this->buildConfirmTextForStock($updatedDraft);
 
             $confirmMsg = new AssistantMessage(
@@ -418,8 +351,9 @@ final class AssistantController extends AbstractController
                 $assistantText,
                 [
                     'type' => 'confirm',
-                    'action' => 'add_stock',
+                    'action' => $action,
                     'action_payload' => $updatedDraft,
+                    'draft' => $updatedDraft,
                     'confirmed' => null,
                     'confirmed_at' => null,
                     'from_clarify_message_id' => $clarifyMsg->getId(),
@@ -447,15 +381,15 @@ final class AssistantController extends AbstractController
     }
 
     // ---------------------------
-    // Builders (proposition)
+    // Helpers (UI text + serialization)
     // ---------------------------
 
-    private function buildConfirmTextForStock(mixed $payloadAi): string
+    /**
+     * Keep this helper here for now to keep behavior stable.
+     * Later, move into AddStockAiAction (single source of truth).
+     */
+    private function buildConfirmTextForStock(array $payloadAi): string
     {
-        if (!is_array($payloadAi)) {
-            return "Je peux ajouter au stock. Tu confirmes ?";
-        }
-
         $items = $payloadAi['items'] ?? null;
         if (!is_array($items) || count($items) === 0) {
             return "Je peux ajouter au stock. Tu confirmes ?";
@@ -486,31 +420,6 @@ final class AssistantController extends AbstractController
         return "Je peux ajouter au stock : ".$summary.$more.". Tu confirmes ?";
     }
 
-    private function buildConfirmTextForRecipe(mixed $payloadAi): string
-    {
-        if (!is_array($payloadAi)) {
-            return "Je peux ajouter une recette. Tu confirmes ?";
-        }
-
-        // ✅ payload recette v2 = { recipe: { name: ..., ingredients: [...] } }
-        $name = trim((string)(
-            $payloadAi['name']
-            ?? $payloadAi['recipe_name']
-            ?? ($payloadAi['recipe']['name'] ?? null)
-            ?? ''
-        ));
-
-        if ($name !== '') {
-            return "Je peux ajouter la recette « ".$name." ». Tu confirmes ?";
-        }
-
-        return "Je peux ajouter une recette. Tu confirmes ?";
-    }
-
-    // ---------------------------
-    // Formatters (après apply)
-    // ---------------------------
-
     private function formatStockAppliedResult(mixed $result): string
     {
         if (!is_array($result)) return "✅ Stock mis à jour.";
@@ -531,9 +440,15 @@ final class AssistantController extends AbstractController
     {
         if (!is_array($result)) return "✅ Recette ajoutée.";
 
-        $name = $result['name'] ?? $result['recipe_name'] ?? null;
-        $parts = [];
+        // handler retourne ['recipe' => ['id'=>..., 'name'=>...]]
+        $name = null;
+        if (isset($result['recipe']) && is_array($result['recipe'])) {
+            $name = $result['recipe']['name'] ?? null;
+        } else {
+            $name = $result['name'] ?? $result['recipe_name'] ?? null;
+        }
 
+        $parts = [];
         if (is_string($name) && $name !== '') $parts[] = "✅ Recette enregistrée : ".$name.".";
         else $parts[] = "✅ Recette enregistrée.";
 
@@ -572,125 +487,5 @@ final class AssistantController extends AbstractController
             'payload' => $m->getPayload(),
             'created_at' => $m->getCreatedAt()->format(\DateTimeInterface::ATOM),
         ];
-    }
-
-    private function applyClarifyAnswersToStockDraft(array $draft, array $answers): array
-    {
-        if (!isset($draft['items']) || !is_array($draft['items'])) {
-            return $draft;
-        }
-
-        foreach ($answers as $path => $value) {
-            if (!is_string($path)) continue;
-
-            if (!preg_match('/^items\.(\d+)\.(quantity|unit)$/', $path, $m)) {
-                continue;
-            }
-
-            $idx = (int) $m[1];
-            $field = $m[2];
-
-            if (!isset($draft['items'][$idx]) || !is_array($draft['items'][$idx])) {
-                continue;
-            }
-
-            if ($field === 'quantity') {
-                if ($value === null || $value === '' || !is_numeric($value)) continue;
-                $draft['items'][$idx]['quantity'] = (float) $value;
-                $draft['items'][$idx]['quantity_raw'] = (string) $value;
-            }
-
-            if ($field === 'unit') {
-                $v = is_string($value) ? trim($value) : '';
-                if ($v === '') continue;
-                $draft['items'][$idx]['unit'] = $v;
-                $draft['items'][$idx]['unit_raw'] = null;
-            }
-        }
-
-        return $draft;
-    }
-
-    private function buildClarifyQuestionsForStock(array $payloadAi): array
-    {
-        $items = $payloadAi['items'] ?? null;
-        if (!is_array($items) || count($items) === 0) return [];
-
-        $questions = [];
-
-        foreach ($items as $idx => $it) {
-            if (!is_array($it)) continue;
-
-            $name = trim((string)($it['name'] ?? $it['name_raw'] ?? ''));
-            if ($name === '') $name = 'cet ingrédient';
-
-            $confidence = isset($it['confidence']) ? (float) $it['confidence'] : 0.0;
-            $quantity = $it['quantity'] ?? null;
-            $unit = $it['unit'] ?? null;
-
-            $missingQty = ($quantity === null || $quantity === '' || (is_string($quantity) && trim($quantity) === ''));
-            $missingUnit = ($unit === null || $unit === '' || (is_string($unit) && trim($unit) === ''));
-
-            if (!$missingQty && $missingUnit) {
-                $missingUnit = false;
-            }
-
-            $needs = false;
-            if ($confidence > 0 && $confidence < 0.6) $needs = true;
-            if ($missingQty) $needs = true;
-            if ($missingUnit) $needs = true;
-
-            if (!$needs) continue;
-
-            if ($missingQty) {
-                $questions[] = [
-                    'path' => "items.$idx.quantity",
-                    'label' => "Quelle quantité pour $name ?",
-                    'kind' => 'number',
-                    'placeholder' => 'ex: 2',
-                ];
-            }
-
-            if ($missingUnit) {
-                $questions[] = [
-                    'path' => "items.$idx.unit",
-                    'label' => "Quelle unité pour $name ?",
-                    'kind' => 'select',
-                    'options' => [
-                        ['value' => 'piece', 'label' => 'pièce(s)'],
-                        ['value' => 'g', 'label' => 'g'],
-                        ['value' => 'kg', 'label' => 'kg'],
-                        ['value' => 'ml', 'label' => 'mL'],
-                        ['value' => 'l', 'label' => 'L'],
-                    ],
-                ];
-            }
-
-            if (count($questions) >= 6) break;
-        }
-
-        return $questions;
-    }
-
-    private function normalizeStockDraft(array $payloadAi): array
-    {
-        $items = $payloadAi['items'] ?? null;
-        if (!is_array($items)) return $payloadAi;
-
-        foreach ($items as $i => $it) {
-            if (!is_array($it)) continue;
-
-            $q = $it['quantity'] ?? null;
-            $unit = $it['unit'] ?? null;
-
-            if (($unit === null || $unit === '' || (is_string($unit) && trim($unit) === ''))
-                && $q !== null && $q !== '' && is_numeric($q)
-            ) {
-                $payloadAi['items'][$i]['unit'] = 'piece';
-                $payloadAi['items'][$i]['unit_raw'] = null;
-            }
-        }
-
-        return $payloadAi;
     }
 }

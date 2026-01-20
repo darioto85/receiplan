@@ -57,11 +57,6 @@ services:
 
   App\Service\IngredientImageResolver: ~
   App\Service\RecipeImageResolver: ~
-  
-  App\Service\AiStockParser:
-    arguments:
-      $openAiApiKey: '%env(OPENAI_API_KEY)%'
-      $model: 'gpt-4.1-mini'
 
   App\Service\Ai\AiTranscriptionService:
       arguments:
@@ -80,3 +75,18 @@ services:
   App\Service\PushActionTokenService:
       arguments:
         $secret: '%env(CRON_SECRET)%'
+
+  App\Service\Ai\Action\AddStockAiAction:
+    tags: ['app.ai_action']
+
+  App\Service\Ai\Action\AddRecipeAiAction:
+    tags: ['app.ai_action']
+
+  App\Service\Ai\Action\ActionRegistry:
+    arguments:
+      $actions: !tagged_iterator app.ai_action
+
+  App\Service\Ai\OpenAi\OpenAiStructuredClient:
+    arguments:
+      $openAiApiKey: '%env(OPENAI_API_KEY)%'
+      $model: 'gpt-4.1-mini'
