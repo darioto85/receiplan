@@ -6,8 +6,9 @@ use App\Entity\AssistantConversation;
 use App\Entity\AssistantMessage;
 use App\Repository\AssistantConversationRepository;
 use App\Repository\AssistantMessageRepository;
-use App\Service\Ai\AssistantOrchestrator;
+use App\Service\Ai\Action\ActionRegistry;
 use App\Service\Ai\Action\AiContext;
+use App\Service\Ai\AssistantOrchestrator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -23,6 +24,7 @@ final class AssistantController extends AbstractController
         private readonly AssistantMessageRepository $messageRepo,
         private readonly EntityManagerInterface $em,
         private readonly AssistantOrchestrator $assistantOrchestrator,
+        private readonly ActionRegistry $registry,
         private readonly KernelInterface $kernel,
     ) {}
 
@@ -71,7 +73,7 @@ final class AssistantController extends AbstractController
             return $this->json(['error' => ['code' => 'invalid_json', 'message' => 'JSON invalide.']], 400);
         }
 
-        $text = trim((string)($payload['text'] ?? ''));
+        $text = trim((string) ($payload['text'] ?? ''));
         if ($text === '') {
             return $this->json(['error' => ['code' => 'missing_text', 'message' => 'Champ text requis.']], 422);
         }
@@ -84,12 +86,14 @@ final class AssistantController extends AbstractController
             $this->em->persist($conversation);
         }
 
-        // Persist user message
         $userMsg = new AssistantMessage($conversation, AssistantMessage::ROLE_USER, $text);
         $this->em->persist($userMsg);
 
         try {
-            $ctx = new AiContext(locale: (string)($payload['locale'] ?? 'fr-FR'), debug: $this->kernel->isDebug());
+            $ctx = new AiContext(
+                locale: (string)($payload['locale'] ?? 'fr-FR'),
+                debug: $this->kernel->isDebug()
+            );
 
             [$assistantText, $assistantPayload] = $this->assistantOrchestrator->propose($user, $text, $ctx);
 
@@ -127,8 +131,8 @@ final class AssistantController extends AbstractController
     }
 
     /**
-     * Étape 2 (+ Étape 4 override): appliquer / annuler après confirmation user.
-     * Body: { "message_id": 123, "decision": "yes"|"no", "action_payload"?: {...} }
+     * Étape 2: appliquer / annuler après confirmation user.
+     * Body: { "message_id": 123, "decision": "yes"|"no", "action_payload"?: {...}, "locale"?: "fr-FR" }
      */
     #[Route('/assistant/confirm', name: 'assistant_confirm', methods: ['POST'])]
     public function confirm(Request $request): JsonResponse
@@ -144,7 +148,7 @@ final class AssistantController extends AbstractController
         }
 
         $messageId = $body['message_id'] ?? null;
-        $decision = (string)($body['decision'] ?? '');
+        $decision = (string) ($body['decision'] ?? '');
         $overridePayload = $body['action_payload'] ?? null;
 
         if (!is_numeric($messageId)) {
@@ -155,7 +159,7 @@ final class AssistantController extends AbstractController
         }
 
         /** @var AssistantMessage|null $confirmMsg */
-        $confirmMsg = $this->em->getRepository(AssistantMessage::class)->find((int)$messageId);
+        $confirmMsg = $this->em->getRepository(AssistantMessage::class)->find((int) $messageId);
         if (!$confirmMsg instanceof AssistantMessage) {
             return $this->json(['error' => ['code' => 'message_not_found', 'message' => 'Message introuvable.']], 404);
         }
@@ -187,8 +191,8 @@ final class AssistantController extends AbstractController
         $p['confirmed'] = $decision;
         $p['confirmed_at'] = (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM);
 
-        $action = (string)($p['action'] ?? 'unknown');
-        $draft = $p['action_payload'] ?? ($p['draft'] ?? null);
+        $action = (string) ($p['action'] ?? 'unknown');
+        $draft = $p['draft'] ?? ($p['action_payload'] ?? null);
 
         if ($decision === 'yes' && is_array($overridePayload)) {
             $draft = $overridePayload;
@@ -216,20 +220,23 @@ final class AssistantController extends AbstractController
                 throw new \RuntimeException('missing_action_payload');
             }
 
-            // persist final draft used
             $p['action_payload'] = $draft;
             $p['draft'] = $draft;
             $confirmMsg->setPayload($p);
 
-            // apply
-            [$fallbackText, $appliedPayload] = $this->assistantOrchestrator->apply($user, $action, $draft);
+            $ctx = new AiContext(
+                locale: (string)($body['locale'] ?? 'fr-FR'),
+                debug: $this->kernel->isDebug()
+            );
 
-            // nicer user-facing text (keep your current behavior)
+            // ✅ FIX: apply() attend 4 args
+            [$fallbackText, $appliedPayload] = $this->assistantOrchestrator->apply($user, $action, $draft, $ctx);
+
             $result = $appliedPayload['result'] ?? null;
             $assistantText = match ($action) {
                 'add_stock' => $this->formatStockAppliedResult($result),
                 'add_recipe' => $this->formatRecipeAppliedResult($result),
-                default => "✅ C’est fait.",
+                default => ($fallbackText ?: "✅ C’est fait."),
             };
 
             $assistantMsg = new AssistantMessage(
@@ -265,6 +272,10 @@ final class AssistantController extends AbstractController
         }
     }
 
+    /**
+     * Clarify: applique answers sur le draft, puis renvoie soit un nouveau clarify, soit un confirm.
+     * Body: { "message_id": 123, "answers": { ... }, "locale"?: "fr-FR" }
+     */
     #[Route('/assistant/clarify', name: 'assistant_clarify', methods: ['POST'])]
     public function clarify(Request $request): JsonResponse
     {
@@ -289,7 +300,7 @@ final class AssistantController extends AbstractController
         }
 
         /** @var AssistantMessage|null $clarifyMsg */
-        $clarifyMsg = $this->em->getRepository(AssistantMessage::class)->find((int)$messageId);
+        $clarifyMsg = $this->em->getRepository(AssistantMessage::class)->find((int) $messageId);
         if (!$clarifyMsg instanceof AssistantMessage) {
             return $this->json(['error' => ['code' => 'message_not_found', 'message' => 'Message introuvable.']], 404);
         }
@@ -318,17 +329,28 @@ final class AssistantController extends AbstractController
             return $this->json(['messages' => [$this->serializeMessage($assistantMsg)]]);
         }
 
-        $action = (string)($p['action'] ?? 'unknown');
-        $draft = $p['action_payload'] ?? ($p['draft'] ?? null);
+        $action = (string) ($p['action'] ?? 'unknown');
+        $draft = $p['draft'] ?? ($p['action_payload'] ?? null);
 
-        // Safe: clarify only for add_stock (same as before)
-        if ($action !== 'add_stock' || !is_array($draft)) {
-            return $this->json(['error' => ['code' => 'unsupported_action', 'message' => 'Clarify non supporté pour cette action.']], 422);
+        if (!is_array($draft)) {
+            return $this->json(['error' => ['code' => 'missing_draft', 'message' => 'Draft manquant.']], 422);
+        }
+
+        if (!$this->registry->has($action)) {
+            return $this->json(['error' => ['code' => 'unknown_action', 'message' => 'Action inconnue.']], 422);
         }
 
         try {
-            $updatedDraft = $this->assistantOrchestrator->applyClarifyAnswers($action, $draft, $answers);
+            $ctx = new AiContext(
+                locale: (string)($body['locale'] ?? 'fr-FR'),
+                debug: $this->kernel->isDebug()
+            );
 
+            // ✅ FIX: si ton orchestrator a aussi besoin de ctx ici, ajoute-le.
+            // Si ta signature est (string, array, array, AiContext) -> OK.
+            $updatedDraft = $this->assistantOrchestrator->applyClarifyAnswers($action, $draft, $answers, $ctx);
+
+            // persist updated draft on clarify message
             $p['action_payload'] = $updatedDraft;
             $p['draft'] = $updatedDraft;
             $p['clarified'] = true;
@@ -336,19 +358,41 @@ final class AssistantController extends AbstractController
             $p['answers'] = $answers;
             $clarifyMsg->setPayload($p);
 
-            // Build a confirm message after clarify:
-            // We keep behavior stable by re-using the orchestrator propose() confirm text builder:
-            // (No new OpenAI call; we just generate confirm text)
-            $ctx = new AiContext(locale: (string)($body['locale'] ?? 'fr-FR'), debug: $this->kernel->isDebug());
+            $aiAction = $this->registry->get($action);
 
-            // We can't call propose() because it would re-run classification+extraction.
-            // So we generate confirm text locally for add_stock (stable).
-            $assistantText = $this->buildConfirmTextForStock($updatedDraft);
+            // re-normalize after answers (local, no OpenAI)
+            $updatedDraft = $aiAction->normalizeDraft($updatedDraft, $ctx);
+
+            $questions = $aiAction->buildClarifyQuestions($updatedDraft, $ctx);
+
+            if (count($questions) > 0) {
+                $assistantMsg = new AssistantMessage(
+                    $conversation,
+                    AssistantMessage::ROLE_ASSISTANT,
+                    "J’ai encore besoin d’une précision :",
+                    [
+                        'type' => 'clarify',
+                        'action' => $action,
+                        'action_payload' => $updatedDraft,
+                        'draft' => $updatedDraft,
+                        'questions' => $questions,
+                        'clarified' => null,
+                        'clarified_at' => null,
+                        'from_clarify_message_id' => $clarifyMsg->getId(),
+                    ]
+                );
+                $this->em->persist($assistantMsg);
+                $this->em->flush();
+
+                return $this->json(['messages' => [$this->serializeMessage($assistantMsg)]]);
+            }
+
+            $confirmText = $aiAction->buildConfirmText($updatedDraft, $ctx);
 
             $confirmMsg = new AssistantMessage(
                 $conversation,
                 AssistantMessage::ROLE_ASSISTANT,
-                $assistantText,
+                $confirmText,
                 [
                     'type' => 'confirm',
                     'action' => $action,
@@ -381,44 +425,8 @@ final class AssistantController extends AbstractController
     }
 
     // ---------------------------
-    // Helpers (UI text + serialization)
+    // Helpers
     // ---------------------------
-
-    /**
-     * Keep this helper here for now to keep behavior stable.
-     * Later, move into AddStockAiAction (single source of truth).
-     */
-    private function buildConfirmTextForStock(array $payloadAi): string
-    {
-        $items = $payloadAi['items'] ?? null;
-        if (!is_array($items) || count($items) === 0) {
-            return "Je peux ajouter au stock. Tu confirmes ?";
-        }
-
-        $parts = [];
-        foreach (array_slice($items, 0, 5) as $it) {
-            if (!is_array($it)) continue;
-
-            $name = trim((string)($it['name'] ?? $it['name_raw'] ?? ''));
-            if ($name === '') continue;
-
-            $q = $it['quantity'] ?? null;
-            $qRaw = trim((string)($it['quantity_raw'] ?? ''));
-
-            if ($q !== null && $q !== '' && is_numeric($q)) {
-                $parts[] = rtrim(rtrim((string)$q, '0'), '.') . ' ' . $name;
-            } elseif ($qRaw !== '') {
-                $parts[] = $qRaw . ' ' . $name;
-            } else {
-                $parts[] = $name;
-            }
-        }
-
-        $summary = count($parts) > 0 ? implode(', ', $parts) : "des éléments";
-        $more = (count($items) > 5) ? " (+".(count($items) - 5).")" : "";
-
-        return "Je peux ajouter au stock : ".$summary.$more.". Tu confirmes ?";
-    }
 
     private function formatStockAppliedResult(mixed $result): string
     {
@@ -440,7 +448,6 @@ final class AssistantController extends AbstractController
     {
         if (!is_array($result)) return "✅ Recette ajoutée.";
 
-        // handler retourne ['recipe' => ['id'=>..., 'name'=>...]]
         $name = null;
         if (isset($result['recipe']) && is_array($result['recipe'])) {
             $name = $result['recipe']['name'] ?? null;

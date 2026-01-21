@@ -1,20 +1,20 @@
 # yaml-language-server: $schema=../vendor/symfony/dependency-injection/Loader/schema/services.schema.json
 
-# This file is the entry point to configure your own services.
-# Files in the packages/ subdirectory configure your dependencies.
-# See also https://symfony.com/doc/current/service_container/import.html
-
-# Put parameters here that don't need to change on each machine where the app is deployed
-# https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
-    openai.api_key: '%env(OPENAI_API_KEY)%'
-    cron.secret: '%env(CRON_SECRET)%'
+  openai.api_key: '%env(OPENAI_API_KEY)%'
+  cron.secret: '%env(CRON_SECRET)%'
 
 services:
   _defaults:
     autowire: true
     autoconfigure: true
 
+  # ✅ Auto-tag de toutes les actions IA (plus besoin de déclarer chaque AiAction une par une)
+  _instanceof:
+    App\Service\Ai\Action\AiActionInterface:
+      tags: ['app.ai_action']
+
+  # Auto-register de tout le code App\
   App\:
     resource: '../src/'
     exclude:
@@ -22,10 +22,14 @@ services:
       - '../src/Entity/'
       - '../src/Kernel.php'
 
+  # Controllers
   App\Controller\:
-      resource: '../src/Controller/'
-      tags: ['controller.service_arguments']
-      
+    resource: '../src/Controller/'
+    tags: ['controller.service_arguments']
+
+  # ----------------------------
+  # AWS S3 client for Cloudflare R2
+  # ----------------------------
   Aws\S3\S3Client:
     arguments:
       - version: 'latest'
@@ -36,17 +40,16 @@ services:
           key: '%env(R2_ACCESS_KEY)%'
           secret: '%env(R2_SECRET_KEY)%'
 
-  # Filesystem Flysystem vers R2
-  receiplan.r2_filesystem:
-    class: League\Flysystem\Filesystem
-    arguments:
-      - '@receiplan.r2_adapter'
-
   receiplan.r2_adapter:
     class: League\Flysystem\AwsS3V3\AwsS3V3Adapter
     arguments:
       - '@Aws\S3\S3Client'
       - '%env(R2_BUCKET)%'
+
+  receiplan.r2_filesystem:
+    class: League\Flysystem\Filesystem
+    arguments:
+      - '@receiplan.r2_adapter'
 
   App\Service\Image\Storage\R2ImageStorage:
     arguments:
@@ -55,38 +58,45 @@ services:
 
   App\Service\Image\Storage\ImageStorageInterface: '@App\Service\Image\Storage\R2ImageStorage'
 
+  # Resolvers images
   App\Service\IngredientImageResolver: ~
   App\Service\RecipeImageResolver: ~
 
+  # ----------------------------
+  # AI Services
+  # ----------------------------
   App\Service\Ai\AiTranscriptionService:
-      arguments:
-        $openAiApiKey: '%env(OPENAI_API_KEY)%'
-        $model: 'whisper-1'
+    arguments:
+      $openAiApiKey: '%env(OPENAI_API_KEY)%'
+      $model: 'whisper-1'
 
+  # ⚠️ IMPORTANT :
+  # Ce service correspond à ta classe "App\Service\AiTicketParser" (namespace App\Service)
+  # Si ton controller type-hinte "App\Service\Ai\AiTicketParser", il faut corriger le controller,
+  # pas ce service.
   App\Service\AiTicketParser:
     arguments:
       $openAiApiKey: '%env(OPENAI_API_KEY)%'
       $model: 'gpt-4.1-mini'
 
   App\Service\AiImageClient:
-      arguments:
-        $openAiApiKey: '%env(OPENAI_API_KEY)%'
-
-  App\Service\PushActionTokenService:
-      arguments:
-        $secret: '%env(CRON_SECRET)%'
-
-  App\Service\Ai\Action\AddStockAiAction:
-    tags: ['app.ai_action']
-
-  App\Service\Ai\Action\AddRecipeAiAction:
-    tags: ['app.ai_action']
-
-  App\Service\Ai\Action\ActionRegistry:
     arguments:
-      $actions: !tagged_iterator app.ai_action
+      $openAiApiKey: '%env(OPENAI_API_KEY)%'
 
+  # OpenAI structured client (Responses API)
   App\Service\Ai\OpenAi\OpenAiStructuredClient:
     arguments:
       $openAiApiKey: '%env(OPENAI_API_KEY)%'
       $model: 'gpt-4.1-mini'
+
+  # Registry des actions IA (alimenté par le tag app.ai_action)
+  App\Service\Ai\Action\ActionRegistry:
+    arguments:
+      $actions: !tagged_iterator app.ai_action
+
+  # ----------------------------
+  # Push / Cron
+  # ----------------------------
+  App\Service\PushActionTokenService:
+    arguments:
+      $secret: '%env(CRON_SECRET)%'
