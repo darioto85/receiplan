@@ -65,7 +65,6 @@ final class PlanRecipeAiAction implements AiActionInterface
 
         $draft = $this->client->callJsonSchema($text, $system, $schema);
 
-        // hardening léger
         if (!is_array($draft)) {
             throw new \RuntimeException('openai_invalid_draft');
         }
@@ -83,9 +82,15 @@ final class PlanRecipeAiAction implements AiActionInterface
 
     public function normalizeDraft(array $draft, AiContext $ctx): array
     {
-        // Résolution server-side vers recipe_id
+        // ✅ always init
         $draft['recipe_id'] = null;
         $draft['candidates'] = [];
+
+        // ✅ si pas de user dans ctx -> impossible de résoudre des recettes "owner"
+        // => on laisse recipe_id null et on forcera clarify
+        if (!$ctx->user instanceof User) {
+            return $draft;
+        }
 
         $name = trim((string)($draft['recipe']['name'] ?? $draft['recipe']['name_raw'] ?? ''));
         if ($name === '') {
@@ -95,7 +100,8 @@ final class PlanRecipeAiAction implements AiActionInterface
         $nameKey = $this->nameKeyNormalizer->toKey($name);
         $repo = $this->em->getRepository(Recipe::class);
 
-        // 1) match exact sur la recette du user
+        // 1) match exact sur nameKey pour le user
+        /** @var Recipe|null $exact */
         $exact = $repo->findOneBy([
             'user' => $ctx->user,
             'nameKey' => $nameKey,
@@ -103,22 +109,32 @@ final class PlanRecipeAiAction implements AiActionInterface
 
         if ($exact instanceof Recipe) {
             $draft['recipe_id'] = $exact->getId();
-            $draft['recipe']['name'] = (string)$exact->getName();
+            $draft['recipe']['name'] = (string) $exact->getName();
             return $draft;
         }
 
-        // 2) fallback candidates : recherche sur r.name (contains) + limite
-        $q = mb_strtolower($name);
-        $q = preg_replace('/\s+/u', ' ', trim($q)) ?? $q;
+        // 2) fallback candidates:
+        //    - contains sur nameKey (plus stable que LOWER(name))
+        //    - OU contains sur name
+        $qName = mb_strtolower($name);
+        $qName = preg_replace('/\s+/u', ' ', trim($qName)) ?? $qName;
+
+        $qKey = $nameKey;
 
         $qb = $repo->createQueryBuilder('r')
             ->andWhere('r.user = :u')
-            ->andWhere('LOWER(r.name) LIKE :q')
+            ->andWhere('(r.nameKey LIKE :k OR LOWER(r.name) LIKE :q)')
             ->setParameter('u', $ctx->user)
-            ->setParameter('q', '%' . $q . '%')
-            ->setMaxResults(10)
-            ->orderBy('r.id', 'ASC');
+            ->setParameter('k', '%' . $qKey . '%')
+            ->setParameter('q', '%' . $qName . '%')
+            ->setMaxResults(10);
 
+        // petit tri: nameKey exact d'abord puis id ASC
+        $qb->addOrderBy('CASE WHEN r.nameKey = :kExact THEN 0 ELSE 1 END', 'ASC')
+            ->addOrderBy('r.id', 'ASC')
+            ->setParameter('kExact', $qKey);
+
+        /** @var Recipe[] $cands */
         $cands = $qb->getQuery()->getResult();
 
         $draft['candidates'] = array_map(static function (Recipe $r) {
@@ -150,6 +166,17 @@ final class PlanRecipeAiAction implements AiActionInterface
                 'kind' => 'text',
                 'placeholder' => (new \DateTimeImmutable('tomorrow'))->format('Y-m-d'),
             ];
+        }
+
+        // ✅ si ctx.user absent, on ne peut pas proposer une liste de recipes candidates
+        if (!$ctx->user instanceof User) {
+            $questions[] = [
+                'path' => 'recipe.name',
+                'label' => "Quelle recette veux-tu planifier ? (nom exact ou le plus proche)",
+                'kind' => 'text',
+                'placeholder' => 'ex: Pâtes à la bolognaise',
+            ];
+            return $questions;
         }
 
         $rid = $draft['recipe_id'] ?? null;
@@ -195,7 +222,6 @@ final class PlanRecipeAiAction implements AiActionInterface
 
     public function apply(User $user, array $draft): array
     {
-        // On applique via handler (qui supporte recipe_id en priorité)
         return $this->handler->handle($user, $draft);
     }
 }

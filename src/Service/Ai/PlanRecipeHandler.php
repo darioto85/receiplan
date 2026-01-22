@@ -19,13 +19,9 @@ final class PlanRecipeHandler
      * Draft attendu (V2 compatible):
      * [
      *   'date' => 'YYYY-MM-DD',
-     *   // ✅ option prioritaire (recommandée)
-     *   'recipe_id' => 123,
-     *   // ✅ fallback legacy
-     *   'recipe' => ['name_raw' => string, 'name' => string],
+     *   'recipe_id' => 123, // prioritaire
+     *   'recipe' => ['name_raw' => string, 'name' => string], // fallback
      * ]
-     *
-     * @return array<string,mixed>
      */
     public function handle(User $user, array $draft): array
     {
@@ -35,9 +31,9 @@ final class PlanRecipeHandler
             throw new \InvalidArgumentException('draft.date invalide');
         }
 
-        // ✅ 1) Priorité à recipe_id
         $recipe = null;
 
+        // ✅ 1) Priorité à recipe_id
         $recipeId = $draft['recipe_id'] ?? null;
         if (is_string($recipeId) && ctype_digit($recipeId)) {
             $recipeId = (int) $recipeId;
@@ -47,7 +43,6 @@ final class PlanRecipeHandler
             /** @var Recipe|null $found */
             $found = $this->em->getRepository(Recipe::class)->find($recipeId);
 
-            // sécurité: recette doit appartenir au user (owner)
             if (!$found instanceof Recipe || $found->getUser()?->getId() !== $user->getId()) {
                 throw new \RuntimeException('recipe_not_found');
             }
@@ -70,7 +65,6 @@ final class PlanRecipeHandler
             $recipe = $this->resolveRecipeForUserOrShared($user, $recipeName);
         }
 
-        // unicité (user, recipe, date)
         /** @var MealPlan|null $existing */
         $existing = $this->em->getRepository(MealPlan::class)->findOneBy([
             'user' => $user,
@@ -127,7 +121,6 @@ final class PlanRecipeHandler
             return null;
         }
 
-        // évite les dates “auto-corrigées” par PHP (ex 2026-02-31)
         if ($d->format('Y-m-d') !== $dateStr) {
             return null;
         }
@@ -140,14 +133,33 @@ final class PlanRecipeHandler
         $nameKey = $this->nameKeyNormalizer->toKey($recipeName);
         $repo = $this->em->getRepository(Recipe::class);
 
-        // 1) recette du user (owner)
+        // 1) recette du user (owner) exact
         /** @var Recipe|null $r */
         $r = $repo->findOneBy(['user' => $user, 'nameKey' => $nameKey]);
         if ($r instanceof Recipe) return $r;
 
-        // 2) recette partagée (même nameKey)
-        $r = $repo->findOneBy(['nameKey' => $nameKey]);
-        if ($r instanceof Recipe) return $r;
+        // 1.b) fallback owner LIKE (sans typo, mais tolère différences mineures)
+        $qb = $repo->createQueryBuilder('r')
+            ->andWhere('r.user = :u')
+            ->andWhere('(r.nameKey LIKE :k OR LOWER(r.name) LIKE :q)')
+            ->setParameter('u', $user)
+            ->setParameter('k', '%' . $nameKey . '%')
+            ->setParameter('q', '%' . mb_strtolower($recipeName) . '%')
+            ->setMaxResults(1)
+            ->orderBy('r.id', 'ASC');
+
+        $cand = $qb->getQuery()->getOneOrNullResult();
+        if ($cand instanceof Recipe) return $cand;
+
+        // 2) recette partagée (même nameKey) - on prend la plus ancienne
+        $qb2 = $repo->createQueryBuilder('r')
+            ->andWhere('r.nameKey = :k')
+            ->setParameter('k', $nameKey)
+            ->setMaxResults(1)
+            ->orderBy('r.id', 'ASC');
+
+        $shared = $qb2->getQuery()->getOneOrNullResult();
+        if ($shared instanceof Recipe) return $shared;
 
         throw new \RuntimeException('recipe_not_found');
     }

@@ -106,9 +106,9 @@ export default class extends Controller {
 
     const bubble = document.createElement("div");
     bubble.className = isUser
-      ? "px-3 py-2 rounded-4 text-white"
+      ? "px-3 py-2 rounded-4 rp-message"
       : "px-3 py-2 rounded-4 border bg-white";
-    if (isUser) bubble.style.background = "#0d6efd";
+    
     bubble.textContent = content;
 
     bubbleContainer.appendChild(bubble);

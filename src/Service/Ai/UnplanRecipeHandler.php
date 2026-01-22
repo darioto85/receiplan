@@ -19,13 +19,9 @@ final class UnplanRecipeHandler
      * Draft attendu (V2 compatible):
      * [
      *   'date' => 'YYYY-MM-DD',
-     *   // ✅ option prioritaire (recommandée)
      *   'recipe_id' => 123,
-     *   // ✅ fallback legacy
      *   'recipe' => null | ['name_raw' => string, 'name' => string]
      * ]
-     *
-     * @return array<string,mixed>
      */
     public function handle(User $user, array $draft): array
     {
@@ -36,6 +32,7 @@ final class UnplanRecipeHandler
         }
 
         $repoMeal = $this->em->getRepository(MealPlan::class);
+        $repoRecipe = $this->em->getRepository(Recipe::class);
 
         // ✅ 1) Priorité à recipe_id
         $recipe = null;
@@ -47,7 +44,7 @@ final class UnplanRecipeHandler
 
         if (is_int($recipeId) && $recipeId > 0) {
             /** @var Recipe|null $found */
-            $found = $this->em->getRepository(Recipe::class)->find($recipeId);
+            $found = $repoRecipe->find($recipeId);
 
             if (!$found instanceof Recipe || $found->getUser()?->getId() !== $user->getId()) {
                 throw new \RuntimeException('recipe_not_found');
@@ -66,7 +63,7 @@ final class UnplanRecipeHandler
             }
         }
 
-        // Cas: recette fournie => supprimer 1 ligne (user+recipe+date)
+        // Cas recette fournie => supprimer 1 ligne (user+recipe+date)
         if ($recipe instanceof Recipe) {
             /** @var MealPlan|null $mp */
             $mp = $repoMeal->findOneBy([
@@ -88,8 +85,6 @@ final class UnplanRecipeHandler
                 ];
             }
 
-            // V1: on autorise la suppression même si validated=true
-            // (si tu veux bloquer: if ($mp->isValidated()) throw new \RuntimeException('mealplan_validated_cannot_unplan');)
             $this->em->remove($mp);
             $this->em->flush();
 
@@ -105,8 +100,8 @@ final class UnplanRecipeHandler
             ];
         }
 
-        // Cas: pas de recette => supprimer tout du jour
-        /** @var array<int, MealPlan> $plans */
+        // Cas pas de recette => supprimer tout du jour
+        /** @var MealPlan[] $plans */
         $plans = $repoMeal->findBy([
             'user' => $user,
             'date' => $date,
@@ -156,12 +151,33 @@ final class UnplanRecipeHandler
         $nameKey = $this->nameKeyNormalizer->toKey($recipeName);
         $repo = $this->em->getRepository(Recipe::class);
 
+        // 1) owner exact
         /** @var Recipe|null $r */
         $r = $repo->findOneBy(['user' => $user, 'nameKey' => $nameKey]);
         if ($r instanceof Recipe) return $r;
 
-        $r = $repo->findOneBy(['nameKey' => $nameKey]);
-        if ($r instanceof Recipe) return $r;
+        // 1.b) owner LIKE
+        $qb = $repo->createQueryBuilder('r')
+            ->andWhere('r.user = :u')
+            ->andWhere('(r.nameKey LIKE :k OR LOWER(r.name) LIKE :q)')
+            ->setParameter('u', $user)
+            ->setParameter('k', '%' . $nameKey . '%')
+            ->setParameter('q', '%' . mb_strtolower($recipeName) . '%')
+            ->setMaxResults(1)
+            ->orderBy('r.id', 'ASC');
+
+        $cand = $qb->getQuery()->getOneOrNullResult();
+        if ($cand instanceof Recipe) return $cand;
+
+        // 2) shared exact (oldest)
+        $qb2 = $repo->createQueryBuilder('r')
+            ->andWhere('r.nameKey = :k')
+            ->setParameter('k', $nameKey)
+            ->setMaxResults(1)
+            ->orderBy('r.id', 'ASC');
+
+        $shared = $qb2->getQuery()->getOneOrNullResult();
+        if ($shared instanceof Recipe) return $shared;
 
         throw new \RuntimeException('recipe_not_found');
     }

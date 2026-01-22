@@ -94,6 +94,7 @@ final class AssistantController extends AbstractController
                 locale: (string)($payload['locale'] ?? 'fr-FR'),
                 debug: $this->kernel->isDebug()
             );
+            $ctx->user = $user; // ✅ IMPORTANT: permet le matching DB (recettes/ingrédients)
 
             [$assistantText, $assistantPayload] = $this->assistantOrchestrator->propose($user, $text, $ctx);
 
@@ -228,8 +229,8 @@ final class AssistantController extends AbstractController
                 locale: (string)($body['locale'] ?? 'fr-FR'),
                 debug: $this->kernel->isDebug()
             );
+            $ctx->user = $user; // ✅ IMPORTANT: matching DB dans apply()
 
-            // ✅ FIX: apply() attend 4 args
             [$fallbackText, $appliedPayload] = $this->assistantOrchestrator->apply($user, $action, $draft, $ctx);
 
             $result = $appliedPayload['result'] ?? null;
@@ -345,12 +346,10 @@ final class AssistantController extends AbstractController
                 locale: (string)($body['locale'] ?? 'fr-FR'),
                 debug: $this->kernel->isDebug()
             );
+            $ctx->user = $user; // ✅ IMPORTANT: matching DB dans normalizeDraft()
 
-            // ✅ FIX: si ton orchestrator a aussi besoin de ctx ici, ajoute-le.
-            // Si ta signature est (string, array, array, AiContext) -> OK.
             $updatedDraft = $this->assistantOrchestrator->applyClarifyAnswers($action, $draft, $answers, $ctx);
 
-            // persist updated draft on clarify message
             $p['action_payload'] = $updatedDraft;
             $p['draft'] = $updatedDraft;
             $p['clarified'] = true;
@@ -360,7 +359,6 @@ final class AssistantController extends AbstractController
 
             $aiAction = $this->registry->get($action);
 
-            // re-normalize after answers (local, no OpenAI)
             $updatedDraft = $aiAction->normalizeDraft($updatedDraft, $ctx);
 
             $questions = $aiAction->buildClarifyQuestions($updatedDraft, $ctx);

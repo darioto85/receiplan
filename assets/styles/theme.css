@@ -542,3 +542,8 @@ body {
   object-fit: contain;
   border-radius: 6px;
 }
+
+.rp-message{
+  background: var(--rp-gradient);
+  color: var(--rp-text);
+}

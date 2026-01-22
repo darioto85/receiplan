@@ -85,11 +85,16 @@ final class UnplanRecipeAiAction implements AiActionInterface
 
     public function normalizeDraft(array $draft, AiContext $ctx): array
     {
-        // Résolution server-side vers recipe_id si recipe != null
         $draft['recipe_id'] = null;
         $draft['candidates'] = [];
 
-        if (!isset($draft['recipe']) || $draft['recipe'] === null || !is_array($draft['recipe'])) {
+        // ✅ si recipe=null => déplanifier la journée => pas de resolve
+        if (!array_key_exists('recipe', $draft) || $draft['recipe'] === null || !is_array($draft['recipe'])) {
+            return $draft;
+        }
+
+        // ✅ si pas de user dans ctx, impossible de résoudre proprement
+        if (!$ctx->user instanceof User) {
             return $draft;
         }
 
@@ -101,7 +106,8 @@ final class UnplanRecipeAiAction implements AiActionInterface
         $nameKey = $this->nameKeyNormalizer->toKey($name);
         $repo = $this->em->getRepository(Recipe::class);
 
-        // 1) match exact sur la recette du user
+        // 1) exact match owner
+        /** @var Recipe|null $exact */
         $exact = $repo->findOneBy([
             'user' => $ctx->user,
             'nameKey' => $nameKey,
@@ -109,33 +115,42 @@ final class UnplanRecipeAiAction implements AiActionInterface
 
         if ($exact instanceof Recipe) {
             $draft['recipe_id'] = $exact->getId();
-            $draft['recipe']['name'] = (string)$exact->getName();
+            $draft['recipe']['name'] = (string) $exact->getName();
             return $draft;
         }
 
-        // 2) fallback candidates LIKE (limité)
+        // 2) candidates (owner) : nameKey LIKE OR name LIKE
+        $qName = mb_strtolower($name);
+        $qName = preg_replace('/\s+/u', ' ', trim($qName)) ?? $qName;
+
         $qb = $repo->createQueryBuilder('r')
             ->andWhere('r.user = :u')
-            ->andWhere('r.nameKey LIKE :k OR LOWER(r.name) LIKE :q')
+            ->andWhere('(r.nameKey LIKE :k OR LOWER(r.name) LIKE :q)')
             ->setParameter('u', $ctx->user)
-            ->setParameter('k', '%'.$nameKey.'%')
-            ->setParameter('q', '%'.mb_strtolower($name).'%')
-            ->setMaxResults(10)
-            ->orderBy('r.id', 'ASC');
+            ->setParameter('k', '%' . $nameKey . '%')
+            ->setParameter('q', '%' . $qName . '%')
+            ->setMaxResults(10);
 
+        // tri: exact nameKey d'abord
+        $qb->addOrderBy('CASE WHEN r.nameKey = :kExact THEN 0 ELSE 1 END', 'ASC')
+            ->addOrderBy('r.id', 'ASC')
+            ->setParameter('kExact', $nameKey);
+
+        /** @var Recipe[] $cands */
         $cands = $qb->getQuery()->getResult();
 
         $draft['candidates'] = array_map(static function (Recipe $r) {
             return [
                 'id' => $r->getId(),
-                'name' => (string)$r->getName(),
-                'nameKey' => (string)$r->getNameKey(),
+                'name' => (string) $r->getName(),
+                'nameKey' => (string) $r->getNameKey(),
             ];
         }, $cands);
 
+        // auto-select si unique
         if (count($draft['candidates']) === 1) {
-            $draft['recipe_id'] = (int)$draft['candidates'][0]['id'];
-            $draft['recipe']['name'] = (string)$draft['candidates'][0]['name'];
+            $draft['recipe_id'] = (int) $draft['candidates'][0]['id'];
+            $draft['recipe']['name'] = (string) $draft['candidates'][0]['name'];
         }
 
         return $draft;
@@ -155,8 +170,19 @@ final class UnplanRecipeAiAction implements AiActionInterface
             ];
         }
 
-        // Si recipe est null => on déplanifie la journée (pas de question recette)
+        // recipe = null => déplanifier la journée => pas de question recette
         if (!array_key_exists('recipe', $draft) || $draft['recipe'] === null) {
+            return $questions;
+        }
+
+        // ✅ si pas de user ctx, on ne peut pas proposer de select candidates
+        if (!$ctx->user instanceof User) {
+            $questions[] = [
+                'path' => 'recipe.name',
+                'label' => "Quelle recette veux-tu déplanifier ? (nom exact ou le plus proche)",
+                'kind' => 'text',
+                'placeholder' => 'ex: Pâtes à la bolognaise',
+            ];
             return $questions;
         }
 
@@ -212,7 +238,6 @@ final class UnplanRecipeAiAction implements AiActionInterface
 
     public function apply(User $user, array $draft): array
     {
-        // On applique via handler (qui supporte recipe_id en priorité)
         return $this->handler->handle($user, $draft);
     }
 }
