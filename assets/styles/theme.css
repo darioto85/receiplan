@@ -51,6 +51,9 @@
 
   /* Spacing */
   --rp-gap: 14px;
+
+  --bs-list-group-active-bg: linear-gradient(135deg, #C590F8 0%, #8CEFF2 100%) !important;
+  --bs-list-group-action-hover-color: #212660;
 }
 
 
