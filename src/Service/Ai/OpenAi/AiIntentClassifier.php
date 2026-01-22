@@ -30,14 +30,14 @@ final class AiIntentClassifier
 
         $allowed = [
             'add_stock',
-            'add_recipe',
-            'add_to_shopping_list',
-            'remove_from_shopping_list',
             'update_stock_quantity',
             'consume_stock',
+            'add_recipe',
+            'update_recipe',
+            'add_to_shopping_list',
+            'remove_from_shopping_list',
             'plan_recipe',
             'unplan_recipe',
-            'update_recipe',
             'unknown',
         ];
 

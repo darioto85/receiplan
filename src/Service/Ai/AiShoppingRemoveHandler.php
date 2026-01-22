@@ -2,6 +2,7 @@
 
 namespace App\Service\Ai;
 
+use App\Entity\Ingredient;
 use App\Entity\Shopping;
 use App\Entity\User;
 use App\Service\IngredientResolver;
@@ -21,14 +22,16 @@ final class AiShoppingRemoveHandler
      *
      * @param array{
      *   items: array<int, array{
-     *     name_raw:string,
-     *     name:string,
-     *     quantity:float|null,
-     *     quantity_raw:string|null,
-     *     unit:string|null,
-     *     unit_raw:string|null,
-     *     notes:string|null,
-     *     confidence:float
+     *     ingredient_id?: int|null,
+     *     name_raw?: string,
+     *     name?: string,
+     *     name_key?: string,
+     *     quantity: float|null,
+     *     quantity_raw?: string|null,
+     *     unit?: string|null,
+     *     unit_raw?: string|null,
+     *     notes?: string|null,
+     *     confidence?: float
      *   }>
      * } $payload
      *
@@ -51,24 +54,39 @@ final class AiShoppingRemoveHandler
         $notFound = 0;
         $warnings = [];
 
-        $repo = $this->em->getRepository(Shopping::class);
+        $shoppingRepo = $this->em->getRepository(Shopping::class);
+        $ingredientRepo = $this->em->getRepository(Ingredient::class);
 
         foreach ($items as $idx => $it) {
             if (!is_array($it)) continue;
 
-            $name = trim((string)($it['name'] ?? $it['name_raw'] ?? ''));
-            if ($name === '') {
-                $warnings[] = ['index' => (int)$idx, 'warnings' => ['empty_name']];
-                continue;
+            // Résolution ingrédient: ingredient_id > name
+            $ingredient = null;
+
+            $iid = $it['ingredient_id'] ?? null;
+            if (is_numeric($iid)) {
+                $found = $ingredientRepo->find((int)$iid);
+                if ($found instanceof Ingredient) {
+                    $owner = $found->getUser();
+                    if ($owner === null || $owner->getId() === $user->getId()) {
+                        $ingredient = $found;
+                    }
+                }
             }
 
-            // On résout l’ingrédient (si absent, on évite de le créer pour un remove)
-            // => On tente d’abord global/private en DB via IngredientResolver, mais lui va créer.
-            // Pour rester simple V1: on accepte le create (rare), OU tu peux faire un resolver "findOnly" plus tard.
-            $ingredient = $this->ingredientResolver->resolveOrCreate($user, $name, null);
+            if (!$ingredient instanceof Ingredient) {
+                $name = trim((string)($it['name'] ?? $it['name_raw'] ?? ''));
+                if ($name === '') {
+                    $warnings[] = ['index' => (int)$idx, 'warnings' => ['empty_name']];
+                    continue;
+                }
+
+                // V1: on accepte resolveOrCreate (rare création). Pas de fuzzy typo.
+                $ingredient = $this->ingredientResolver->resolveOrCreate($user, $name, null);
+            }
 
             /** @var Shopping|null $row */
-            $row = $repo->findOneBy(['user' => $user, 'ingredient' => $ingredient]);
+            $row = $shoppingRepo->findOneBy(['user' => $user, 'ingredient' => $ingredient]);
 
             if (!$row) {
                 $notFound++;
@@ -77,14 +95,21 @@ final class AiShoppingRemoveHandler
 
             $qty = $it['quantity'] ?? null;
 
+            // qty null => delete
             if ($qty === null || $qty === '' || !is_numeric($qty)) {
-                // delete
                 $this->em->remove($row);
                 $removed++;
                 continue;
             }
 
-            $newQty = $row->getQuantity() - (float)$qty;
+            $qty = (float) $qty;
+            if ($qty <= 0) {
+                // rien à faire, mais on ne casse pas
+                $warnings[] = ['index' => (int)$idx, 'warnings' => ['non_positive_quantity']];
+                continue;
+            }
+
+            $newQty = $row->getQuantity() - $qty;
             if ($newQty <= 0) {
                 $this->em->remove($row);
                 $removed++;

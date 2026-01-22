@@ -174,6 +174,43 @@ final class AssistantOrchestrator
             return $draft;
         }
 
+        // ✅ 1bis) update_recipe : gestion des réponses clarify
+        if ($actionName === 'update_recipe') {
+            foreach ($answers as $key => $value) {
+                if (!is_string($key)) {
+                    continue;
+                }
+
+                // Clarify: nom de la recette cible
+                if ($key === 'target_recipe_name') {
+                    if (!isset($draft['target']) || !is_array($draft['target'])) {
+                        $draft['target'] = ['recipe_name_raw' => null];
+                    }
+
+                    $v = is_string($value) ? trim($value) : (string) $value;
+                    $draft['target']['recipe_name_raw'] = $v !== '' ? $v : null;
+                    continue;
+                }
+
+                // Clarify: description libre du changement (fallback)
+                if ($key === 'what_to_change') {
+                    $v = is_string($value) ? trim($value) : (string) $value;
+                    if (!isset($draft['_clarify_hints']) || !is_array($draft['_clarify_hints'])) {
+                        $draft['_clarify_hints'] = [];
+                    }
+                    $draft['_clarify_hints']['what_to_change'] = $v;
+                    continue;
+                }
+            }
+
+            // Re-normalisation après injection des réponses
+            if ($this->registry->has($actionName)) {
+                $action = $this->registry->get($actionName);
+                $draft = $action->normalizeDraft($draft, $ctx);
+            }
+
+            return $draft;
+        }
         // ✅ 2) Legacy: items.N.quantity/unit (add_stock, shopping, update_stock, consume...)
         if (!isset($draft['items']) || !is_array($draft['items'])) {
             return $draft;

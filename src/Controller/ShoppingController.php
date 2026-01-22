@@ -26,12 +26,26 @@ final class ShoppingController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        $shoppingService->syncAutoMissingFromInsufficientRecipes($user);
         $items = $shoppingRepository->findForUser($user);
 
         return $this->render('shopping/index.html.twig', [
             'items' => $items,
         ]);
+    }
+
+    #[Route('/generate', name: 'shopping_generate', methods: ['GET'])]
+    public function generate(
+        \App\Service\ShoppingListService $shoppingService
+    ): Response {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $shoppingService->syncAutoMissingFromInsufficientRecipes($user);
+
+        // Redirection vers la liste
+        return $this->redirectToRoute('shopping_index');
     }
 
     #[Route('/{id}/toggle', name: 'shopping_toggle', methods: ['POST'])]
