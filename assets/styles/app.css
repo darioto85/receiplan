@@ -1,5 +1,9 @@
 body {
     background-color: #CDDEF5;
+    font-family: "Playwrite DE Grund", cursive;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
 }
 /* --- swipe reveal base (si pas déjà ajouté) --- */
 .swipe-item {

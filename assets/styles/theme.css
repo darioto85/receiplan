@@ -1,552 +1,473 @@
 /* =========================================================
-   RECEIPLAN UI — Design System (Bootstrap override-friendly)
-   Palette:
-   - Background: #B7DBF5
-   - Typography: #212660
-   - Gradient: #C590F8 → #8CEFF2
+   Receiplan — Theme System (Bootstrap-based)
+   Objectif :
+   - Look "Calm Kawaii Adult"
+   - Un changement de thème = changement de variables
+   - Styles composants basés sur tes classes rp-*
    ========================================================= */
 
-/* ---------- Tokens ---------- */
+/* ------------------------------
+   1) THEME TOKENS (DEFAULT: GREEN)
+   ------------------------------ */
+
+/* Astuce : tu peux mettre data-theme="green|teal|warm" sur <html> ou <body> */
 :root {
   /* Brand */
-  --rp-bg: #B7DBF5;
-  --rp-text: #212660;
-  --bs-body-color: #212660;
-  --bs-table-color-state: #212660;
+  --rp-brand: #8ECF9E;           /* primary green */
+  --rp-brand-2: #A7E4D2;         /* mint */
+  --rp-ink: #233052;             /* blue-gray text */
+  
+  /* Background & glass */
+  --rp-bg: #DFF3E6;
+  --rp-bg-2: #EAF9F0;
+  --rp-glass: rgba(255,255,255,0.58);
 
   /* Surfaces */
-  --rp-surface: #ffffff;
-  --rp-surface-soft: #f4f8fc;
+  --rp-surface: #FFFFFF;
+  --rp-surface-soft: #F6FFFA;
 
-  /* Text */
-  --rp-text-2: #4b4f8a;
-  --rp-text-muted: #7a7eb2;
-
-  /* Borders / shadows */
-  --rp-border: rgba(33, 38, 96, 0.12);
-  --rp-shadow: 0 10px 30px rgba(33, 38, 96, 0.10);
-  --rp-shadow-soft: 0 8px 20px rgba(33, 38, 96, 0.08);
+  /* Border / shadow */
+  --rp-border: rgba(35,48,82,0.12);
+  --rp-border-soft: rgba(35,48,82,0.08);
+  --rp-shadow: 0 12px 30px rgba(35,48,82,0.12);
+  --rp-shadow-soft: 0 10px 22px rgba(35,48,82,0.08);
 
   /* Radius */
-  --rp-radius-lg: 18px;
-  --rp-radius-md: 14px;
-  --rp-radius-sm: 12px;
+  --rp-r-lg: 22px;
+  --rp-r-md: 16px;
+  --rp-r-sm: 12px;
 
-  /* Gradient */
-  --rp-gradient: linear-gradient(135deg, #C590F8 0%, #8CEFF2 100%);
-  --rp-gradient-soft: linear-gradient(135deg, rgba(197,144,248,.22), rgba(140,239,242,.22));
+  /* Gradients */
+  --rp-grad: linear-gradient(135deg, var(--rp-brand) 0%, var(--rp-brand-2) 100%);
+  --rp-grad-soft: linear-gradient(
+    135deg,
+    rgba(142,207,158,.22),
+    rgba(167,228,210,.22)
+  );
+
+  /* Focus */
+  --rp-focus: 0 0 0 .25rem rgba(167,228,210,.55);
 
   /* Semantic */
-  --rp-success: #2fb8a7; /* teal calm */
-  --rp-danger: #ef6b7b;  /* coral soft */
-  --rp-warning: #f2b84b;
-  --rp-info: #5aa7ff;
+  --rp-danger: #EF6B7B;
+  --rp-warning: #F2C14B;
+  --rp-success: #2FB8A7;
 
-  /* Focus ring */
-  --rp-focus: 0 0 0 .25rem rgba(140, 239, 242, .35);
-
-  /* Typography */
-  --rp-font-title: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-  --rp-font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-
-  /* Spacing */
+  /* Layout */
+  --rp-container-max: 1120px; /* desktop breathe */
   --rp-gap: 14px;
-
-  --bs-list-group-active-bg: linear-gradient(135deg, #C590F8 0%, #8CEFF2 100%) !important;
-  --bs-list-group-action-hover-color: #212660;
 }
 
+/* ------------------------------
+   1bis) OPTIONAL THEME OVERRIDES
+   (tu actives en changeant data-theme)
+   ------------------------------ */
+
+:root[data-theme="teal"]{
+  --rp-brand: #79D3C6;
+  --rp-brand-2: #B7F0E6;
+  --rp-bg: #DDF6F2;
+  --rp-bg-2: #ECFFFB;
+  --rp-focus: 0 0 0 .25rem rgba(183,240,230,.60);
+  --rp-grad-soft: linear-gradient(135deg, rgba(121,211,198,.22), rgba(183,240,230,.22));
+}
+
+:root[data-theme="warm"]{
+  --rp-brand: #FFC6A6;      /* peach */
+  --rp-brand-2: #FFE5A8;    /* butter */
+  --rp-bg: #FFF4E6;         /* cream */
+  --rp-bg-2: #FFFBF4;
+  --rp-focus: 0 0 0 .25rem rgba(255,229,168,.60);
+  --rp-grad-soft: linear-gradient(135deg, rgba(255,198,166,.22), rgba(255,229,168,.22));
+}
+
+/* ------------------------------
+   2) GLOBAL BASE
+   ------------------------------ */
+
+html, body {
+  color: var(--rp-ink);
+}
 
 body {
-  background: var(--rp-bg);
-  color: var(--rp-text);
-  font-family: var(--rp-font-body);
+  /* fond doux + petits “nuages” de couleur façon maquette */
+  background:
+    radial-gradient(1100px 600px at 10% -10%, rgba(142,207,158,.35), transparent 55%),
+    radial-gradient(900px 520px at 95% 0%, rgba(167,228,210,.30), transparent 58%),
+    var(--rp-bg);
+   font-family: "Nunito", sans-serif;
+  padding-bottom: 88px; /* place pour bottom nav mobile */
 }
 
-/* Soft “page container” look (optional) */
-.rp-page {
-  background: #E0E9FA;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255,255,255,0.35);
-  border-radius: 24px;
-  padding: 22px;
-  box-shadow: var(--rp-shadow);
-  margin-top:10px;
-}
-@media (max-width: 767.98px) {
-  .rp-page {
-    padding: 5px;
-    border-radius: 18px; 
-  }
-  .rp-card-body{
-    padding: 0px;
-  }
+.container {
+  max-width: var(--rp-container-max);
 }
 
-/* ---------- Headings ---------- */
+/* Titres */
 h1, h2, h3, .h1, .h2, .h3, .h4, .h5, .h6 {
-  font-family: var(--rp-font-title);
+  color: var(--rp-ink);
   letter-spacing: -0.01em;
-  color: var(--rp-text);
 }
 
-/* ---------- Links ---------- */
-a {
-  color: #2a4aa6;
-  text-decoration: none;
-}
-a:hover {
-  color: #1f3a86;
-  text-decoration: underline;
+a { color: #256B57; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ------------------------------
+   3) PAGE GLASS (carte principale)
+   ------------------------------ */
+
+.rp-page{
+  background: var(--rp-glass);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,0.48);
+  border-radius: 28px;
+  box-shadow: var(--rp-shadow);
+  padding: 22px;
+  margin-top: 12px;
 }
 
-/* ---------- Cards ---------- */
-.card {
-  border: 1px solid var(--rp-border);
-  border-radius: var(--rp-radius-lg);
-  box-shadow: var(--rp-shadow-soft);
+@media (max-width: 767.98px){
+  .rp-page{ padding: 10px; border-radius: 22px; }
 }
 
-.card-header {
-  background: var(--bs-table-bg);
-  border-bottom: 1px solid rgba(33, 38, 96, 0.08);
-  color: var(--rp-text);
+/* ------------------------------
+   4) HEADER (top)
+   ------------------------------ */
+
+.rp-header{
+  background: rgba(255,255,255,0.78);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(35,48,82,0.10);
+  box-shadow: 0 10px 25px rgba(35,48,82,0.06);
 }
 
-.card-body {
-  background: var(--rp-surface);
-}
-
-/* ---------- Buttons ---------- */
-.btn {
-  border-radius: 999px; /* pill */
-  padding: .55rem 1rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
-
-.btn:focus {
-  box-shadow: var(--rp-focus);
-}
-
-/* Primary = gradient */
-.btn-primary {
-  border: none;
-  background: var(--rp-gradient);
-  color: var(--rp-text);
-}
-.btn-primary:hover {
-  filter: brightness(0.98);
-}
-
-/* ---------- Buttons: outline primary (Receiplan) ---------- */
-.btn-outline-primary {
-  border-color: rgba(197, 144, 248, 0.65); /* violet from gradient */
-  color: var(--rp-text);
-  background: rgba(255, 255, 255, 0.55);
-}
-
-.btn-outline-primary:hover {
-  border-color: rgba(197, 144, 248, 0.85);
-  background: var(--rp-gradient-soft);
-  color: var(--rp-text);
-  text-decoration: none;
-}
-
-.btn-outline-primary:active {
-  background: rgba(197, 144, 248, 0.22);
-  border-color: rgba(197, 144, 248, 0.95);
-  color: var(--rp-text);
-}
-
-.btn-outline-primary:focus {
-  box-shadow: var(--rp-focus);
-}
-
-/* Optional: disabled state consistency */
-.btn-outline-primary:disabled,
-.btn-outline-primary.disabled {
-  opacity: 0.6;
-  pointer-events: none;
-}
-
-/* ---------- Buttons: outline success (Receiplan) ---------- */
-.btn-outline-success {
-  border-color: rgba(47, 184, 167, 0.65); /* --rp-success */
-  color: var(--rp-text);
-  background: rgba(255, 255, 255, 0.55);
-}
-
-.btn-outline-success:hover {
-  border-color: rgba(47, 184, 167, 0.85);
-  background: rgba(47, 184, 167, 0.18);
-  color: var(--rp-text);
-  text-decoration: none;
-}
-
-.btn-outline-success:active {
-  background: rgba(47, 184, 167, 0.28);
-  border-color: rgba(47, 184, 167, 0.95);
-  color: var(--rp-text);
-}
-
-.btn-outline-success:focus {
-  box-shadow: 0 0 0 .25rem rgba(47, 184, 167, 0.35);
-}
-
-/* Disabled state */
-.btn-outline-success:disabled,
-.btn-outline-success.disabled {
-  opacity: 0.6;
-  pointer-events: none;
-}
-
-/* ---------- Buttons: outline danger (Receiplan) ---------- */
-.btn-outline-danger {
-  border-color: #EB8994; /* --rp-danger */
-  color: #EB8994;
-  background: rgba(255, 255, 255, 0.55);
-}
-
-.btn-outline-danger:hover {
-  border-color: #E46170;
-  background: #EB8994;
-  color: #fff;
-  text-decoration: none;
-}
-
-.btn-outline-danger:active {
-  background: rgba(239, 107, 123, 0.28);
-  border-color: rgba(239, 107, 123, 0.95);
-  color: var(--rp-text);
-}
-
-.btn-outline-danger:focus {
-  box-shadow: 0 0 0 .25rem rgba(239, 107, 123, 0.35);
-}
-
-/* Disabled state */
-.btn-outline-danger:disabled,
-.btn-outline-danger.disabled {
-  opacity: 0.6;
-  pointer-events: none;
-}
-
-
-/* Secondary / outline */
-.btn-outline-secondary {
-  border-color: rgba(33, 38, 96, 0.20);
-  color: var(--rp-text);
-  background: rgba(255,255,255,0.6);
-}
-.btn-outline-secondary:hover {
-  background: rgba(255,255,255,0.9);
-  border-color: rgba(33, 38, 96, 0.28);
-  color: var(--rp-text);
-}
-
-/* Small buttons */
-.btn-sm {
-  padding: .4rem .75rem;
-}
-
-/* Icon button helper */
-.rp-icon-btn {
-  width: 40px;
-  height: 36px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-}
-
-/* ---------- Badges ---------- */
-.badge {
-  border-radius: 999px;
-  padding: .45em .7em;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-}
-
-/* Override bootstrap semantic badges */
-.text-bg-success {
-  background: #5DD4C4 !important;
-  color: #ffffff !important;
-  border: 1px solid #3DCBB8;
-}
-
-.text-bg-danger {
-  background: #EB8994 !important;
-  color: #ffffff !important;
-  border: 1px solid #E46170;
-}
-
-.text-bg-info {
-  background: rgba(90, 167, 255, 0.16) !important;
-  color: #114a9a !important;
-  border: 1px solid rgba(90, 167, 255, 0.28);
-}
-
-.text-bg-warning {
-  background: rgba(242, 184, 75, 0.18) !important;
-  color: #7a4e00 !important;
-  border: 1px solid rgba(242, 184, 75, 0.32);
-}
-
-/* ---------- Tables ---------- */
-.table {
-  color: var(--rp-text);
-}
-
-.table thead th {
-  font-weight: 700;
-  color: var(--rp-text);
-  border-bottom: 1px solid rgba(33, 38, 96, 0.10);
-}
-
-.table-light {
-  --bs-table-bg: #E0E9FA;
-  --bs-table-color: var(--rp-text);
-}
-
-.table td, .table th {
-  border-color: rgba(33, 38, 96, 0.08);
-  padding: .8rem 1rem;
-}
-@media (max-width: 767.98px) {
-  .table td, .table th {
-    padding: 5px;
-  }
-}
-
-
-/* ---------- Forms ---------- */
-.form-control, .form-select {
+.rp-brand-mark{
+  width: 38px;
+  height: 38px;
   border-radius: 14px;
-  border-color: rgba(33, 38, 96, 0.16);
-  background: rgba(255,255,255,0.85);
-  color: var(--rp-text);
-}
-
-.form-control:focus, .form-select:focus {
-  border-color: rgba(140, 239, 242, 0.85);
-  box-shadow: var(--rp-focus);
-}
-
-.form-label {
-  color: var(--rp-text-2);
-  font-weight: 600;
-}
-
-/* ---------- Alerts ---------- */
-.alert {
-  border-radius: var(--rp-radius-lg);
-  border: 1px solid rgba(33, 38, 96, 0.10);
-  box-shadow: var(--rp-shadow-soft);
-}
-
-/* ---------- Muted text tweaks ---------- */
-.text-muted {
-  color: var(--rp-text-muted) !important;
-}
-
-/* ---------- Utility: subtle section header ---------- */
-.rp-section-title {
-  display: flex;
-  align-items: center;
-  gap: .6rem;
-  font-weight: 800;
-  color: var(--rp-text);
-}
-.rp-section-title .rp-pill {
-  background: rgba(255,255,255,0.65);
-  border: 1px solid rgba(33, 38, 96, 0.10);
-  border-radius: 999px;
-  padding: .2rem .6rem;
-  color: var(--rp-text-2);
-}
-
-/* ---------- Font Awesome alignment ---------- */
-.btn i[class^="fa-"],
-.btn i[class*=" fa-"] {
-  line-height: 1;
-}
-
-/* Icon-only buttons */
-.rp-icon-btn i {
-  font-size: 0.95rem;
-}
-
-/* ---------- Meal plan week day states ---------- */
-.rp-day-past {
-  opacity: 0.5;
-}
-
-.rp-day-today {
-  border: 1px solid var(--rp-text) !important;
-  border-radius: 10px;
-  padding: 15px;
-}
-
-.rp-day-title {
-  font-size: 1.05rem; /* just a bit bigger */
-}
-
-/* ---------- Header (top) ---------- */
-.rp-header {
-  background: rgba(255, 255, 255, 0.70);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(33, 38, 96, 0.10);
-  box-shadow: 0 10px 30px rgba(33, 38, 96, 0.06);
-}
-
-.rp-brand-mark {
-  width: 34px;
-  height: 34px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
-  background: var(--rp-gradient-soft);
-  border: 1px solid rgba(33, 38, 96, 0.08);
+  background: var(--rp-grad-soft);
+  border: 1px solid rgba(35,48,82,0.08);
 }
 
-.rp-brand-name {
-  font-weight: 900;
+.rp-brand-name{
+  font-weight: 950;
   letter-spacing: -0.02em;
-  color: var(--rp-text);
+  font-size: 1.25rem;
+  color: var(--rp-ink);
 }
 
-/* ---------- Desktop top nav pills ---------- */
-.rp-topnav-link {
+/* Top nav pill */
+.rp-topnav-link{
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-
-  padding: 10px 12px;
+  gap: 10px;
+  padding: 10px 14px;
   border-radius: 999px;
-
-  color: var(--rp-text-2);
-  text-decoration: none;
-
-  background: rgba(255,255,255,0.55);
-  border: 1px solid rgba(33, 38, 96, 0.08);
-}
-
-.rp-topnav-link:hover {
-  background: var(--rp-gradient-soft);
-  color: var(--rp-text);
-  text-decoration: none;
-}
-
-.rp-topnav-link.is-active {
-  background: var(--rp-gradient-soft);
-  border-color: rgba(33, 38, 96, 0.14);
-  color: var(--rp-text);
+  background: rgba(255,255,255,0.62);
+  border: 1px solid rgba(35,48,82,0.08);
+  color: var(--rp-ink-2);
   font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 8px 16px rgba(35,48,82,0.05);
 }
 
-.rp-topnav-link-assistant.is-active {
-  background: var(--rp-gradient);
+.rp-topnav-link:hover{
+  background: var(--rp-grad-soft);
+  color: var(--rp-ink);
+  text-decoration: none;
+}
+
+.rp-topnav-link.is-active{
+  background: rgba(142,207,158,0.22); /* basé sur brand (vert) */
+  border-color: rgba(142,207,158,0.35);
+  color: var(--rp-ink);
+}
+
+/* CTA assistant plus “punchy” */
+.rp-topnav-link-assistant.is-active{
+  background: var(--rp-grad);
   border: none;
-  color: var(--rp-text);
+  color: #14352B;
 }
 
-/* Optional: CTA size harmony */
-.rp-header-cta {
+/* CTA account harmonisé */
+.rp-header-cta{
   padding-left: 14px;
   padding-right: 14px;
 }
 
+/* ------------------------------
+   5) BUTTONS (Bootstrap overrides)
+   ------------------------------ */
 
+.btn{
+  border-radius: 999px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  padding: .55rem 1rem;
+}
 
-/* ---------- Mobile bottom navigation (app-like tabs) ---------- */
-.rp-bottom-nav {
+.btn:focus{ box-shadow: var(--rp-focus); }
+
+.btn-primary{
+  border: none;
+  background: var(--rp-grad);
+  color: #14352B;
+  box-shadow: 0 10px 18px rgba(35,48,82,0.10);
+}
+.btn-primary:hover{ filter: brightness(0.985); }
+.btn-primary:active{ filter: brightness(0.97); }
+
+.btn-outline-secondary,
+.btn-outline-primary,
+.btn-outline-success,
+.btn-outline-danger{
+  background: rgba(255,255,255,0.62);
+}
+
+/* Outline Primary basé sur brand */
+.btn-outline-primary{
+  border-color: rgba(142,207,158,0.70);
+  color: var(--rp-ink);
+}
+.btn-outline-primary:hover{
+  background: var(--rp-grad-soft);
+  border-color: rgba(142,207,158,0.90);
+  color: var(--rp-ink);
+}
+
+.btn-outline-secondary{
+  border-color: rgba(35,48,82,0.20);
+  color: var(--rp-ink);
+}
+.btn-outline-secondary:hover{
+  background: rgba(255,255,255,0.92);
+}
+
+/* Icon button */
+.rp-icon-btn{
+  width: 42px;
+  height: 38px;
+  padding: 0;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ------------------------------
+   6) CARDS / TABLES (Stock list)
+   ------------------------------ */
+
+.card{
+  border-radius: var(--rp-r-lg);
+  border: 1px solid var(--rp-border);
+  box-shadow: var(--rp-shadow-soft);
+  overflow: hidden;
+}
+
+.card-body{ background: var(--rp-surface); }
+
+/* Table : look “soft” */
+.table{
+  color: var(--rp-ink);
+}
+
+.table thead th{
+  font-weight: 900;
+  border-bottom: 1px solid rgba(35,48,82,0.10);
+  background: rgba(142,207,158,0.10);
+}
+
+.table td, .table th{
+  border-color: rgba(35,48,82,0.08);
+  padding: .85rem 1rem;
+}
+
+.table tbody tr:hover{
+  background: rgba(142,207,158,0.08);
+}
+
+/* Align image + nom ingredient */
+.ingredient-thumb,
+.table img{
+  border-radius: 10px;
+  object-fit: contain;
+}
+
+/* Badge “count” style maquette */
+.badge.text-bg-light{
+  background: rgba(142,207,158,0.18) !important;
+  border: 1px solid rgba(142,207,158,0.28);
+  color: #1E5A49 !important;
+  font-weight: 900;
+}
+
+/* ------------------------------
+   7) “ACTION CARDS” (Mon stock: 2 blocs)
+   Pour coller à la maquette, on crée un style
+   utilisable sur des <a class="rp-action-card">…
+   ------------------------------ */
+
+.rp-action-row{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 767.98px){
+  .rp-action-row{ grid-template-columns: 1fr; }
+}
+
+.rp-action-card{
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(35,48,82,0.10);
+  background: rgba(255,255,255,0.72);
+  box-shadow: 0 10px 18px rgba(35,48,82,0.06);
+  text-decoration: none;
+  color: var(--rp-ink);
+  position: relative;
+  overflow: hidden;
+}
+
+.rp-action-card:hover{
+  text-decoration: none;
+  background: rgba(255,255,255,0.82);
+}
+
+.rp-action-card--primary{
+  background: var(--rp-grad-soft);
+  border-color: rgba(142,207,158,0.30);
+}
+
+.rp-action-emoji{
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.65);
+  border: 1px solid rgba(35,48,82,0.08);
+  font-size: 1.4rem;
+}
+
+.rp-action-title{
+  font-weight: 950;
+  letter-spacing: -0.01em;
+  margin: 0;
+  line-height: 1.1;
+}
+
+.rp-action-sub{
+  margin: 0;
+  color: var(--rp-muted);
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.rp-action-chevron{
+  margin-left: auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.60);
+  border: 1px solid rgba(35,48,82,0.08);
+  color: var(--rp-ink-2);
+}
+
+/* ------------------------------
+   8) BOTTOM NAV (mobile)
+   ------------------------------ */
+
+.rp-bottom-nav{
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-
+  left: 0; right: 0; bottom: 0;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 6px;
-
   padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(12px);
-
-  border-top: 1px solid rgba(33, 38, 96, 0.10);
-  box-shadow: 0 -10px 30px rgba(33, 38, 96, 0.08);
-
+  background: rgba(255,255,255,0.80);
+  backdrop-filter: blur(14px);
+  border-top: 1px solid rgba(35,48,82,0.10);
+  box-shadow: 0 -10px 24px rgba(35,48,82,0.08);
   z-index: 1100;
 }
 
-/* each tab */
-.rp-tab {
+.rp-tab{
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 4px;
-
   padding: 10px 6px;
-  border-radius: 16px;
-
-  color: var(--rp-text-2);
+  border-radius: 18px;
+  color: var(--rp-ink-2);
   text-decoration: none;
-
-  line-height: 1;
   user-select: none;
 }
 
-.rp-tab i {
-  font-size: 1.15rem;
-  line-height: 1;
-}
-
-.rp-tab span {
+.rp-tab i{ font-size: 1.15rem; }
+.rp-tab span{
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 900;
   letter-spacing: 0.01em;
 }
 
-/* hover/press without layout shift */
-.rp-tab:active {
-  background: rgba(33, 38, 96, 0.06);
+.rp-tab:active{ background: rgba(35,48,82,0.06); }
+
+.rp-tab.is-active{
+  background: rgba(142,207,158,0.18);
+  border: 1px solid rgba(142,207,158,0.28);
+  color: var(--rp-ink);
 }
 
-/* active state */
-.rp-tab.is-active {
-  background: var(--rp-gradient-soft);
-  border: 1px solid rgba(33, 38, 96, 0.08);
-  color: var(--rp-text);
-}
-
-/* Assistant highlighted (even inactive) */
-.rp-tab-assistant {
-  color: var(--rp-text);
-}
-
-.rp-tab-assistant.is-active {
-  background: var(--rp-gradient);
-  color: var(--rp-text);
+.rp-tab-assistant.is-active{
+  background: var(--rp-grad);
   border: none;
+  color: #14352B;
 }
 
-/* Make room for the fixed bottom bar */
-body {
-  padding-bottom: 88px; /* adjust if needed */
+/* ------------------------------
+   9) FORMS (soft)
+   ------------------------------ */
+
+.form-control, .form-select{
+  border-radius: 16px;
+  border-color: rgba(35,48,82,0.14);
+  background: rgba(255,255,255,0.90);
+  color: var(--rp-ink);
 }
 
-.ingredient-thumb {
-  width: 28px;
-  height: 28px;
-  object-fit: contain;
-  border-radius: 6px;
+.form-control:focus, .form-select:focus{
+  border-color: rgba(167,228,210,0.95);
+  box-shadow: var(--rp-focus);
 }
 
-.rp-message{
-  background: var(--rp-gradient);
-  color: var(--rp-text);
+.input-group-text{
+  border-radius: 16px;
+  background: rgba(142,207,158,0.12);
+  border-color: rgba(35,48,82,0.12);
+  font-weight: 900;
+  color: var(--rp-ink-2);
+}
+
+/* ------------------------------
+   10) Alerts (calm)
+   ------------------------------ */
+
+.alert{
+  border-radius: var(--rp-r-lg);
+  border: 1px solid rgba(35,48,82,0.10);
+  box-shadow: var(--rp-shadow-soft);
 }

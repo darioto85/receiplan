@@ -7,6 +7,7 @@ import './stimulus_bootstrap.js';
  * which should already be in your base.html.twig.
  */
 import './styles/app.css';
+import './styles/styles.css';
 
 // ✅ Symfony UX Autocomplete (Tom Select + controller Stimulus côté UX)
 import '@symfony/ux-autocomplete';
