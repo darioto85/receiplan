@@ -42,38 +42,52 @@
     {% endfor %}
   {% endfor %}
 
-  {# ===== Formulaire Ajouter / Mettre à jour (masqué par défaut) ===== #}
-  <div id="stockUpsertForm"
-       class="collapse mb-4 {% if form.vars.submitted %}show{% endif %}">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <h2 class="h6 mb-3">Ajouter / mettre à jour</h2>
+  {# ===== Quick Add Bar ===== #}
+<div id="stockUpsertForm" class="collapse mb-4 {% if form.vars.submitted %}show{% endif %}">
+  {{ form_start(form, { action: path('stock_upsert'), method: 'POST', attr: { class: 'rp-quickadd' } }) }}
 
-        {{ form_start(form, { action: path('stock_upsert'), method: 'POST' }) }}
-          <div class="row g-3 align-items-end">
-            <div class="col-12 col-md-7">
-              {{ form_label(form.ingredient) }}
-              {{ form_widget(form.ingredient, { attr: { class: 'form-control' } }) }}
-              {{ form_errors(form.ingredient) }}
-            </div>
+    <div class="rp-quickadd__bar">
+       
+        {# Champ ingrédient (grand) #}
+        <div class="rp-quickadd__field">
+          {{ form_widget(form.ingredient, {
+            attr: {
+              class: 'rp-quickadd__input',
+              placeholder: 'Ajouter rapidement'
+            }
+          }) }}
+          {{ form_errors(form.ingredient) }}
+        </div>
 
-            <div class="col-12 col-md-3">
-              {{ form_label(form.quantity) }}
-              <div class="input-group">
-                {{ form_widget(form.quantity, { attr: { class: 'form-control' } }) }}
-                <span class="input-group-text">—</span>
-              </div>
-              {{ form_errors(form.quantity) }}
-            </div>
+        {# Quantité (petit) #}
+        <div class="rp-quickadd__mini">
+          {{ form_widget(form.quantity, {
+            attr: {
+              class: 'rp-quickadd__miniInput',
+              placeholder: 'Qté…',
+              inputmode: 'decimal'
+            }
+          }) }}
+          {{ form_errors(form.quantity) }}
+        </div>
 
-            <div class="col-12 col-md-2 d-grid">
-              <button class="btn btn-primary" type="submit">Enregistrer</button>
-            </div>
-          </div>
-        {{ form_end(form) }}
+        {# “unité” / placeholder (si tu as un champ unit dans ton form) #}
+        {# Si ton form n'a PAS de champ unit, garde juste un mini "—" en visuel #}
+        <div class="rp-quickadd__mini">
+          <div class="rp-quickadd__miniFake" aria-hidden="true">—</div>
+        </div>
+
+        {# Bouton #}
+        <button type="submit" class="rp-quickadd__btn">
+          <span class="rp-quickadd__btnIcon">+</span>
+          <span>Ajouter</span>
+          <span class="rp-quickadd__btnChevron">›</span>
+        </button>
       </div>
-    </div>
+
+    {{ form_end(form) }}
   </div>
+
 
   {# ===== Liste du stock ===== #}
   <div class="rp-section-title mb-3">

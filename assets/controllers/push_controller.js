@@ -14,70 +14,79 @@ export default class extends Controller {
     vapidPublicKey: String,
     subscribeUrl: String,
     unsubscribeUrl: String,
-    // csrfToken: String, // on ajoutera plus tard
   };
 
   static targets = ["status"];
 
   async connect() {
-    console.log("✅ push connected")
-    // Enregistre le SW dès que possible
-    await this.registerServiceWorker();
-    await this.refreshStatus();
+    console.log("✅ push connected");
+    try {
+      await this.refreshStatus();
+    } catch (e) {
+      console.error("❌ refreshStatus error", e);
+      this.setStatus("Erreur lors du chargement du statut push.", false);
+    }
   }
 
-  async registerServiceWorker() {
-    if (!("serviceWorker" in navigator)) {
-        console.log("❌ serviceWorker not supported");
-        return null;
+  async getRegistration() {
+    if (!("serviceWorker" in navigator)) return null;
+
+    // ✅ Ne bloque pas sur serviceWorker.ready
+    let reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) {
+      reg = await navigator.serviceWorker.register("/sw.js");
     }
-    try {
-        const reg = await navigator.serviceWorker.register("/sw.js");
-        console.log("✅ SW registered", reg.scope);
-        return reg;
-    } catch (e) {
-        console.error("❌ SW register failed", e);
-        return null;
-    }
-    }
+    return reg;
+  }
 
   async refreshStatus() {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    if (!("PushManager" in window) || !("Notification" in window)) {
       this.setStatus("Push non supporté sur ce navigateur.", false);
       return;
     }
-
-    const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.getSubscription();
 
     if (Notification.permission === "denied") {
       this.setStatus("Notifications bloquées dans le navigateur.", false);
       return;
     }
 
-    if (sub) {
-      this.setStatus("Notifications activées ✅", true);
-    } else {
-      this.setStatus("Notifications désactivées.", true);
+    const reg = await this.getRegistration();
+    if (!reg) {
+      this.setStatus("Service worker indisponible.", false);
+      return;
     }
+
+    const sub = await reg.pushManager.getSubscription();
+
+    if (sub) {
+      // ✅ Activé => l’encart disparaît définitivement
+      this.element.remove();
+      return;
+    }
+
+    this.setStatus("Notifications désactivées.", true);
   }
 
   async subscribe() {
-    console.log("✅ subscribe clicked")
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    console.log("✅ subscribe clicked");
+
+    if (!("PushManager" in window) || !("Notification" in window)) {
       alert("Les notifications push ne sont pas supportées sur ce navigateur.");
       return;
     }
 
-    // 1) Permission
     const permission = await Notification.requestPermission();
     if (permission !== "granted") {
       await this.refreshStatus();
       return;
     }
 
-    // 2) Subscribe navigateur
-    const reg = await navigator.serviceWorker.ready;
+    const reg = await this.getRegistration();
+    if (!reg) {
+      alert("Impossible d’enregistrer le service worker.");
+      return;
+    }
+
     const existing = await reg.pushManager.getSubscription();
     const sub =
       existing ||
@@ -86,7 +95,6 @@ export default class extends Controller {
         applicationServerKey: urlBase64ToUint8Array(this.vapidPublicKeyValue),
       }));
 
-    // 3) Envoi backend
     const res = await fetch(this.subscribeUrlValue, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -99,23 +107,24 @@ export default class extends Controller {
       return;
     }
 
-    await this.refreshStatus();
+    // ✅ Après succès, remove définitif
+    this.element.remove();
   }
 
   async unsubscribe() {
-    if (!("serviceWorker" in navigator)) return;
+    // Normalement tu ne verras plus ce bouton si on remove,
+    // mais je le laisse au cas où.
+    const reg = await this.getRegistration();
+    if (!reg) return;
 
-    const reg = await navigator.serviceWorker.ready;
     const sub = await reg.pushManager.getSubscription();
     if (!sub) {
       await this.refreshStatus();
       return;
     }
 
-    // 1) Unsubscribe navigateur
     await sub.unsubscribe();
 
-    // 2) Unsubscribe backend (on envoie juste l’endpoint)
     await fetch(this.unsubscribeUrlValue, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -125,9 +134,8 @@ export default class extends Controller {
     await this.refreshStatus();
   }
 
-  setStatus(text, ok = true) {
+  setStatus(text) {
     if (!this.hasStatusTarget) return;
     this.statusTarget.textContent = text;
-    // pas de couleurs hardcodées ici, Bootstrap gère si tu veux
   }
 }

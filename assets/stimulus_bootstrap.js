@@ -14,6 +14,7 @@ import ShoppingController from './controllers/shopping_controller.js';
 import ImageGenerationController from './controllers/image_generate_controller.js';
 import SwipeController from './controllers/swipe_reveal_controller.js';
 import PushController from './controllers/push_controller.js';
+import PushToggleController from './controllers/push_toggle_controller.js';
 import AssistantChatController from './controllers/assistant_chat_controller.js';
 
 const app = startStimulusApp();
@@ -32,4 +33,5 @@ app.register('shopping', ShoppingController);
 app.register('ingredient-image-generate', ImageGenerationController);
 app.register('swipe-reveal', SwipeController);
 app.register('push', PushController);
+app.register('push-toggle', PushToggleController);
 app.register('assistant-chat', AssistantChatController);

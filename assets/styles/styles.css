@@ -42,7 +42,9 @@ body{
   /* empêche les petits “sauts” avec la nav sticky */
   min-height: 100vh;
 }
-
+.container{
+  max-width: 1220px !important;
+}
 .btn-outline-primary{
   border-radius: 999px;
   padding: .45rem 1rem;
@@ -622,4 +624,666 @@ h2{
 
 .rp-accordion .accordion-body{
   background: rgba(255,255,255,0.70);
+}
+
+/* =========================================================
+   STOCK — Quick Add Bar (maquette)
+   ========================================================= */
+
+.rp-quickadd{
+  margin: 0;
+}
+
+/* La barre pill globale */
+.rp-quickadd__bar{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  padding: 10px 12px;
+  border-radius: var(--rp-radius-lg);
+
+  background: linear-gradient(180deg, rgba(231,243,219,.85), rgba(217,238,200,.75)) !important;
+  border: 1px solid rgba(120,150,120,.18) !important;
+
+  box-shadow:
+    var(--rp-shadow-inset),
+    0 10px 18px rgba(60,90,60,.14);
+
+  /* petit blur comme ton shell */
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* Bloc du champ principal (pour éviter l’overflow en flex) */
+.rp-quickadd__field{
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Input principal */
+.rp-quickadd__input{
+  width: 100%;
+  height: 46px;
+
+  border-radius: var(--rp-radius-md);
+  border: 1px solid var(--rp-border);
+  background: rgba(255,255,255,.78);
+
+  padding: 0 14px;
+
+  color: var(--rp-text);
+  font-weight: 700;
+
+  outline: none;
+  box-shadow: var(--rp-shadow-inset);
+
+  transition: background-color .15s ease,
+              border-color .15s ease,
+              box-shadow .15s ease;
+}
+
+.rp-quickadd__input::placeholder{
+  color: rgba(47,58,47,.55);
+  font-weight: 700;
+}
+
+/* Focus “Receiplan” */
+.rp-quickadd__input:focus{
+}
+
+/* Mini champs (Qté + Unité / select / placeholder) */
+.rp-quickadd__mini{
+  flex: 0 0 auto;
+}
+
+.rp-quickadd__miniInput,
+.rp-quickadd__miniSelect,
+.rp-quickadd__miniFake{
+  height: 46px;
+  width: 92px;
+
+  border-radius: var(--rp-radius-md);
+  border: 1px solid var(--rp-border);
+  background: rgba(255,255,255,.78);
+
+  padding: 0 12px;
+
+  color: var(--rp-text);
+  font-weight: 800;
+
+  outline: none;
+  box-shadow: var(--rp-shadow-inset);
+
+  transition: background-color .15s ease,
+              border-color .15s ease,
+              box-shadow .15s ease;
+}
+
+/* Placeholder — (si tu n’as pas de select unité) */
+.rp-quickadd__miniFake{
+  display: grid;
+  place-items: center;
+  color: rgba(47,58,47,.60);
+  user-select: none;
+}
+
+/* Focus mini champs */
+.rp-quickadd__miniInput:focus,
+.rp-quickadd__miniSelect:focus{
+  background: #fff;
+  border-color: rgba(140,185,90,.45);
+  box-shadow:
+    0 0 0 3px rgba(150,200,100,.22),
+    var(--rp-shadow-inset);
+}
+
+/* Bouton “Ajouter” pill vert */
+.rp-quickadd__btn{
+  height: 50px;
+  padding: 0 18px;
+
+  border: none;
+  border-radius: 999px;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+
+  color: var(--rp-green-text);
+  font-weight: 900;
+  letter-spacing: -.01em;
+
+  background: linear-gradient(180deg, var(--rp-green-start), var(--rp-green-end));
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.6),
+    0 8px 18px rgba(120,170,80,.45);
+
+  text-shadow: 0 1px 0 rgba(0,0,0,.20);
+
+  transition: transform .08s ease, filter .12s ease, box-shadow .15s ease;
+}
+
+.rp-quickadd__btn:hover{
+  filter: brightness(1.03);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.65),
+    0 10px 22px rgba(120,170,80,.52);
+}
+
+.rp-quickadd__btn:active{
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 2px 4px rgba(0,0,0,.20),
+    0 6px 14px rgba(120,170,80,.35);
+}
+
+.rp-quickadd__btn:focus-visible{
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(150,200,100,.35),
+    0 10px 22px rgba(120,170,80,.45);
+}
+
+/* Petit badge + dans le bouton */
+.rp-quickadd__btnIcon{
+  width: 28px;
+  height: 28px;
+  border-radius: 12px;
+
+  display: grid;
+  place-items: center;
+
+  background: rgba(255,255,255,.18);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.30);
+
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* Chevron à droite */
+.rp-quickadd__btnChevron{
+  opacity: .9;
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* Erreurs Symfony form: on évite qu’elles cassent la hauteur */
+.rp-quickadd .invalid-feedback,
+.rp-quickadd .form-error-message{
+  margin-top: 6px;
+}
+
+/* =========================================================
+   Quick Add — TomSelect : invisible (flèche only)
+   Cible : .ts-wrapper.rp-quickadd__input (dans la barre)
+   ========================================================= */
+
+/* IMPORTANT: le wrapper doit être positionné pour la flèche */
+.rp-quickadd .ts-wrapper.rp-quickadd__input{
+  position: relative;
+  width: 100%;              /* aligne avec tes mini champs */
+  flex: 0 0 auto;
+  padding: 0px;
+}
+
+/* Reset agressif du control TomSelect */
+.rp-quickadd .ts-wrapper.rp-quickadd__input .ts-control{
+  position: relative;
+  height: 46px;
+  min-height: 46px;
+
+  padding: 0 34px 0 10px;   /* place pour la flèche */
+  border-radius: var(--rp-radius-md);
+
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+
+  display: flex;
+  align-items: center;
+
+  cursor: pointer;
+}
+
+/* TomSelect peut mettre un background sur .ts-control via thème */
+.rp-quickadd .ts-wrapper.rp-quickadd__input .ts-control,
+.rp-quickadd .ts-wrapper.rp-quickadd__input .ts-control *{
+  background: transparent !important;
+}
+
+/* Cache le texte sélectionné et le caret */
+.rp-quickadd .ts-wrapper.rp-quickadd__input .ts-control .item,
+.rp-quickadd .ts-wrapper.rp-quickadd__input .ts-control input{
+  color: transparent !important;
+  caret-color: transparent !important;
+  text-shadow: none !important;
+}
+
+/* Empêche l'input de prendre de la place */
+.rp-quickadd .ts-wrapper.rp-quickadd__input .ts-control input{
+  width: 1px !important;
+  min-width: 1px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Supprime le clear button (le ⨯) si tu ne le veux pas */
+.rp-quickadd .ts-wrapper.rp-quickadd__input .ts-control .clear-button{
+  display: none !important;
+}
+
+/* Hover = petite zone “cliquable” */
+.rp-quickadd .ts-wrapper.rp-quickadd__input .ts-control:hover{
+  background: rgba(255,255,255,.25) !important;
+  border-color: rgba(120,150,120,.18) !important;
+}
+
+/* Focus (quand TomSelect ajoute .focus au wrapper) */
+.rp-quickadd .ts-wrapper.rp-quickadd__input.focus .ts-control{
+  background: rgba(255,255,255,.40) !important;
+  border-color: rgba(140,185,90,.45) !important;
+  box-shadow: 0 0 0 3px rgba(150,200,100,.22) !important;
+}
+
+/* Flèche */
+.rp-quickadd .ts-wrapper.rp-quickadd__input .ts-control::after{
+  content: "▾";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
+
+  color: rgba(47,58,47,.55);
+  pointer-events: none;
+}
+
+/* Flèche tournée quand ouvert */
+.rp-quickadd .ts-wrapper.rp-quickadd__input.dropdown-active .ts-control::after{
+  transform: translateY(-50%) rotate(180deg);
+}
+
+/* Dropdown (optionnel mais joli dans ton thème) */
+.rp-quickadd .ts-wrapper.rp-quickadd__input .ts-dropdown{
+  border-radius: 16px;
+  border: 1px solid rgba(120,150,120,.25);
+  box-shadow: 0 14px 26px rgba(60,90,60,.18);
+  background: #fff;
+  overflow: hidden;
+}
+
+.rp-quickadd .ts-wrapper.rp-quickadd__input .ts-dropdown .option{
+  padding: .55rem .9rem;
+  font-weight: 700;
+  color: var(--rp-text);
+}
+
+.rp-quickadd .ts-wrapper.rp-quickadd__input .ts-dropdown .option.active{
+  background: rgba(166,210,123,.20);
+}
+
+.rp-quickadd .ts-wrapper.rp-quickadd__input .ts-dropdown .option.selected{
+  background: rgba(166,210,123,.30);
+}
+
+/* Responsive: sur petit écran, on garde tout en ligne tant que possible,
+   puis on wrap proprement */
+@media (max-width: 520px){
+  .rp-quickadd__bar{
+    gap: 10px;
+    padding: 10px;
+    flex-wrap: wrap;
+  }
+
+  .rp-quickadd__icon{
+    width: 40px;
+    height: 40px;
+    flex-basis: 40px;
+  }
+
+  .rp-quickadd__miniInput,
+  .rp-quickadd__miniSelect,
+  .rp-quickadd__miniFake{
+    width: 110px;
+  }
+
+  .rp-quickadd__btn{
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+
+
+/* =========================================================
+   Bootstrap switch override (reliable) — Receiplan Green Calm
+   Works by replacing the knob with an SVG background-image
+   ========================================================= */
+
+.form-switch .form-check-input {
+  /* size */
+  width: 2.8rem;
+  height: 1.55rem;
+
+  /* reset native look */
+  appearance: none;
+  -webkit-appearance: none;
+
+  /* track */
+  border-radius: 999px;
+  border: 1px solid rgba(35,48,82,0.25);
+  background-color: rgba(35,48,82,0.15);
+
+  /* knob (SVG circle) */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-2 -2 36 36'%3E%3Ccircle cx='16' cy='16' r='14' fill='white'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: 1.15rem 1.15rem;
+  background-position: left 0.2rem center;
+
+  /* feel */
+  cursor: pointer;
+  transition: background-color .2s ease, border-color .2s ease, background-position .2s ease;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,.08);
+}
+
+/* ON state */
+.form-switch .form-check-input:checked {
+  background-color: var(--rp-brand, #8ECF9E);
+  border-color: rgba(142,207,158,0.85);
+  background-position: right 0.2rem center;
+}
+
+/* focus ring (keyboard) */
+.form-switch .form-check-input:focus {
+  outline: 0;
+  box-shadow: var(--rp-focus, 0 0 0 .25rem rgba(167,228,210,.55));
+}
+
+/* disabled */
+.form-switch .form-check-input:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+/* label */
+.form-switch .form-check-label {
+  margin-left: .55rem;
+  font-weight: 700;
+  color: var(--rp-ink, #233052);
+}
+
+/* =========================================================
+   MOBILE BOTTOM NAV — pill + border gradient + active = btn-primary
+   ========================================================= */
+
+.rp-bottom-nav{
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  z-index: 1030;
+
+  width: min(560px, calc(100% - 24px));
+  padding: 8px;
+
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+
+  border-radius: 22px;
+
+  /* fond clair comme btn-outline-primary */
+  background: linear-gradient(180deg, var(--rp-soft-start), var(--rp-soft-end));
+
+  /* bordure dégradée */
+  border: 2px solid transparent;
+  background-clip: padding-box;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.85),
+    0 14px 28px rgba(60,90,60,.20);
+
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Tabs */
+.rp-bottom-nav .rp-tab{
+  flex: 1 1 0;
+  min-width: 0;
+
+  text-decoration: none;
+  color: rgba(47,58,47,.72);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  padding: 10px 6px;
+  border-radius: 22px;
+
+  position: relative;
+  transition: transform .12s ease, filter .12s ease, background .12s ease, box-shadow .12s ease;
+}
+
+/* séparateurs verticaux très doux */
+.rp-bottom-nav .rp-tab + .rp-tab::before{
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 1px;
+  background: rgba(120,150,120,.18);
+}
+
+/* Icon */
+.rp-bottom-nav .rp-tab i{
+  font-size: 22px;
+  line-height: 1;
+}
+
+/* Label */
+.rp-bottom-nav .rp-tab span{
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  line-height: 1;
+}
+
+/* Hover/tap */
+.rp-bottom-nav .rp-tab:active{
+  transform: translateY(1px);
+}
+
+/* Actif = EXACTEMENT le style de .btn-primary (gradient + shadow) */
+.rp-bottom-nav .rp-tab.is-active{
+  color: var(--rp-green-text);
+
+  background: linear-gradient(180deg, var(--rp-green-start), var(--rp-green-end));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.6),
+    0 6px 16px rgba(120,170,80,.45);
+
+  text-shadow: 0 1px 0 rgba(0,0,0,.25);
+  border: 1px solid rgba(255,255,255,.20);
+
+  transform: translateY(-1px);
+}
+
+/* icône et label actifs bien blancs */
+.rp-bottom-nav .rp-tab.is-active i,
+.rp-bottom-nav .rp-tab.is-active span{
+  color: var(--rp-green-text);
+}
+
+/* Désactive visuellement les séparateurs quand un item est actif
+   (sinon la ligne traverse le bouton actif) */
+.rp-bottom-nav .rp-tab.is-active::before{
+  opacity: 0;
+}
+.rp-bottom-nav .rp-tab.is-active + .rp-tab::before{
+  opacity: 0;
+}
+
+/* léger “focus ring” */
+.rp-bottom-nav .rp-tab:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(150,200,100,.35);
+  border-radius: 999px;
+}
+
+/* =========================================================
+   Eviter que le menu fixe recouvre le contenu sur mobile
+   ========================================================= */
+@media (max-width: 991.98px){
+  body{
+    padding-bottom: calc(92px + env(safe-area-inset-bottom));
+  }
+}
+
+
+
+/* =========================================================
+   MOBILE COMPACT — reduce wasted space (<= 576px)
+   ========================================================= */
+@media (max-width: 576px){
+
+  /* Container : un peu moins de padding latéral */
+  .container{
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  /* Page blanche principale : moins de padding + radius un peu plus petit */
+  .rp-page{
+    padding: 1.1rem !important;
+    margin-top: 10px !important;
+    border-radius: 22px !important;
+  }
+
+  .rp-header{
+    background: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: none;
+
+    position: relative !important;
+    top: inherit !important;
+
+  }
+
+  /* Titres : plus petits en mobile */
+  h1{
+    font-size: 22px !important;
+    line-height: 1.15;
+    margin-bottom: .35rem;
+  }
+  h2{
+    font-size: 18px !important;
+    line-height: 1.2;
+    margin-bottom: .35rem;
+  }
+
+  /* Titres “sections” */
+  .rp-title{
+    font-size: 1.05rem;
+  }
+
+  /* Réduire les gros espacements Bootstrap */
+  .mt-5{ margin-top: 1.5rem !important; }
+  .mb-5{ margin-bottom: 1.5rem !important; }
+  .py-5{ padding-top: 1.5rem !important; padding-bottom: 1.5rem !important; }
+
+  /* Cards Bootstrap dans rp-page : padding plus compact */
+  .rp-page .card-body{
+    padding: 1rem !important;
+  }
+
+  /* Boutons : un poil plus compacts */
+  .btn-primary,
+  .btn-outline-primary,
+  .btn-outline-danger{
+    padding: .42rem .85rem !important;
+    font-size: .9rem !important;
+  }
+
+  /* Top nav / header : liens un peu plus petits */
+  .rp-topnav-link{
+    padding: .38rem .75rem !important;
+    font-size: .9rem !important;
+  }
+  .rp-brand-name{
+    font-size: 1.18rem !important;
+  }
+  .rp-brand-mark{
+    font-size: 1.35rem !important;
+  }
+
+  /* Section title + badge : resserrer */
+  .rp-section-title{
+    gap: .45rem !important;
+  }
+  .rp-count-badge{
+    transform: none !important;
+    padding: .30em .60em !important;
+  }
+
+  /* Table : padding cellules plus compact + header plus serré */
+  .rp-page .table > :not(caption) > * > *{
+    padding: 0.42rem 0.65rem !important;
+  }
+  .rp-page .table thead th{
+    font-size: .85rem;
+  }
+
+  /* Table responsive wrapper : radius un peu plus petit */
+  .rp-page .table-responsive{
+    border-radius: 18px !important;
+  }
+
+  /* Quick add : plus compact en mobile */
+  .rp-quickadd__bar{
+    padding: 10px !important;
+    gap: 10px !important;
+  }
+  .rp-quickadd__input{
+    height: 44px !important;
+  }
+  .rp-quickadd__miniInput,
+  .rp-quickadd__miniSelect,
+  .rp-quickadd__miniFake{
+    height: 44px !important;
+    width: 84px !important;
+  }
+  .rp-quickadd__btn{
+    height: 46px !important;
+    padding: 0 14px !important;
+  }
+
+  /* TomSelect dans quickadd : garde la même hauteur en mobile */
+  .rp-quickadd .ts-wrapper.rp-quickadd__input .ts-control{
+    height: 44px !important;
+    min-height: 44px !important;
+  }
+
+  .swipe-content{
+    padding:0px;
+  }
+  .rp-accordion{
+    margin: 0 -1.1rem;
+  }
+  .rp-recipe-grid{
+    margin: 0px -0.4rem;
+  }
+  .rp-recipe-main{
+    padding:10px;
+  }
 }
