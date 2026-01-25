@@ -153,7 +153,11 @@ body{
     0 3px 8px rgba(120,60,60,.25);
 }
 
-
+.card-header {
+  background: linear-gradient(180deg, #a6d27b, #8fbf61);
+  color: #ffffff;
+  text-shadow: 0 1px 0 rgba(0,0,0,.25);
+}
 .badge.bg-primary{
   border-radius: 999px;
   padding: .4em .75em;
@@ -400,8 +404,191 @@ h2{
   background: #fcfdf9;
 }
 
+/* =========================================================
+   MEALPLAN — Day visual (calendar chip) + past opacity
+   ========================================================= */
 
-/****** CHAT *******/
+.rp-card-body{
+  padding: 0 !important; /* ton list-group flush gère déjà */
+}
+
+/* jour (list-group-item) */
+.rp-day-past{
+  opacity: .55;
+}
+.rp-day-today{
+  opacity: 1;
+}
+
+/* Head row du jour */
+.rp-day-head{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* “mini calendrier” */
+.rp-day-chip{
+  width: 64px;
+  height: 44px;
+  flex: 0 0 64px;
+
+  border-radius: 14px;
+
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 2px;
+
+  background: linear-gradient(180deg, rgba(231,243,219,.85), rgba(217,238,200,.75));
+  border: 1px solid rgba(120,150,120,.18);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.75);
+
+  color: rgba(47,58,47,.80);
+}
+
+.rp-day-chip i{
+  font-size: 12px;
+  opacity: .8;
+  line-height: 1;
+}
+
+.rp-day-num{
+  font-weight: 900;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.rp-day-month{
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  opacity: .75;
+  line-height: 1;
+}
+
+/* Meta (jour + date) */
+.rp-day-meta{
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
+
+.rp-day-name{
+  font-weight: 900;
+  color: rgba(47,58,47,.86);
+}
+
+.rp-day-date{
+  font-weight: 700;
+  font-size: 12px;
+  color: rgba(47,58,47,.60);
+}
+
+/* “Aujourd’hui” pill */
+.rp-today-pill{
+  margin-left: auto;
+  flex-shrink: 0;
+
+  padding: .25rem .6rem;
+  border-radius: 999px;
+
+  font-weight: 900;
+  font-size: .75rem;
+
+  color: var(--rp-green-text);
+  background: linear-gradient(180deg, var(--rp-green-start), var(--rp-green-end));
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.6),
+    0 6px 14px rgba(120,170,80,.35);
+
+  text-shadow: 0 1px 0 rgba(0,0,0,.18);
+}
+
+/* si le jour est passé, on garde le chip lisible mais plus “soft” */
+.rp-day-past .rp-day-chip{
+  filter: grayscale(.15);
+  opacity: .85;
+}
+
+/* Today: légère mise en avant du bloc jour */
+.rp-day-today{
+  background: rgba(255,255,255,.55);
+}
+.rp-day-today .rp-day-chip{
+  border-color: rgba(140,185,90,.35);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.75),
+    0 10px 18px rgba(120,170,80,.15);
+}
+
+/* Mobile : chip un peu plus petit */
+@media (max-width: 576px){
+  .rp-day-chip{
+    width: 58px;
+    flex-basis: 58px;
+    height: 42px;
+    border-radius: 13px;
+  }
+  .rp-today-pill{
+    font-size: .72rem;
+  }
+}
+
+.zone_meal_wrap{
+  margin: 0 -15px;
+}
+
+/* =========================================================
+   CHAT — fit remaining viewport inside rp-page
+   ========================================================= */
+
+/* Ajuste si besoin, mais ces valeurs matchent ton base */
+:root{
+  --rp-header-h: 56px;          /* approximatif, OK en base */
+  --rp-main-gap-top: 15px;      /* rp-page margin-top */
+  --rp-page-pad: 2rem;          /* rp-page padding desktop */
+  --rp-page-pad-mobile: 1.1rem; /* rp-page padding mobile (ton media query) */
+  --rp-bottom-nav-h: 92px;      /* ton menu bas */
+}
+
+/* wrapper de page chat: on neutralise le “scroll page” */
+.rp-chat-page{
+  height: 100%;
+}
+
+/* IMPORTANT: le layout chat doit pouvoir shrink en flex */
+.rp-chat-layout{
+  /* hauteur restante dans la fenêtre */
+  height: calc(100dvh - var(--rp-header-h) - var(--rp-main-gap-top) - (var(--rp-page-pad) * 2));
+  min-height: 0;
+}
+
+/* messages : fix flex overflow */
+.rp-chat-messages{
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile : rp-page a moins de padding + on soustrait le menu bas */
+@media (max-width: 991.98px){
+  .rp-chat-layout{
+    height: calc(
+      100dvh
+      - var(--rp-header-h)
+      - var(--rp-main-gap-top)
+      - (var(--rp-page-pad-mobile) * 2)
+      - var(--rp-bottom-nav-h)
+      - env(safe-area-inset-bottom)
+    );
+  }
+}
+
 .rp-message{
   background: linear-gradient(180deg, #a6d27b, #8fbf61);
   color: #ffffff;
@@ -1025,7 +1212,7 @@ h2{
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(10px + env(safe-area-inset-bottom));
+  bottom: calc(0px + env(safe-area-inset-bottom));
   z-index: 1030;
 
   width: min(560px, calc(100% - 24px));
@@ -1156,6 +1343,10 @@ h2{
    ========================================================= */
 @media (max-width: 576px){
 
+  body{
+    background-image: url("/img/background_mobile.png");
+  }
+
   /* Container : un peu moins de padding latéral */
   .container{
     padding-left: 12px !important;
@@ -1275,7 +1466,7 @@ h2{
   }
 
   .swipe-content{
-    padding:0px;
+    padding:1px;
   }
   .rp-accordion{
     margin: 0 -1.1rem;
@@ -1286,4 +1477,22 @@ h2{
   .rp-recipe-main{
     padding:10px;
   }
+}
+
+/* =========================================================
+   Hide number input spinners (quantités)
+   ========================================================= */
+
+/* Chrome / Edge / Safari */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input[type="number"] {
+  -moz-appearance: textfield;
+   text-align: right;
+  font-weight: 700;
 }

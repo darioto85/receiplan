@@ -52,8 +52,21 @@
           data-day="{{ dayKey }}"
         >
           <div class="d-flex justify-content-between align-items-center mb-2">
-            <div class="{{ isToday ? 'fw-semibold rp-day-title' : 'fw-semibold' }}">
-              {{ day|date('l d/m') }}
+            <div class="rp-day-head">
+              <div class="rp-day-chip" aria-hidden="true">
+                <i class="fa-regular fa-calendar"></i>
+                <span class="rp-day-num">{{ day|date('d') }}</span>
+                <span class="rp-day-month">{{ day|date('M') }}</span>
+              </div>
+
+              <div class="rp-day-meta">
+                <div class="rp-day-name">{{ day|date('l') }}</div>
+                <div class="rp-day-date">{{ day|date('d/m') }}</div>
+              </div>
+
+              {% if isToday %}
+                <span class="rp-today-pill">Aujourd’hui</span>
+              {% endif %}
             </div>
 
             <div class="d-flex align-items-center gap-2">

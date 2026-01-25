@@ -2,63 +2,63 @@
 
 {% block title %}Assistant{% endblock %}
 
+{# On ajoute une classe sur rp-page via un wrapper interne (sans toucher base.html.twig) #}
 {% block body %}
-<div
-  class="d-flex flex-column vh-100"
-  data-controller="assistant-chat"
-  data-assistant-chat-history-url-value="/assistant/history"
-  data-assistant-chat-message-url-value="/assistant/message"
-  data-assistant-chat-transcribe-url-value="/api/ai/transcribe"
-  data-assistant-chat-confirm-url-value="{{ path('assistant_confirm') }}"
-  data-assistant-chat-clarify-url-value="{{ path('assistant_clarify') }}"
->
-  {# Zone messages #}
-  <div
-    class="flex-grow-1 overflow-auto"
-    data-assistant-chat-target="messages"
-  >
-    {# messages injectés en JS #}
-  </div>
-
-  {# Barre de saisie #}
-  <div class="border-top p-2 bg-body">
-    <div class="input-group">
-      <input
-        type="text"
-        class="form-control"
-        placeholder="Écris un message…"
-        autocomplete="off"
-        data-assistant-chat-target="input"
-        data-action="keydown.enter->assistant-chat#send"
-      />
-
-      <button
-        class="btn btn-outline-secondary"
-        type="button"
-        data-assistant-chat-target="micButton"
-        data-action="click->assistant-chat#toggleMic"
-        aria-label="Micro"
-        title="Dicter"
-      >
-        🎙️
-      </button>
-
-      <button
-        class="btn btn-primary"
-        type="button"
-        data-assistant-chat-target="sendButton"
-        data-action="click->assistant-chat#send"
-        aria-label="Envoyer"
-        title="Envoyer"
-      >
-        ➤
-      </button>
-    </div>
-
+  <div class="rp-chat-page">
     <div
-      class="small text-muted mt-1"
-      data-assistant-chat-target="status"
-    ></div>
+      class="rp-chat-layout d-flex flex-column"
+      data-controller="assistant-chat"
+      data-assistant-chat-history-url-value="/assistant/history"
+      data-assistant-chat-message-url-value="/assistant/message"
+      data-assistant-chat-transcribe-url-value="/api/ai/transcribe"
+      data-assistant-chat-confirm-url-value="{{ path('assistant_confirm') }}"
+      data-assistant-chat-clarify-url-value="{{ path('assistant_clarify') }}"
+    >
+      {# Zone messages #}
+      <div
+        class="rp-chat-messages flex-grow-1 overflow-auto"
+        data-assistant-chat-target="messages"
+      >
+        {# messages injectés en JS #}
+      </div>
+
+      {# Barre de saisie #}
+      <div class="rp-chat-input border-top p-2 bg-body">
+        <div class="input-group">
+          <input
+            type="text"
+            class="form-control"
+            placeholder="Écris un message…"
+            autocomplete="off"
+            data-assistant-chat-target="input"
+            data-action="keydown.enter->assistant-chat#send"
+          />
+
+          <button
+            class="btn btn-outline-secondary"
+            type="button"
+            data-assistant-chat-target="micButton"
+            data-action="click->assistant-chat#toggleMic"
+            aria-label="Micro"
+            title="Dicter"
+          >
+            🎙️
+          </button>
+
+          <button
+            class="btn btn-primary"
+            type="button"
+            data-assistant-chat-target="sendButton"
+            data-action="click->assistant-chat#send"
+            aria-label="Envoyer"
+            title="Envoyer"
+          >
+            ➤
+          </button>
+        </div>
+
+        <div class="small text-muted mt-1" data-assistant-chat-target="status"></div>
+      </div>
+    </div>
   </div>
-</div>
 {% endblock %}
