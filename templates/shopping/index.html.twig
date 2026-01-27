@@ -66,14 +66,19 @@
             <div class="swipe-actions">
               <button
                 type="button"
-                class="btn btn-sm btn-outline-danger swipe-trash"
+                class="rp-action-btn swipe-trash"
                 data-action="shopping#remove"
                 data-shopping-id-param="{{ item.id }}"
                 aria-label="Supprimer"
                 title="Supprimer"
               >
-                <i class="fa-solid fa-trash"></i>
+                <img
+                  src="{{ asset('img/actions/delete.png') }}"
+                  alt=""
+                  class="rp-action-thumb"
+                >
               </button>
+
             </div>
 
             <div class="swipe-content">
@@ -201,15 +206,19 @@
 
                 <td class="text-end">
                   <button
-                    type="button"
-                    class="btn btn-sm btn-outline-danger"
-                    data-action="shopping#remove"
-                    data-shopping-id-param="{{ item.id }}"
-                    title="Supprimer"
-                    aria-label="Supprimer"
+                  type="button"
+                  class="rp-action-btn"
+                  data-action="shopping#remove"
+                  data-shopping-id-param="{{ item.id }}"
+                  title="Supprimer"
+                  aria-label="Supprimer"
+                >
+                  <img
+                    src="{{ asset('img/actions/delete.png') }}"
+                    alt=""
+                    class="rp-action-thumb"
                   >
-                    <i class="fa-solid fa-trash"></i>
-                  </button>
+                </button>
                 </td>
               </tr>
             {% endfor %}
