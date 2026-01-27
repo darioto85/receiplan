@@ -1,38 +1,11 @@
 // assets/controllers/shopping_controller.js
 import { Controller } from "@hotwired/stimulus";
 
-/**
- * Shopping list controller
- *
- * Requis côté Twig (exemple):
- * <div
- *   data-controller="shopping"
- *   data-shopping-toggle-url-value="{{ path('shopping_toggle', { id: 0 }) }}"
- *   data-shopping-validate-url-value="{{ path('shopping_validate_cart') }}"
- *   data-shopping-update-quantity-url-value="{{ path('shopping_update_quantity', { id: 0 }) }}"
- *   data-shopping-csrf-token-value="{{ csrf_token('shopping_cart') }}"
- * >
- *
- *  <input type="checkbox"
- *    data-shopping-target="checkbox"
- *    data-action="change->shopping#toggle"
- *    data-shopping-id-param="{{ item.id }}"
- *  >
- *
- *  <input type="number"
- *    data-action="change->shopping#updateQuantity"
- *    data-shopping-id-param="{{ item.id }}"
- *    value="{{ item.quantity }}"
- *  >
- *
- *  <button data-shopping-target="validateBtn" data-action="shopping#validateCart" disabled>Valider</button>
- * </div>
- */
 export default class extends Controller {
   static values = {
-    toggleUrl: String, // ex: "/shopping/0/toggle"
-    validateUrl: String, // ex: "/shopping/validate-cart"
-    updateQuantityUrl: String, // ex: "/shopping/0/quantity"
+    toggleUrl: String,
+    validateUrl: String,
+    updateQuantityUrl: String,
     csrfToken: String,
   };
 
@@ -43,16 +16,15 @@ export default class extends Controller {
     this.refreshCountBadge();
   }
 
-  /**
-   * Checkbox change => cocher / décocher (annuler)
-   */
   async toggle(event) {
     const checkbox = event.currentTarget;
     const id = event.params.id;
     if (!id) return;
 
     const checked = checkbox.checked;
-    checkbox.disabled = true;
+
+    const label = this.findLabelForCheckbox(checkbox);
+    if (label) label.classList.add("is-loading");
 
     try {
       const url = this.buildUrlWithId(this.toggleUrlValue, id);
@@ -77,22 +49,20 @@ export default class extends Controller {
         return;
       }
 
-      const row = this.findRowForId(id);
-      if (row) row.classList.toggle("opacity-50", checked);
+      // ✅ IMPORTANT: toggle sur TOUTES les rows (mobile + desktop)
+      this.findRowsForId(id).forEach((row) => {
+        row.classList.toggle("is-checked", checked);
+      });
     } catch (e) {
       checkbox.checked = !checked;
       console.error(e);
     } finally {
-      checkbox.disabled = false;
+      if (label) label.classList.remove("is-loading");
       this.refreshValidateButtonState();
       this.refreshCountBadge();
     }
   }
 
-  /**
-   * Edition quantité (change) => POST updateQuantityUrl
-   * Règle UX: 0 => suppression (endpoint retourne removed:true)
-   */
   async updateQuantity(event) {
     const input = event.currentTarget;
     const id = event.params.id;
@@ -109,8 +79,8 @@ export default class extends Controller {
       }
 
       if (data.removed) {
-        const row = this.findRowForId(id);
-        if (row) row.remove();
+        // ✅ retire mobile + desktop
+        this.findRowsForId(id).forEach((row) => row.remove());
       } else if (typeof data.quantity !== "undefined") {
         input.value = data.quantity;
       }
@@ -123,11 +93,6 @@ export default class extends Controller {
     }
   }
 
-  /**
-   * Action "Supprimer" (menu ⋯) :
-   * - envoie quantity=0 au même endpoint
-   * - retire la ligne/card du DOM
-   */
   async remove(event) {
     event?.preventDefault?.();
 
@@ -136,35 +101,40 @@ export default class extends Controller {
 
     if (!confirm("Supprimer cet article de la liste ?")) return;
 
-    const row = this.findRowForId(id);
-
-    // Désactive les inputs/checkbox de la ligne pendant l'action
-    const checkbox = row?.querySelector('[data-shopping-target="checkbox"]');
-    const qtyInput = row?.querySelector('input[type="number"]');
-    if (checkbox) checkbox.disabled = true;
-    if (qtyInput) qtyInput.disabled = true;
+    // ✅ on désactive ce qu'on peut sur toutes les rows
+    this.findRowsForId(id).forEach((row) => {
+      row.querySelectorAll('[data-shopping-target="checkbox"], input[type="number"]').forEach((el) => {
+        el.disabled = true;
+      });
+    });
 
     try {
       const data = await this.postQuantity(id, "0");
       if (!data?.ok) {
         console.error("remove failed", data);
+        // réactive si échec
+        this.findRowsForId(id).forEach((row) => {
+          row.querySelectorAll('[data-shopping-target="checkbox"], input[type="number"]').forEach((el) => {
+            el.disabled = false;
+          });
+        });
         return;
       }
 
-      if (row) row.remove();
+      this.findRowsForId(id).forEach((row) => row.remove());
     } catch (e) {
       console.error(e);
+      this.findRowsForId(id).forEach((row) => {
+        row.querySelectorAll('[data-shopping-target="checkbox"], input[type="number"]').forEach((el) => {
+          el.disabled = false;
+        });
+      });
     } finally {
       this.refreshValidateButtonState();
       this.refreshCountBadge();
     }
   }
 
-  /**
-   * Valider le caddie :
-   * - POST validateUrl
-   * - si ok : supprime de l'UI les lignes cochées
-   */
   async validateCart(event) {
     event?.preventDefault?.();
 
@@ -186,17 +156,17 @@ export default class extends Controller {
         return;
       }
 
-      // Supprimer toutes les lignes cochées côté UI
-      this.checkboxTargets.forEach((cb) => {
+      const checkboxes = this.hasCheckboxTarget ? [...this.checkboxTargets] : [];
+      const idsToRemove = new Set();
+
+      checkboxes.forEach((cb) => {
         if (!cb.checked) return;
+        const id = cb.dataset.shoppingIdParam || cb.getAttribute("data-shopping-id-param");
+        if (id) idsToRemove.add(id);
+      });
 
-        // On préfère l'API Stimulus (event.params) mais ici on lit le dataset
-        const id =
-          cb.dataset.shoppingIdParam ||
-          cb.getAttribute("data-shopping-id-param");
-
-        const row = id ? this.findRowForId(id) : cb.closest("tr");
-        if (row) row.remove();
+      idsToRemove.forEach((id) => {
+        this.findRowsForId(id).forEach((row) => row.remove());
       });
     } catch (e) {
       console.error(e);
@@ -209,9 +179,22 @@ export default class extends Controller {
 
   // -------- Helpers --------
 
+  findLabelForCheckbox(checkbox) {
+    const next = checkbox.nextElementSibling;
+    if (next && next.matches("label.rp-check-label")) return next;
+
+    const id = checkbox.id;
+    if (id) return this.element.querySelector(`label[for="${CSS.escape(id)}"]`);
+
+    return null;
+  }
+
   buildUrlWithId(templateUrl, id) {
-    // Supporte "/0/" ou "0" dans l'URL
-    return String(templateUrl).replace("/0/", `/${id}/`).replace("0", String(id));
+    const t = String(templateUrl);
+    if (t.includes("/0/")) return t.replace("/0/", `/${id}/`);
+    if (t.endsWith("/0")) return t.replace(/\/0$/, `/${id}`);
+    if (t.includes("0")) return t.replace("0", String(id));
+    return t;
   }
 
   async postQuantity(id, rawQty) {
@@ -231,11 +214,7 @@ export default class extends Controller {
     });
 
     const data = await this.safeJson(res);
-    if (!res.ok) {
-      // on renvoie quand même le payload pour debug
-      return data ?? { ok: false };
-    }
-
+    if (!res.ok) return data ?? { ok: false };
     return data;
   }
 
@@ -245,24 +224,20 @@ export default class extends Controller {
     }
 
     const meta = document.querySelector('meta[name="csrf-token"]');
-    if (meta?.content) {
-      return { "X-CSRF-TOKEN": meta.content };
-    }
+    if (meta?.content) return { "X-CSRF-TOKEN": meta.content };
 
     return {};
   }
 
-  findRowForId(id) {
-    // Support table row ET card (div) : on cherche n'importe quel élément porteur
-    return this.element.querySelector(
-      `[data-shopping-row-id="${CSS.escape(String(id))}"]`
-    );
+  // ✅ retourne toutes les occurrences (mobile + desktop)
+  findRowsForId(id) {
+    const safe = CSS.escape(String(id));
+    return Array.from(this.element.querySelectorAll(`[data-shopping-row-id="${safe}"]`));
   }
 
   refreshValidateButtonState() {
     if (!this.hasValidateBtnTarget) return;
 
-    // Si aucune checkbox (liste vide), bouton disabled
     const anyChecked = this.hasCheckboxTarget
       ? this.checkboxTargets.some((cb) => cb.checked)
       : false;

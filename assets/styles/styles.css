@@ -544,6 +544,213 @@ h2{
 }
 
 /* =========================================================
+   MEALPLAN — week grid (days as cards)
+   ========================================================= */
+
+.rp-week-grid{
+  display: grid;
+  gap: 14px;
+
+  /* mobile first */
+  grid-template-columns: 1fr;
+}
+
+/* 2 colonnes dès sm */
+@media (min-width: 576px){
+  .rp-week-grid{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* 3 colonnes sur tablette */
+@media (min-width: 992px){
+  .rp-week-grid{
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* 4 colonnes sur desktop large */
+@media (min-width: 1200px){
+  .rp-week-grid{
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* Card jour */
+.rp-day-card{
+  border-radius: 18px;
+  border: 1px solid rgba(120,150,120,.20);
+  background: rgba(255,255,255,.78);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.85),
+    0 10px 18px rgba(60,90,60,.10);
+  padding: 12px;
+}
+
+/* Jour passé = opacité (comme tu voulais) */
+.rp-day-card--past{
+  opacity: .55;
+}
+
+/* Aujourd’hui : léger highlight */
+.rp-day-card--today{
+  border-color: rgba(140,185,90,.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.85),
+    0 12px 22px rgba(120,170,80,.16);
+}
+
+/* optionnel : titre plus lisible */
+.rp-day-title{
+  color: rgba(35,45,35,.85);
+}
+
+/* =========================================================
+   MEALPLAN — day header (short date + tiny propose button)
+   ========================================================= */
+
+.rp-day-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.rp-day-date{
+  font-weight: 900;
+  letter-spacing: -.01em;
+  color: rgba(35,45,35,.82);
+  line-height: 1;
+  font-size: 15px;
+}
+
+.rp-day-date--today{
+  color: rgba(35,45,35,.92);
+}
+
+.rp-day-propose-btn{
+  padding: .25rem .55rem !important;
+  border-radius: 999px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+.rp-day-propose-btn i{
+  margin: 0 !important;
+  font-size: 14px;
+}
+
+/* =========================================================
+   MEALPLAN — meal item card (bigger thumb, title wraps, actions below)
+   ========================================================= */
+/* ===== Meal card ===== */
+.rp-meal-card{
+  border: 1px solid rgba(120,150,120,.18);
+  border-radius: 14px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.85);
+  padding: 10px;
+}
+
+/* Zone principale (thumb + titre) */
+.rp-meal-main{
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* Image recette (60x60 desktop + mobile) */
+.rp-meal-thumb{
+  width: 80px;
+  height: 80px;
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+/* Bloc texte */
+.rp-meal-meta{
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.rp-meal-title{
+  font-weight: 800;
+  color: #3b5a32;
+  line-height: 1.15;
+  white-space: normal;     /* autorise retour à la ligne */
+  word-break: break-word;
+  font-size: 1.2rem;
+  padding-top: 1rem;
+}
+
+/* Badge stock insuffisant / etc */
+.rp-meal-badge{
+  display: inline-block;
+  margin-top: 6px;
+}
+
+/* ===== Actions ===== */
+.rp-meal-actions{
+  display: flex;
+  justify-content: flex-end; /* boutons à droite */
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+/* Bouton image */
+.rp-action-btn{
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  line-height: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Thumb d’action (40x40) */
+.rp-action-thumb{
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  display: block;
+  transition: transform .12s ease, filter .12s ease;
+}
+
+/* Feedback interaction */
+.rp-action-btn:hover .rp-action-thumb{
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+.rp-action-btn:active .rp-action-thumb{
+  transform: translateY(0);
+  filter: brightness(.95);
+}
+
+/* Mobile: juste plus d’espace entre les boutons (sans changer les tailles) */
+@media (max-width: 576px){
+  .zone_meal_wrap .rp-card-body{
+    padding: 0rem !important;
+    margin: 0 -1rem;
+  }
+
+  .zone_meal_wrap .swipe-item{
+    overflow: inherit !important;
+  }
+  .rp-meal-actions{
+    gap: 12px;
+    margin-top: 0px;
+  }
+}
+
+
+/* =========================================================
    CHAT — fit remaining viewport inside rp-page
    ========================================================= */
 
@@ -1495,4 +1702,76 @@ input[type="number"] {
   -moz-appearance: textfield;
    text-align: right;
   font-weight: 700;
+}
+/* =========================================================
+   SHOPPING
+   ========================================================= */
+
+/* Cache la checkbox native mais la garde accessible */
+.rp-check {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+}
+
+/* Label cliquable qui affiche l'image */
+.rp-check-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  width: 40px;
+  height: 40px;
+}
+
+.rp-check-label img {
+  width: 40px;
+  height: 40px;
+  display: block;
+}
+
+/* Image grise par défaut */
+.rp-check-label .rp-check-on { display: none; }
+.rp-check-label .rp-check-off { display: block; }
+
+/* Quand checked -> on affiche la coche "active" */
+.rp-check:checked + .rp-check-label .rp-check-on { display: block; }
+.rp-check:checked + .rp-check-label .rp-check-off { display: none; }
+
+/* Focus clavier visible */
+.rp-check:focus-visible + .rp-check-label {
+  outline: 2px solid rgba(13,110,253,.6);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* Lock pendant requête */
+.rp-check-label.is-loading {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* ===== Etat "coché" : MOBILE cards ===== */
+.d-md-none .swipe-item.is-checked {
+  opacity: 0.5;
+}
+
+/* ===== Etat "coché" : DESKTOP table ===== */
+/* plus spécifique pour gagner vs .rp-page .table tbody tr{ background... } */
+.rp-page .table tbody tr.is-checked > td {
+  opacity: 0.5;
+}
+
+/* garder l'opacité même au hover */
+.rp-page .table.table-hover tbody tr.is-checked:hover > td {
+  opacity: 0.5;
+}
+
+/* optionnel: garder le bouton supprimer bien lisible */
+.rp-page .table tbody tr.is-checked > td .btn,
+.d-md-none .swipe-item.is-checked .btn {
+  opacity: 1;
 }

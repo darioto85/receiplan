@@ -38,12 +38,10 @@
       </div>
     </div>
 
-
     <div class="rp-section-title mb-3">
       <h2 class="mb-0">Liste</h2>
       <span class="badge bg-primary rp-count-badge">{{ items|length }}</span>
     </div>
-    
 
     {% if items is empty %}
       <div class="text-center text-muted py-4">
@@ -57,9 +55,10 @@
           {% set checked = item.checked is defined and item.checked %}
           {% set ing = item.ingredient %}
           {% set unit = (ing and ing.unit) ? ing.unit.value : '' %}
+          {% set cbId = 'shopping_cb_m_' ~ item.id %}
 
           <div
-            class="swipe-item {{ checked ? 'opacity-50' : '' }} {% if loop.first %}swipe-hint{% endif %}"
+            class="swipe-item {{ checked ? 'is-checked' : '' }} {% if loop.first %}swipe-hint{% endif %}"
             data-shopping-row-id="{{ item.id }}"
             data-controller="swipe-reveal"
             data-swipe-reveal-open-class-value="is-revealed"
@@ -81,14 +80,19 @@
               <div class="d-flex align-items-center justify-content-between gap-2">
                 <div class="d-flex align-items-center gap-2 flex-grow-1" style="min-width:0;">
                   <input
+                    id="{{ cbId }}"
                     type="checkbox"
-                    class="form-check-input m-0"
+                    class="rp-check"
                     data-shopping-target="checkbox"
                     data-action="change->shopping#toggle"
                     data-shopping-id-param="{{ item.id }}"
                     {% if checked %}checked{% endif %}
                     aria-label="Cocher l’article"
                   >
+                  <label for="{{ cbId }}" class="rp-check-label" title="Cocher">
+                    <img class="rp-check-off" src="{{ asset('img/actions/coche_gris.png') }}" alt="">
+                    <img class="rp-check-on"  src="{{ asset('img/actions/coche.png') }}" alt="">
+                  </label>
 
                   <img
                     src="{{ ingredient_image(ing) }}"
@@ -144,17 +148,24 @@
             {% for item in items %}
               {% set checked = item.checked is defined and item.checked %}
               {% set ing = item.ingredient %}
+              {% set cbId = 'shopping_cb_d_' ~ item.id %}
 
-              <tr data-shopping-row-id="{{ item.id }}" class="{{ checked ? 'opacity-50' : '' }}">
+              <tr data-shopping-row-id="{{ item.id }}" class="{{ checked ? 'is-checked' : '' }}">
                 <td>
                   <input
+                    id="{{ cbId }}"
                     type="checkbox"
-                    class="form-check-input"
+                    class="rp-check"
                     data-shopping-target="checkbox"
                     data-action="change->shopping#toggle"
                     data-shopping-id-param="{{ item.id }}"
                     {% if checked %}checked{% endif %}
+                    aria-label="Cocher l’article"
                   >
+                  <label for="{{ cbId }}" class="rp-check-label" title="Cocher">
+                    <img class="rp-check-off" src="{{ asset('img/actions/coche_gris.png') }}" alt="">
+                    <img class="rp-check-on"  src="{{ asset('img/actions/coche.png') }}" alt="">
+                  </label>
                 </td>
 
                 <td>
@@ -207,6 +218,5 @@
       </div>
 
     {% endif %}
-      
   </div>
 {% endblock %}

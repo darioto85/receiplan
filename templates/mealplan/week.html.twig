@@ -26,7 +26,8 @@
   </div>
 
   <div class="card-body rp-card-body">
-    <div class="list-group list-group-flush">
+    {# ✅ Grille de jours (1 card = 1 jour) #}
+    <div class="rp-week-grid">
       {% for i in 0..6 %}
         {% set day = weekStart|date_modify("+" ~ i ~ " days") %}
         {% set dayKey = day|date('Y-m-d') %}
@@ -34,75 +35,60 @@
         {% set isPast = day < today %}
         {% set meals = planningByDate[dayKey] ?? [] %}
 
-        {% set dayClasses = [
-          'list-group-item',
-          isPast ? 'rp-day-past' : '',
-          isToday ? 'rp-day-today' : ''
+        {# classes globales de la card jour #}
+        {% set dayCardClasses = [
+          'rp-day-card',
+          isPast ? 'rp-day-card--past' : '',
+          isToday ? 'rp-day-card--today' : ''
         ]|filter(v => v != '')|join(' ') %}
 
-        <div
-          class="{{ dayClasses }}"
-          data-controller="day-propose"
-          data-day-propose-url-value="{{ path('meal_plan_propose_ajax') }}"
-          data-day-propose-date-value="{{ dayKey }}"
-          data-day-propose-csrf-value="{{ csrf_token('mealplan_propose') }}"
-          data-day-key="{{ dayKey }}"
-
-          {# ✅ IMPORTANT pour insertion AJAX (nouveau repas) #}
-          data-day="{{ dayKey }}"
-        >
-          <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="{{ dayCardClasses }}">
+          {# ✅ On garde TON wrapper day (data-* identiques) #}
+          <div
+            data-controller="day-propose"
+            data-day-propose-url-value="{{ path('meal_plan_propose_ajax') }}"
+            data-day-propose-date-value="{{ dayKey }}"
+            data-day-propose-csrf-value="{{ csrf_token('mealplan_propose') }}"
+            data-day-key="{{ dayKey }}"
+            data-day="{{ dayKey }}"
+          >
+            {# ✅ Header du jour (date courte + bouton proposer petit) #}
             <div class="rp-day-head">
-              <div class="rp-day-chip" aria-hidden="true">
-                <i class="fa-regular fa-calendar"></i>
-                <span class="rp-day-num">{{ day|date('d') }}</span>
-                <span class="rp-day-month">{{ day|date('M') }}</span>
+              <div class="rp-day-date {{ isToday ? 'rp-day-date--today' : '' }}">
+                {{ day|date('D d') }}
               </div>
 
-              <div class="rp-day-meta">
-                <div class="rp-day-name">{{ day|date('l') }}</div>
-                <div class="rp-day-date">{{ day|date('d/m') }}</div>
-              </div>
-
-              {% if isToday %}
-                <span class="rp-today-pill">Aujourd’hui</span>
-              {% endif %}
-            </div>
-
-            <div class="d-flex align-items-center gap-2">
               <button
                 type="button"
-                class="btn btn-sm btn-outline-primary"
+                class="btn btn-outline-primary btn-sm rp-day-propose-btn"
                 title="Proposer un repas pour ce jour"
                 data-action="day-propose#propose"
                 data-day-propose-target="button"
               >
-                <i class="fa-solid fa-wand-magic-sparkles me-2"></i> Proposer
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
               </button>
             </div>
-          </div>
 
-          {# ✅ IMPORTANT: .meal-list pour que le JS puisse faire:
-             document.querySelector(`[data-day="${dateStr}"] .meal-list`)
-          #}
-          <div class="d-flex flex-column gap-2 meal-list" data-day-propose-target="meals">
-            {% if meals is empty %}
-              <div class="text-body-secondary small fst-italic" data-day-propose-target="empty">
-                Aucun repas planifié
-              </div>
-            {% else %}
-              {% for meal in meals %}
-                {# ✅ safe: recipe peut être null si supprimée #}
-                {% set recipeId = meal.recipe ? meal.recipe.id : null %}
-                {% set ok = recipeId ? (feasibleByRecipeId[recipeId] ?? true) : true %}
+            {# ✅ Ton contenu intérieur inchangé #}
+            <div class="d-flex flex-column gap-2 meal-list" data-day-propose-target="meals">
+              {% if meals is empty %}
+                <div class="text-body-secondary small fst-italic" data-day-propose-target="empty">
+                  Aucun repas planifié
+                </div>
+              {% else %}
+                {% for meal in meals %}
+                  {# ✅ safe: recipe peut être null si supprimée #}
+                  {% set recipeId = meal.recipe ? meal.recipe.id : null %}
+                  {% set ok = recipeId ? (feasibleByRecipeId[recipeId] ?? true) : true %}
 
-                {{ include('mealplan/_meal_item.html.twig', {
-                  meal: meal,
-                  is_feasible: ok,
-                  swipe_hint: (isToday and hintMealId is not null and meal.id == hintMealId)
-                }) }}
-              {% endfor %}
-            {% endif %}
+                  {{ include('mealplan/_meal_item.html.twig', {
+                    meal: meal,
+                    is_feasible: ok,
+                    swipe_hint: (isToday and hintMealId is not null and meal.id == hintMealId)
+                  }) }}
+                {% endfor %}
+              {% endif %}
+            </div>
           </div>
         </div>
       {% endfor %}

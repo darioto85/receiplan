@@ -4,11 +4,6 @@
 {% set recipe = meal.recipe %}
 {% set recipeImg = recipe ? recipe_image(recipe) : null %}
 
-{# ✅ IMPORTANT:
-   - 1 seul root
-   - root porte data-meal-id
-   - le HTML renvoyé en AJAX est donc remplaçable/inserable facilement
-#}
 <div data-meal-id="{{ meal.id }}">
   {# =========================
      MOBILE (swipe enabled)
@@ -19,77 +14,111 @@
       data-controller="swipe-reveal"
       data-swipe-reveal-open-class-value="is-revealed"
     >
-      {# Actions révélées au swipe : uniquement si non validé #}
       {% if not meal.validated %}
         <div class="swipe-actions">
           <button
             type="button"
-            class="btn btn-sm btn-outline-danger rp-icon-btn swipe-trash"
-            title="Supprimer"
-            aria-label="Supprimer"
+            class="rp-action-btn swipe-trash"
             data-controller="meal-delete"
             data-meal-delete-url-value="{{ path('meal_plan_delete_ajax', { id: meal.id }) }}"
             data-meal-delete-csrf-value="{{ csrf_token('mealplan_update_' ~ meal.id) }}"
-            data-meal-delete-target="button"
             data-action="meal-delete#remove"
+            title="Supprimer le repas"
+            aria-label="Supprimer le repas"
           >
-            <i class="fa-solid fa-trash"></i>
+            <img
+              src="{{ asset('img/actions/delete.png') }}"
+              alt="Supprimer"
+              class="rp-action-thumb"
+            >
           </button>
         </div>
+
       {% endif %}
 
-      <div class="swipe-content border rounded px-3 py-2">
-        <div class="d-flex align-items-start justify-content-between gap-3">
+      <div class="swipe-content border rounded rp-meal-card">
+        <div class="rp-meal-row"
+             data-controller="meal-plan"
+             data-meal-plan-url-validate-value="{{ path('recipe_validate', { id: meal.id }) }}"
+             data-meal-plan-url-cancel-value="{{ path('recipe_cancel', { id: meal.id }) }}"
+             data-meal-plan-csrf-value="{{ csrf_token('mealplan_update_' ~ meal.id) }}">
 
-          <div class="d-flex align-items-start gap-2 flex-grow-1" style="min-width:0;">
+          {# ✅ IMAGE À GAUCHE / TEXTE À DROITE #}
+          <div class="rp-meal-main">
             {% if recipe and recipeImg %}
               <img
                 src="{{ recipeImg }}"
                 alt="{{ recipe.name }}"
-                width="28"
-                height="28"
+                class="rp-meal-thumb"
                 loading="lazy"
                 decoding="async"
-                style="object-fit: contain; border-radius: 8px; background:#fff;"
               >
             {% endif %}
 
-            <div class="d-flex flex-column" style="min-width:0;">
-              <div class="fw-semibold text-truncate">
+            <div class="rp-meal-meta">
+              <div class="rp-meal-title">
                 {{ recipe ? recipe.name : 'Recette supprimée' }}
-                {% if recipe and not meal.validated and not ok %}
-                  <span class="badge text-bg-warning ms-2">Stock insuffisant</span>
-                {% endif %}
               </div>
+
+              {% if recipe and not meal.validated and not ok %}
+                <span class="badge text-bg-warning mt-1">Stock insuffisant</span>
+              {% endif %}
             </div>
           </div>
 
-          <div class="text-end d-flex align-items-center gap-2 flex-shrink-0"
-               data-controller="meal-plan"
-               data-meal-plan-url-validate-value="{{ path('recipe_validate', { id: meal.id }) }}"
-               data-meal-plan-url-cancel-value="{{ path('recipe_cancel', { id: meal.id }) }}"
-               data-meal-plan-csrf-value="{{ csrf_token('mealplan_update_' ~ meal.id) }}">
-
+          {# Actions en dessous (mobile) #}
+          <div class="rp-meal-actions">
             {% if meal.validated %}
-              <span class="badge text-bg-success">Validé</span>
-              <button type="button" class="btn btn-sm btn-outline-danger ms-2 rp-icon-btn" data-action="meal-plan#cancel">
-                <i class="fa-solid fa-arrow-rotate-left"></i>
+              {# Repas validé → image + action annuler #}
+              <button
+                type="button"
+                class="rp-action-btn"
+                data-action="meal-plan#cancel"
+                title="Annuler la validation"
+                aria-label="Annuler la validation"
+              >
+                <img
+                  src="{{ asset('img/actions/recette_valide.png') }}"
+                  alt="Repas validé"
+                  class="rp-action-thumb"
+                >
               </button>
             {% else %}
-              <button type="button" class="btn btn-sm btn-outline-success" data-action="meal-plan#validate">
-                Valider
+              {# Valider #}
+              <button
+                type="button"
+                class="rp-action-btn"
+                data-action="meal-plan#validate"
+                title="Valider le repas"
+                aria-label="Valider le repas"
+              >
+                <img
+                  src="{{ asset('img/actions/recette_nonvalide.png') }}"
+                  alt="Valider le repas"
+                  class="rp-action-thumb"
+                >
               </button>
 
-              <button type="button"
-                      class="btn btn-sm btn-outline-secondary rp-icon-btn"
-                      data-controller="meal-refresh"
-                      data-meal-refresh-url-value="{{ path('meal_plan_refresh_ajax', { id: meal.id }) }}"
-                      data-meal-refresh-csrf-value="{{ csrf_token('mealplan_update_' ~ meal.id) }}"
-                      data-action="meal-refresh#refresh">
-                <i class="fa-solid fa-arrows-rotate"></i>
+              {# Refresh #}
+              <button
+                type="button"
+                class="rp-action-btn"
+                data-controller="meal-refresh"
+                data-meal-refresh-url-value="{{ path('meal_plan_refresh_ajax', { id: meal.id }) }}"
+                data-meal-refresh-csrf-value="{{ csrf_token('mealplan_update_' ~ meal.id) }}"
+                data-action="meal-refresh#refresh"
+                title="Changer la recette"
+                aria-label="Changer la recette"
+              >
+                <img
+                  src="{{ asset('img/actions/actualiser.png') }}"
+                  alt="Actualiser"
+                  class="rp-action-thumb"
+                >
               </button>
             {% endif %}
           </div>
+
 
         </div>
       </div>
@@ -97,71 +126,109 @@
   </div>
 
   {# =========================
-     DESKTOP (no swipe)
+     DESKTOP (même layout)
      ========================= #}
   <div class="d-none d-md-block">
-    <div class="d-flex align-items-start justify-content-between gap-3 border rounded px-3 py-2">
-
-      <div class="d-flex align-items-start gap-2 flex-grow-1" style="min-width:0;">
-        {% if recipe and recipeImg %}
-          <img
-            src="{{ recipeImg }}"
-            alt="{{ recipe.name }}"
-            width="28"
-            height="28"
-            loading="lazy"
-            decoding="async"
-            style="object-fit: contain; border-radius: 8px; background:#fff;"
-          >
-        {% endif %}
-
-        <div class="d-flex flex-column" style="min-width:0;">
-          <div class="fw-semibold text-truncate">
-            {{ recipe ? recipe.name : 'Recette supprimée' }}
-            {% if recipe and not meal.validated and not ok %}
-              <span class="badge text-bg-warning ms-2">Stock insuffisant</span>
-            {% endif %}
-          </div>
-        </div>
-      </div>
-
-      <div class="text-end d-flex align-items-center gap-2 flex-shrink-0"
+    <div class="border rounded rp-meal-card">
+      <div class="rp-meal-row"
            data-controller="meal-plan"
            data-meal-plan-url-validate-value="{{ path('recipe_validate', { id: meal.id }) }}"
            data-meal-plan-url-cancel-value="{{ path('recipe_cancel', { id: meal.id }) }}"
            data-meal-plan-csrf-value="{{ csrf_token('mealplan_update_' ~ meal.id) }}">
 
-        {% if meal.validated %}
-          <span class="badge text-bg-success">Validé</span>
-          <button type="button" class="btn btn-sm btn-outline-danger ms-2 rp-icon-btn" data-action="meal-plan#cancel">
-            <i class="fa-solid fa-arrow-rotate-left"></i>
-          </button>
-        {% else %}
-          <button type="button" class="btn btn-sm btn-outline-success" data-action="meal-plan#validate">
-            Valider
-          </button>
+        <div class="rp-meal-main">
+          {% if recipe and recipeImg %}
+            <img
+              src="{{ recipeImg }}"
+              alt="{{ recipe.name }}"
+              class="rp-meal-thumb"
+              loading="lazy"
+              decoding="async"
+            >
+          {% endif %}
 
-          <button type="button"
-                  class="btn btn-sm btn-outline-secondary rp-icon-btn"
-                  data-controller="meal-refresh"
-                  data-meal-refresh-url-value="{{ path('meal_plan_refresh_ajax', { id: meal.id }) }}"
-                  data-meal-refresh-csrf-value="{{ csrf_token('mealplan_update_' ~ meal.id) }}"
-                  data-action="meal-refresh#refresh">
-            <i class="fa-solid fa-arrows-rotate"></i>
-          </button>
+          <div class="rp-meal-meta">
+            <div class="rp-meal-title">
+              {{ recipe ? recipe.name : 'Recette supprimée' }}
+            </div>
 
-          <button type="button"
-                  class="btn btn-sm btn-outline-danger rp-icon-btn"
-                  title="Supprimer"
-                  aria-label="Supprimer"
-                  data-controller="meal-delete"
-                  data-meal-delete-url-value="{{ path('meal_plan_delete_ajax', { id: meal.id }) }}"
-                  data-meal-delete-csrf-value="{{ csrf_token('mealplan_update_' ~ meal.id) }}"
-                  data-meal-delete-target="button"
-                  data-action="meal-delete#remove">
-            <i class="fa-solid fa-trash"></i>
-          </button>
-        {% endif %}
+            {% if recipe and not meal.validated and not ok %}
+              <span class="badge text-bg-warning mt-1">Stock insuffisant</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="rp-meal-actions">
+          {% if meal.validated %}
+            {# Annuler validation #}
+            <button
+              type="button"
+              class="rp-action-btn"
+              data-action="meal-plan#cancel"
+              title="Annuler la validation"
+              aria-label="Annuler la validation"
+            >
+              <img
+                src="{{ asset('img/actions/recette_valide.png') }}"
+                alt="Repas validé"
+                class="rp-action-thumb"
+              >
+            </button>
+          {% else %}
+            {# Valider #}
+            <button
+              type="button"
+              class="rp-action-btn"
+              data-action="meal-plan#validate"
+              title="Valider le repas"
+              aria-label="Valider le repas"
+            >
+              <img
+                src="{{ asset('img/actions/recette_nonvalide.png') }}"
+                alt="Valider le repas"
+                class="rp-action-thumb"
+              >
+            </button>
+
+            {# Refresh #}
+            <button
+              type="button"
+              class="rp-action-btn"
+              data-controller="meal-refresh"
+              data-meal-refresh-url-value="{{ path('meal_plan_refresh_ajax', { id: meal.id }) }}"
+              data-meal-refresh-csrf-value="{{ csrf_token('mealplan_update_' ~ meal.id) }}"
+              data-action="meal-refresh#refresh"
+              title="Changer la recette"
+              aria-label="Changer la recette"
+            >
+              <img
+                src="{{ asset('img/actions/actualiser.png') }}"
+                alt="Actualiser"
+                class="rp-action-thumb"
+              >
+            </button>
+
+            {# Delete #}
+            <button
+              type="button"
+              class="rp-action-btn"
+              data-controller="meal-delete"
+              data-meal-delete-url-value="{{ path('meal_plan_delete_ajax', { id: meal.id }) }}"
+              data-meal-delete-csrf-value="{{ csrf_token('mealplan_update_' ~ meal.id) }}"
+              data-action="meal-delete#remove"
+              title="Supprimer le repas"
+              aria-label="Supprimer le repas"
+            >
+              <img
+                src="{{ asset('img/actions/delete.png') }}"
+                alt="Supprimer"
+                class="rp-action-thumb"
+              >
+            </button>
+          {% endif %}
+        </div>
+
+
       </div>
     </div>
   </div>
