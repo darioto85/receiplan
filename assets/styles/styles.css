@@ -1423,7 +1423,7 @@ h2{
   z-index: 1030;
 
   width: min(560px, calc(100% - 24px));
-  padding: 8px;
+  padding: 0px;
 
   display: flex;
   align-items: stretch;
@@ -1460,7 +1460,7 @@ h2{
   justify-content: center;
   gap: 6px;
 
-  padding: 10px 6px;
+  padding: 3px 6px;
   border-radius: 22px;
 
   position: relative;
@@ -1532,6 +1532,12 @@ h2{
   outline: none;
   box-shadow: 0 0 0 3px rgba(150,200,100,.35);
   border-radius: 999px;
+}
+
+.rp-bottom-nav .rp-nav-action-thumb{
+  width: 40px;
+  width: 50px;
+  margin-bottom: -8px;
 }
 
 /* =========================================================

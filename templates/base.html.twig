@@ -149,31 +149,31 @@
     <nav class="rp-bottom-nav d-lg-none" aria-label="Navigation principale">
       <a href="{{ path('meal_plan_index') }}"
          class="rp-tab {{ app.request.attributes.get('_route') starts with 'meal_plan' ? 'is-active' : '' }}">
-        <i class="fa-solid fa-calendar-days"></i>
+        <img class="rp-nav-action-thumb" src="{{ asset('img/actions/planning.png') }}" alt="">
         <span>Planning</span>
       </a>
 
       <a href="{{ path('stock_index') }}"
          class="rp-tab {{ app.request.attributes.get('_route') starts with 'stock_' ? 'is-active' : '' }}">
-        <i class="fa-solid fa-basket-shopping"></i>
+        <img class="rp-nav-action-thumb" src="{{ asset('img/actions/stock.png') }}" alt="">
         <span>Stock</span>
       </a>
 
       <a href="{{ path('app_recipe_index') }}"
          class="rp-tab {{ app.request.attributes.get('_route') starts with 'app_recipe' ? 'is-active' : '' }}">
-        <i class="fa-solid fa-book-open"></i>
+        <img class="rp-nav-action-thumb" src="{{ asset('img/actions/recettes.png') }}" alt="">
         <span>Recettes</span>
       </a>
 
       <a href="{{ path('shopping_index') }}"
          class="rp-tab {{ app.request.attributes.get('_route') starts with 'shopping' ? 'is-active' : '' }}">
-        <i class="fa-solid fa-clipboard-list"></i>
+        <img class="rp-nav-action-thumb" src="{{ asset('img/actions/courses.png') }}" alt="">
         <span>Courses</span>
       </a>
 
       <a href="{{ path('assistant') }}"
          class="rp-tab rp-tab-assistant {{ app.request.attributes.get('_route') starts with 'assistant' ? 'is-active' : '' }}">
-        <i class="fa-solid fa-wand-magic-sparkles"></i>
+        <img class="rp-nav-action-thumb" src="{{ asset('img/actions/baguette.png') }}" alt="">
         <span>Assistant</span>
       </a>
     </nav>
