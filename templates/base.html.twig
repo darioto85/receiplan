@@ -2,7 +2,7 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8">
-    <title>{% block title %}Receiplan{% endblock %}</title>
+    <title>{% block title %}KuKo{% endblock %}</title>
 
     <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -40,8 +40,8 @@
 
           {# Brand #}
           <a href="{{ path('meal_plan_index') }}" class="rp-brand d-flex align-items-center gap-2 text-decoration-none">
-            <span class="rp-brand-mark" aria-hidden="true">🍽️</span>
-            <span class="rp-brand-name">Receiplan</span>
+            <img class="rp-brand-mark" src="{{ asset('img/logo.png') }}" alt="">
+            <span class="rp-brand-name">Kuko</span>
           </a>
 
           {# Desktop nav #}
@@ -50,7 +50,7 @@
               href="{{ path('meal_plan_index') }}"
               class="rp-topnav-link {{ app.request.attributes.get('_route') starts with 'meal_plan' ? 'is-active' : '' }}"
             >
-              <i class="fa-solid fa-calendar-days me-2"></i>
+              <img class="rp-top-nav-action-thumb" src="{{ asset('img/actions/planning.png') }}" alt="">
               Planning
             </a>
 
@@ -58,7 +58,7 @@
               href="{{ path('stock_index') }}"
               class="rp-topnav-link {{ app.request.attributes.get('_route') starts with 'stock_' ? 'is-active' : '' }}"
             >
-              <i class="fa-solid fa-basket-shopping me-2"></i>
+              <img class="rp-top-nav-action-thumb" src="{{ asset('img/actions/stock.png') }}" alt="">
               Stock
             </a>
 
@@ -66,7 +66,7 @@
               href="{{ path('app_recipe_index') }}"
               class="rp-topnav-link {{ app.request.attributes.get('_route') starts with 'app_recipe' ? 'is-active' : '' }}"
             >
-              <i class="fa-solid fa-book-open me-2"></i>
+              <img class="rp-top-nav-action-thumb" src="{{ asset('img/actions/recettes.png') }}" alt="">
               Recettes
             </a>
 
@@ -74,7 +74,7 @@
               href="{{ path('shopping_index') }}"
               class="rp-topnav-link {{ app.request.attributes.get('_route') starts with 'shopping_' ? 'is-active' : '' }}"
             >
-              <i class="fa-solid fa-clipboard-list me-2"></i>
+              <img class="rp-top-nav-action-thumb" src="{{ asset('img/actions/courses.png') }}" alt="">
               Courses
             </a>
 
@@ -82,7 +82,7 @@
               href="{{ path('assistant') }}"
               class="rp-topnav-link rp-topnav-link-assistant {{ app.request.attributes.get('_route') starts with 'assistant' ? 'is-active' : '' }}"
             >
-              <i class="fa-solid fa-wand-magic-sparkles me-2"></i>
+              <img class="rp-top-nav-action-thumb" src="{{ asset('img/actions/assistant.png') }}" alt="">
               Assistant
             </a>
           </nav>

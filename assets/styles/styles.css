@@ -227,14 +227,19 @@ h2{
 
 .rp-brand-name{
   font-weight: 800;
-  font-size: 1.35rem;
+  font-size: 2rem;
   color: #3b5a32;
 }
 
 .rp-brand-mark{
-  font-size: 1.6rem;
-}
+    width: 80px;
+    height: 80px;
+  }
 
+.rp-title-thumb{
+  width: 45px;
+  height: 45px;
+}
 .rp-topnav-link{
   display: inline-flex;
   align-items: center;
@@ -265,6 +270,10 @@ h2{
   font-weight: 700;
 
   text-shadow: 0 1px 0 rgba(0,0,0,.25);
+}
+.rp-top-nav-action-thumb{
+  width: 30px;
+  height: 30px;
 }
 
 .rp-header-cta{
@@ -1625,10 +1634,11 @@ h2{
     font-size: .9rem !important;
   }
   .rp-brand-name{
-    font-size: 1.18rem !important;
+    font-size: 1.6rem !important;
   }
   .rp-brand-mark{
-    font-size: 1.35rem !important;
+    width: 60px;
+    height: 60px;
   }
 
   /* Section title + badge : resserrer */
