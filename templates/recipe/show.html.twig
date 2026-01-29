@@ -9,7 +9,7 @@
     {# Retour: history(-1) pour pouvoir venir d'autres pages #}
     <button
       type="button"
-      class="btn btn-outline-secondary rp-icon-btn"
+      class="btn btn-outline-primary rp-icon-btn"
       onclick="history.back()"
       aria-label="Retour"
       title="Retour"
@@ -20,11 +20,15 @@
     <div class="d-flex gap-2">
       <a
         href="{{ path('app_recipe_edit', { id: recipe.id }) }}"
-        class="btn btn-outline-primary rp-icon-btn"
+        class="rp-action-btn"
         aria-label="Modifier la recette"
         title="Modifier"
       >
-        <i class="fa-solid fa-pen"></i>
+        <img
+          src="{{ asset('img/actions/modifier.png') }}"
+          alt=""
+          class="rp-action-thumb"
+        >
       </a>
 
       {# delete form inline #}

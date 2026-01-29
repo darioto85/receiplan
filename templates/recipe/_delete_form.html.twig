@@ -9,7 +9,11 @@
     name="_token"
     value="{{ csrf_token('delete' ~ recipe.id) }}"
   >
-  <button class="btn btn-sm btn-outline-danger rp-icon-btn">
-    <i class="fa-solid fa-trash"></i>
+  <button class="rp-action-btn">
+    <img
+      src="{{ asset('img/actions/delete.png') }}"
+      alt=""
+      class="rp-action-thumb"
+    >
   </button>
 </form>

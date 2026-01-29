@@ -33,7 +33,6 @@
             >
           </button>
         </div>
-
       {% endif %}
 
       <div class="swipe-content border rounded rp-meal-card">
@@ -43,7 +42,6 @@
              data-meal-plan-url-cancel-value="{{ path('recipe_cancel', { id: meal.id }) }}"
              data-meal-plan-csrf-value="{{ csrf_token('mealplan_update_' ~ meal.id) }}">
 
-          {# ✅ IMAGE À GAUCHE / TEXTE À DROITE #}
           <div class="rp-meal-main">
             {% if recipe and recipeImg %}
               <img
@@ -66,10 +64,8 @@
             </div>
           </div>
 
-          {# Actions en dessous (mobile) #}
           <div class="rp-meal-actions">
             {% if meal.validated %}
-              {# Repas validé → image + action annuler #}
               <button
                 type="button"
                 class="rp-action-btn"
@@ -84,7 +80,6 @@
                 >
               </button>
             {% else %}
-              {# Valider #}
               <button
                 type="button"
                 class="rp-action-btn"
@@ -99,7 +94,6 @@
                 >
               </button>
 
-              {# Refresh #}
               <button
                 type="button"
                 class="rp-action-btn"
@@ -119,17 +113,37 @@
             {% endif %}
           </div>
 
-
         </div>
       </div>
     </div>
   </div>
 
   {# =========================
-     DESKTOP (même layout)
+     DESKTOP
      ========================= #}
   <div class="d-none d-md-block">
-    <div class="border rounded rp-meal-card">
+    {# IMPORTANT: wrapper position:relative + class "rp-meal-card--desktop" #}
+    <div class="border rounded rp-meal-card rp-meal-card--desktop">
+      {% if not meal.validated %}
+        {# Delete overlay (desktop only, show on hover) #}
+        <button
+          type="button"
+          class="rp-action-btn rp-meal-delete"
+          data-controller="meal-delete"
+          data-meal-delete-url-value="{{ path('meal_plan_delete_ajax', { id: meal.id }) }}"
+          data-meal-delete-csrf-value="{{ csrf_token('mealplan_update_' ~ meal.id) }}"
+          data-action="meal-delete#remove"
+          title="Supprimer le repas"
+          aria-label="Supprimer le repas"
+        >
+          <img
+            src="{{ asset('img/actions/delete.png') }}"
+            alt=""
+            class="rp-action-thumb rp-action-thumb--delete"
+          >
+        </button>
+      {% endif %}
+
       <div class="rp-meal-row"
            data-controller="meal-plan"
            data-meal-plan-url-validate-value="{{ path('recipe_validate', { id: meal.id }) }}"
@@ -158,9 +172,9 @@
           </div>
         </div>
 
+        {# Actions desktop (sans delete ici) #}
         <div class="rp-meal-actions">
           {% if meal.validated %}
-            {# Annuler validation #}
             <button
               type="button"
               class="rp-action-btn"
@@ -175,7 +189,6 @@
               >
             </button>
           {% else %}
-            {# Valider #}
             <button
               type="button"
               class="rp-action-btn"
@@ -190,7 +203,6 @@
               >
             </button>
 
-            {# Refresh #}
             <button
               type="button"
               class="rp-action-btn"
@@ -207,27 +219,8 @@
                 class="rp-action-thumb"
               >
             </button>
-
-            {# Delete #}
-            <button
-              type="button"
-              class="rp-action-btn"
-              data-controller="meal-delete"
-              data-meal-delete-url-value="{{ path('meal_plan_delete_ajax', { id: meal.id }) }}"
-              data-meal-delete-csrf-value="{{ csrf_token('mealplan_update_' ~ meal.id) }}"
-              data-action="meal-delete#remove"
-              title="Supprimer le repas"
-              aria-label="Supprimer le repas"
-            >
-              <img
-                src="{{ asset('img/actions/delete.png') }}"
-                alt="Supprimer"
-                class="rp-action-thumb"
-              >
-            </button>
           {% endif %}
         </div>
-
 
       </div>
     </div>

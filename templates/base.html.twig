@@ -92,18 +92,23 @@
             {# CTA contextual (optionnel): tu peux remplacer par un block Twig par page #}
             {% block header_cta %}{% endblock %}
 
-            <a href="{{ path('account_index') }}"
-              class="btn btn-sm btn-outline-primary rp-header-cta">
-              <i class="fa-solid fa-user me-2"></i>
-              Mon compte
+            <a href="{{ path('account_index') }}">
+              <img
+                src="{{ asset('img/actions/account.png') }}"
+                alt=""
+                class="rp-action-thumb"
+              >
             </a>
           </div>
 
           {# Mobile: right side (optional quick action) #}
           <div class="d-lg-none d-flex align-items-center gap-2">
-            <a href="{{ path('account_index') }}"
-              class="btn btn-sm btn-outline-primary">
-              <i class="fa-solid fa-user"></i>
+            <a href="{{ path('account_index') }}">
+              <img
+                src="{{ asset('img/actions/account.png') }}"
+                alt=""
+                class="rp-action-thumb"
+              >
             </a>
           </div>
 

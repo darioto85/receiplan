@@ -17,7 +17,7 @@
         aria-expanded="{{ form.vars.submitted ? 'true' : 'false' }}"
         aria-controls="stockUpsertForm"
       >
-        <i class="fa-solid fa-plus"></i>
+        <img class="bt-action-thumb" src="{{ asset('img/actions/stock_add.png') }}" alt="">
         <span class="d-none d-sm-inline">Ajouter manuellement</span>
         <span class="d-inline d-sm-none">Manuel</span>
       </button>
@@ -25,7 +25,7 @@
       {# 3) Ajouter via l’assistant #}
       <a href="{{ path('assistant') }}"
          class="btn btn-outline-primary d-flex align-items-center gap-2">
-        <i class="fa-solid fa-microphone"></i>
+        <img class="bt-action-thumb" src="{{ asset('img/actions/micro.png') }}" alt="">
         <span class="d-none d-sm-inline">Ajouter via l’assistant</span>
         <span class="d-inline d-sm-none">Assistant</span>
       </a>

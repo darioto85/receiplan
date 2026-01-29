@@ -152,6 +152,10 @@ body{
     0 0 0 3px rgba(220,150,150,.45),
     0 3px 8px rgba(120,60,60,.25);
 }
+.bt-action-thumb{
+  width: 30px;
+  height: 30px;
+}
 
 .card-header {
   background: linear-gradient(180deg, #a6d27b, #8fbf61);
@@ -603,7 +607,7 @@ h2{
 
 /* Aujourd’hui : léger highlight */
 .rp-day-card--today{
-  border-color: rgba(140,185,90,.45);
+  border: 2px solid rgba(140,185,90,1);
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.85),
     0 12px 22px rgba(120,170,80,.16);
@@ -653,6 +657,7 @@ h2{
 /* =========================================================
    MEALPLAN — meal item card (bigger thumb, title wraps, actions below)
    ========================================================= */
+
 /* ===== Meal card ===== */
 .rp-meal-card{
   border: 1px solid rgba(120,150,120,.18);
@@ -756,6 +761,50 @@ h2{
     gap: 12px;
     margin-top: 0px;
   }
+}
+
+/* =========================================================
+   DESKTOP — Delete button overlay (top-right, only on hover)
+   ========================================================= */
+
+/* Le wrapper desktop doit être positionné */
+.rp-meal-card--desktop{
+  position: relative;
+}
+
+/* Bouton delete overlay */
+.rp-meal-delete{
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  z-index: 5;
+
+  /* caché par défaut */
+  opacity: 0;
+  transform: translateY(-2px) scale(0.98);
+  pointer-events: none;
+
+  transition: opacity .15s ease, transform .15s ease;
+}
+
+/* Taille un peu plus petite que les grosses actions */
+.rp-action-thumb--delete{
+  width: 44px;
+  height: 44px;
+}
+
+/* Affiche au hover de la carte uniquement */
+.rp-meal-card--desktop:hover .rp-meal-delete{
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+/* Aussi au focus clavier (accessibilité) */
+.rp-meal-card--desktop:focus-within .rp-meal-delete{
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
 }
 
 
