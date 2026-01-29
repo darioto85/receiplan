@@ -3,231 +3,197 @@
 {% block title %}Stock{% endblock %}
 
 {% block body %}
-  <div class="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
-    <h1 class="mb-0"><img class="rp-title-thumb" src="{{ asset('img/actions/stock.png') }}" alt=""> Mon stock</h1>
+  <div data-controller="stock">
 
-    <div class="d-flex gap-2 flex-wrap">
+    <div class="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
+      <h1 class="mb-0">
+        <img class="rp-title-thumb" src="{{ asset('img/actions/stock.png') }}" alt="">
+        Mon stock
+      </h1>
 
-      {# 2) Ajouter manuellement (toggle collapse) #}
-      <button
-        class="btn btn-primary d-flex align-items-center gap-2"
-        type="button"
-        data-bs-toggle="collapse"
-        data-bs-target="#stockUpsertForm"
-        aria-expanded="{{ form.vars.submitted ? 'true' : 'false' }}"
-        aria-controls="stockUpsertForm"
-      >
-        <img class="bt-action-thumb" src="{{ asset('img/actions/stock_add.png') }}" alt="">
-        <span class="d-none d-sm-inline">Ajouter manuellement</span>
-        <span class="d-inline d-sm-none">Manuel</span>
-      </button>
+      <div class="rp-stock-actions ms-auto">
+        <div class="d-flex gap-2 rp-stock-topactions">
+          <button
+            class="btn btn-primary d-flex align-items-center gap-2 rp-stock-topbtn"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#stockUpsertForm"
+            aria-expanded="{{ form.vars.submitted ? 'true' : 'false' }}"
+            aria-controls="stockUpsertForm"
+          >
+            <img class="bt-action-thumb" src="{{ asset('img/actions/stock_add.png') }}" alt="">
+            <span class="d-none d-sm-inline">Ajouter manuellement</span>
+            <span class="d-inline d-sm-none">Ajout Manuel</span>
+          </button>
 
-      {# 3) Ajouter via l’assistant #}
-      <a href="{{ path('assistant') }}"
-         class="btn btn-outline-primary d-flex align-items-center gap-2">
-        <img class="bt-action-thumb" src="{{ asset('img/actions/micro.png') }}" alt="">
-        <span class="d-none d-sm-inline">Ajouter via l’assistant</span>
-        <span class="d-inline d-sm-none">Assistant</span>
-      </a>
+          <a
+            href="{{ path('assistant') }}"
+            class="btn btn-outline-primary d-flex align-items-center gap-2 rp-stock-topbtn"
+          >
+            <img class="bt-action-thumb" src="{{ asset('img/actions/micro.png') }}" alt="">
+            <span class="d-none d-sm-inline">Ajouter via l’assistant</span>
+            <span class="d-inline d-sm-none">Via Assistant</span>
+          </a>
+        </div>
+      </div>
     </div>
-  </div>
 
-  {# Flash messages #}
-  {% for label, messages in app.flashes %}
-    {% for message in messages %}
-      <div class="alert alert-{{ label }} alert-dismissible fade show" role="alert">
-        {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-      </div>
-    {% endfor %}
-  {% endfor %}
-
-  {# ===== Quick Add Bar ===== #}
-<div id="stockUpsertForm" class="collapse mb-4 {% if form.vars.submitted %}show{% endif %}">
-  {{ form_start(form, { action: path('stock_upsert'), method: 'POST', attr: { class: 'rp-quickadd' } }) }}
-
-    <div class="rp-quickadd__bar">
-       
-        {# Champ ingrédient (grand) #}
-        <div class="rp-quickadd__field">
-          {{ form_widget(form.ingredient, {
-            attr: {
-              class: 'rp-quickadd__input',
-              placeholder: 'Ajouter rapidement'
-            }
-          }) }}
-          {{ form_errors(form.ingredient) }}
-        </div>
-
-        {# Quantité (petit) #}
-        <div class="rp-quickadd__mini">
-          {{ form_widget(form.quantity, {
-            attr: {
-              class: 'rp-quickadd__miniInput',
-              placeholder: 'Qté…',
-              inputmode: 'decimal'
-            }
-          }) }}
-          {{ form_errors(form.quantity) }}
-        </div>
-
-        {# “unité” / placeholder (si tu as un champ unit dans ton form) #}
-        {# Si ton form n'a PAS de champ unit, garde juste un mini "—" en visuel #}
-        <div class="rp-quickadd__mini">
-          <div class="rp-quickadd__miniFake" aria-hidden="true">—</div>
-        </div>
-
-        {# Bouton #}
-        <button type="submit" class="rp-quickadd__btn">
-          <span class="rp-quickadd__btnIcon">+</span>
-          <span>Ajouter</span>
-          <span class="rp-quickadd__btnChevron">›</span>
-        </button>
-      </div>
-
-    {{ form_end(form) }}
-  </div>
-
-
-  {# ===== Liste du stock ===== #}
-  <div class="rp-section-title mb-3">
-    <h2 class="mb-0">Liste</h2>
-    <span class="badge bg-primary rp-count-badge">{{ items|length }}</span>
-  </div>
-
-  {% if items is empty %}
-    <div class="text-muted">Aucun ingrédient en stock.</div>
-  {% else %}
-
-    {# ===== Mobile: swipe to reveal delete (xs/sm) ===== #}
-    <div class="d-grid gap-2 d-md-none">
-      {% for ui in items %}
-        {% set ing = ui.ingredient %}
-        {% set unit = (ing and ing.unit) ? ing.unit.value : '' %}
-
-        <div
-          class="swipe-item {% if loop.first %}swipe-hint{% endif %}"
-          data-controller="swipe-reveal"
-          data-swipe-reveal-open-class-value="is-revealed"
-        >
-          <div class="swipe-actions">
-            <form
-              method="post"
-              action="{{ path('stock_delete', {id: ui.id}) }}"
-              onsubmit="return confirm('Supprimer cet ingrédient du stock ?');"
-            >
-              <input type="hidden" name="_token" value="{{ csrf_token('delete_stock_' ~ ui.id) }}">
-
-              <button
-                type="submit"
-                class="rp-action-btn swipe-trash"
-                title="Supprimer"
-                aria-label="Supprimer"
-              >
-                <img
-                  src="{{ asset('img/actions/delete.png') }}"
-                  alt=""
-                  class="rp-action-thumb"
-                >
-              </button>
-            </form>
-          </div>
-          <div class="swipe-content">
-            <div class="d-flex align-items-center justify-content-between gap-2">
-              <div class="d-flex align-items-center gap-2 flex-grow-1" style="min-width:0;">
-                <img
-                  src="{{ ingredient_image(ing) }}"
-                  alt="{{ ing.name }}"
-                  width="50"
-                  height="50"
-                  loading="lazy"
-                  decoding="async"
-                  style="object-fit: contain; border-radius: 8px;"
-                >
-                <div class="text-truncate">
-                  <span class="fw-semibold">{{ ing.name|capitalize }}</span>
-                  {% if unit %}
-                    <span class="text-muted"> · {{ unit }}</span>
-                  {% endif %}
-                </div>
-              </div>
-
-              <div class="text-end flex-shrink-0">
-                <span class="fw-bold">{{ ui.quantity }}</span>
-              </div>
-            </div>
-          </div>
+    {# Flash messages #}
+    {% for label, messages in app.flashes %}
+      {% for message in messages %}
+        <div class="alert alert-{{ label }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
       {% endfor %}
+    {% endfor %}
+
+    {# ===== Quick Add Bar ===== #}
+    <div id="stockUpsertForm" class="collapse mb-4 {% if form.vars.submitted %}show{% endif %}">
+      <div class="mb-2" data-stock-target="formErrors"></div>
+
+      {{ form_start(form, {
+        action: path('stock_upsert'),
+        method: 'POST',
+        attr: {
+          class: 'rp-quickadd',
+          'data-action': 'submit->stock#submitUpsert'
+        }
+      }) }}
+
+        <div class="rp-quickadd__bar">
+          <div class="rp-quickadd__field">
+            {{ form_widget(form.ingredient, { attr: { class: 'rp-quickadd__input', placeholder: 'Ajouter rapidement' } }) }}
+            {{ form_errors(form.ingredient) }}
+          </div>
+
+          <div class="rp-quickadd__mini">
+            {{ form_widget(form.quantity, { attr: { class: 'rp-quickadd__miniInput', placeholder: 'Qté…', inputmode: 'decimal' } }) }}
+            {{ form_errors(form.quantity) }}
+          </div>
+
+          <div class="rp-quickadd__mini">
+            <div class="rp-quickadd__miniFake" aria-hidden="true">—</div>
+          </div>
+
+          <button type="submit" class="rp-quickadd__btn">
+            <span class="rp-quickadd__btnIcon">+</span>
+            <span>Ajouter</span>
+            <span class="rp-quickadd__btnChevron">›</span>
+          </button>
+        </div>
+
+      {{ form_end(form) }}
     </div>
 
-    {# ===== Desktop/tablet: table (md+) ===== #}
-    <div class="table-responsive d-none d-md-block">
-      <table class="table align-middle mb-0">
-        <thead>
-          <tr>
-            <th>Ingrédient</th>
-            <th class="text-end">Quantité</th>
-            <th class="text-end">Unité</th>
-            <th class="text-end">Actions</th>
-          </tr>
-        </thead>
+    {# ===== Liste du stock ===== #}
+    <div class="rp-section-title mb-3">
+      <h2 class="mb-0">Liste</h2>
+      <span class="badge bg-primary rp-count-badge" data-stock-target="count">{{ items|length }}</span>
+    </div>
 
-        <tbody>
-          {% for ui in items %}
-            {% set ing = ui.ingredient %}
-            <tr>
-              <td>
-                <div class="d-flex align-items-center gap-2">
-                  <img
-                    src="{{ ingredient_image(ing) }}"
-                    alt="{{ ing.name }}"
-                    width="50"
-                    height="50"
-                    loading="lazy"
-                    style="object-fit: contain; border-radius: 6px;"
-                  >
-                  <span>{{ ing.name|capitalize }}</span>
-                </div>
-              </td>
+    <div data-stock-target="listing">
+      {{ include('stock/_listing.html.twig', { items: items }) }}
+    </div>
 
-              <td class="text-end">{{ ui.quantity }}</td>
+    {# ===== Delete Modal ===== #}
+    <div
+      class="modal fade"
+      id="stockDeleteModal"
+      tabindex="-1"
+      aria-hidden="true"
+      data-stock-target="deleteModal"
+    >
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rp-modal">
+          <div class="modal-header border-0 pb-0">
+            <h5 class="modal-title d-flex align-items-center gap-2">
+              <img src="{{ asset('img/actions/delete.png') }}" alt="" width="22" height="22" style="object-fit:contain;">
+              Supprimer du stock
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+          </div>
 
-              <td class="text-end">
-                {{ (ing and ing.unit) ? ing.unit.value : '' }}
-              </td>
+          <div class="modal-body pt-2">
+            <div class="rp-modal-text">
+              Tu es sûr de vouloir supprimer
+              <span class="fw-bold" data-stock-target="deleteName">cet ingrédient</span>
+              ?
+            </div>
 
-              <td class="text-end">
-                <form
-                  method="post"
-                  action="{{ path('stock_delete', { id: ui.id }) }}"
-                  class="d-inline"
-                  onsubmit="return confirm('Supprimer cet ingrédient du stock ?');"
+            <div class="text-muted small mt-2">
+              Cette action peut être refaite en ré-ajoutant l’ingrédient.
+            </div>
+
+            <div class="mt-3" data-stock-target="deleteError"></div>
+          </div>
+
+          <div class="modal-footer border-0 pt-0">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+            <button
+              type="button"
+              class="btn btn-danger d-inline-flex align-items-center gap-2"
+              data-action="stock#confirmDelete"
+              data-stock-target="confirmDeleteBtn"
+            >
+              <span>Supprimer</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# ===== Quantity Modal (mobile) ===== #}
+    <div
+      class="modal fade"
+      id="stockQuantityModal"
+      tabindex="-1"
+      aria-hidden="true"
+      data-stock-target="qtyModal"
+    >
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rp-modal">
+          <div class="modal-header border-0 pb-0">
+            <h5 class="modal-title">Modifier la quantité</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+          </div>
+
+          <div class="modal-body pt-2">
+            <div class="rp-modal-text">
+              <span class="fw-bold" data-stock-target="qtyName">Ingrédient</span>
+            </div>
+
+            <div class="mt-3">
+              <div class="input-group">
+                <input
+                  type="text"
+                  inputmode="decimal"
+                  class="form-control fw-bold"
+                  placeholder="Ex: 250"
+                  data-stock-target="qtyModalInput"
+                  data-action="focus->stock#clearQtyOnFocus click->stock#clearQtyOnFocus"
                 >
-                  <input type="hidden" name="_token" value="{{ csrf_token('delete_stock_' ~ ui.id) }}">
+                <span class="input-group-text fw-bold" data-stock-target="qtyUnit">unité</span>
+              </div>
+            </div>
 
-                  <button
-                    type="submit"
-                    class="rp-action-btn"
-                    title="Supprimer"
-                    aria-label="Supprimer"
-                  >
-                    <img
-                      src="{{ asset('img/actions/delete.png') }}"
-                      alt=""
-                      class="rp-action-thumb"
-                    >
-                  </button>
-                </form>
+            <div class="mt-3" data-stock-target="qtyError"></div>
+          </div>
 
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-
-      </table>
+          <div class="modal-footer border-0 pt-0">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              data-action="stock#confirmQtyModal"
+              data-stock-target="qtyConfirmBtn"
+            >
+              Enregistrer
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
-  {% endif %}
-
+  </div>
 {% endblock %}

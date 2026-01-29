@@ -1081,6 +1081,12 @@ h2{
 /* =========================================================
    STOCK — Quick Add Bar (maquette)
    ========================================================= */
+@media (max-width: 520px){
+  .rp-stock-topbtn{
+    width: 50%;
+    justify-content: center;
+  }
+}
 
 .rp-quickadd{
   margin: 0;
@@ -1267,6 +1273,38 @@ h2{
   margin-top: 6px;
 }
 
+@media (max-width: 520px){
+  .rp-quickadd__bar{
+    gap: 10px;
+    padding: 10px;
+    flex-wrap: wrap;
+  }
+
+  /* 1ère ligne : ingrédient plein width */
+  .rp-quickadd__field{
+    flex: 0 0 100%;
+    width: 100%;
+  }
+
+  /* 2ème ligne : quantité 50% + unité 50% */
+  .rp-quickadd__mini{
+    flex: 0 0 calc(50% - 5px);
+    width: calc(50% - 5px);
+  }
+
+  .rp-quickadd__miniInput,
+  .rp-quickadd__miniSelect,
+  .rp-quickadd__miniFake{
+    width: 100%;
+  }
+
+  /* bouton sur sa propre ligne */
+  .rp-quickadd__btn{
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 /* =========================================================
    Quick Add — TomSelect : invisible (flèche only)
    Cible : .ts-wrapper.rp-quickadd__input (dans la barre)
@@ -1305,13 +1343,7 @@ h2{
   background: transparent !important;
 }
 
-/* Cache le texte sélectionné et le caret */
-.rp-quickadd .ts-wrapper.rp-quickadd__input .ts-control .item,
-.rp-quickadd .ts-wrapper.rp-quickadd__input .ts-control input{
-  color: transparent !important;
-  caret-color: transparent !important;
-  text-shadow: none !important;
-}
+
 
 /* Empêche l'input de prendre de la place */
 .rp-quickadd .ts-wrapper.rp-quickadd__input .ts-control input{
@@ -1408,8 +1440,102 @@ h2{
     width: 100%;
     justify-content: center;
   }
+
 }
 
+/* Stock header actions */
+.rp-stock-actions{
+  display: flex;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+}
+
+/* Mobile: actions full width + boutons 50/50 côte à côte */
+@media (max-width: 575.98px){
+  .rp-stock-actions{
+    width: 100%;
+  }
+
+  .rp-stock-topactions{
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .rp-stock-topbtn{
+    flex: 0 0 50%;
+    max-width: 50%;
+    justify-content: center;
+    white-space: nowrap;
+  }
+   /* boutons */
+  .rp-stock-topbtn{
+    flex: 0 0 50%;
+    max-width: 50%;
+    justify-content: center;
+    white-space: nowrap;
+  }
+}
+
+/* =========================================================
+   MODAL
+   ========================================================= */
+.rp-modal{
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(231,243,219,.92), rgba(217,238,200,.86));
+  border: 1px solid rgba(120,150,120,.18);
+  box-shadow: 0 18px 40px rgba(60,90,60,.18);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.rp-modal .modal-title{
+  font-weight: 900;
+  letter-spacing: -.01em;
+  color: var(--rp-text);
+}
+
+.rp-modal-text{
+  font-weight: 700;
+  color: var(--rp-text);
+}
+
+/* Desktop: quantité cliquable */
+.rp-qty{
+  cursor: pointer;
+  position: relative;
+  display: inline-block;
+}
+
+/* Input invisible (affiché uniquement en édition) */
+.rp-qty-input{
+  display: none;
+  width: 88px;
+  text-align: right;
+
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+
+  font-weight: 800;
+  color: inherit;
+}
+
+/* Quand on édite: même rendu que le texte */
+.rp-qty.is-editing .rp-qty-input{
+  display: inline-block;
+}
+
+/* Mobile: bouton quantité */
+.rp-qty-btn{
+  border: 0;
+  background: transparent;
+  padding: 6px 8px;
+  border-radius: 10px;
+}
+.rp-qty-btn:active{
+  background: rgba(0,0,0,.05);
+}
 
 
 /* =========================================================
@@ -1626,7 +1752,7 @@ h2{
 
   /* Page blanche principale : moins de padding + radius un peu plus petit */
   .rp-page{
-    padding: 1.1rem !important;
+    padding: 1rem !important;
     margin-top: 10px !important;
     border-radius: 22px !important;
   }
@@ -1724,7 +1850,7 @@ h2{
   .rp-quickadd__miniSelect,
   .rp-quickadd__miniFake{
     height: 44px !important;
-    width: 84px !important;
+    width: 100% !important;
   }
   .rp-quickadd__btn{
     height: 46px !important;

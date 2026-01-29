@@ -1,0 +1,8 @@
+{# templates/stock/_form_errors.html.twig #}
+{% if not form.vars.valid %}
+  <div class="alert alert-danger mb-0">
+    {{ form_errors(form) }}
+    {{ form_errors(form.ingredient) }}
+    {{ form_errors(form.quantity) }}
+  </div>
+{% endif %}
