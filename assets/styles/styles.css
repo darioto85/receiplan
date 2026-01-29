@@ -1863,6 +1863,12 @@ h2{
     min-height: 44px !important;
   }
 
+  /* Optionnel : le badge ne doit jamais “survoler” les overlays */
+  .rp-count-badge{
+    position: relative;
+    z-index: 1;
+  }
+
   .swipe-content{
     padding:1px;
   }
