@@ -1883,6 +1883,13 @@ h2{
   }
 }
 
+/***
+RECIPE FORM
+*/
+.rp-step { opacity: 1; transition: opacity .25s ease; }
+.rp-step.is-hidden { opacity: 0; pointer-events: none; height: 0; overflow: hidden; }
+
+
 /* =========================================================
    Hide number input spinners (quantités)
    ========================================================= */

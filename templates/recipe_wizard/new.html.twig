@@ -1,0 +1,63 @@
+{# templates/recipe_wizard/new.html.twig #}
+{% extends 'base.html.twig' %}
+
+{% block title %}Nouvelle recette{% endblock %}
+
+{% block body %}
+  <div
+    class="card shadow-sm"
+    data-controller="recipe-wizard"
+    data-recipe-wizard-save-draft-url-value="{{ path('recipe_wizard_save_draft') }}"
+  >
+    <div class="card-body">
+
+      <div class="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
+        <h1 class="mb-0">
+          <img class="rp-title-thumb" src="{{ asset('img/actions/recipe_add.png') }}" alt="">
+          Nouvelle recette
+        </h1>
+
+        <a href="{{ path('app_recipe_index') }}" class="btn btn-link">← Retour</a>
+      </div>
+
+      <div class="text-muted mb-4">
+        Étape 1/3 — Donne un nom à ta recette (un brouillon sera créé automatiquement).
+      </div>
+
+      {# ===== STEP 1 ===== #}
+      <section class="rp-step" data-recipe-wizard-target="step1">
+        <div class="mb-2" data-recipe-wizard-target="step1Error"></div>
+
+        <form data-action="submit->recipe-wizard#submitStep1" class="rp-quickadd">
+          <div class="rp-quickadd__bar">
+            <div class="rp-quickadd__field">
+              <input
+                type="text"
+                class="rp-quickadd__input"
+                placeholder="Ex: Pâtes carbonara"
+                autocomplete="off"
+                required
+                data-recipe-wizard-target="nameInput"
+              >
+            </div>
+
+            <button type="submit" class="rp-quickadd__btn">
+              <span>Continuer</span>
+              <span class="rp-quickadd__btnChevron">›</span>
+            </button>
+          </div>
+        </form>
+
+        <div class="small text-muted mt-2">
+          Tu pourras ajouter les ingrédients à l’étape suivante.
+        </div>
+      </section>
+
+      {# ===== STEP 2 placeholder (facultatif, on redirige) ===== #}
+      <section class="rp-step is-hidden" data-recipe-wizard-target="step2">
+        <div class="text-muted">Chargement…</div>
+      </section>
+
+    </div>
+  </div>
+{% endblock %}

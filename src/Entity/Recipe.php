@@ -35,6 +35,12 @@ class Recipe
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $imgGeneratedAt = null;
 
+    #[ORM\Column(options: ['default' => false])]
+    private bool $favorite = false;
+
+    #[ORM\Column(options: ['default' => false])]
+    private bool $draft = false;
+
     public function __construct()
     {
         $this->recipeIngredients = new ArrayCollection();
@@ -86,6 +92,28 @@ class Recipe
     public function setImgGeneratedAt(?\DateTimeImmutable $at): static
     {
         $this->imgGeneratedAt = $at;
+        return $this;
+    }
+
+    public function isFavorite(): bool
+    {
+        return $this->favorite;
+    }
+
+    public function setFavorite(bool $favorite): static
+    {
+        $this->favorite = $favorite;
+        return $this;
+    }
+
+    public function isDraft(): bool
+    {
+        return $this->draft;
+    }
+
+    public function setDraft(bool $draft): static
+    {
+        $this->draft = $draft;
         return $this;
     }
 

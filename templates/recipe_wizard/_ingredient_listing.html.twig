@@ -1,0 +1,35 @@
+{# templates/recipe_wizard/_ingredient_listing.html.twig #}
+
+{% set items = recipe.recipeIngredients %}
+
+{# Placeholder (optionnel) #}
+<div class="{% if items is not empty %}d-none{% endif %} text-muted" data-recipe-ingredients-target="emptyState">
+  Aucun ingrédient pour le moment.
+</div>
+
+{# Mobile list: toujours présent #}
+<div class="d-grid gap-2 d-md-none mt-2" data-recipe-ingredients-target="mobileList">
+  {% for ri in items %}
+    {{ include('recipe_wizard/_ingredient_item.html.twig', { ri: ri, variant: 'mobile', first: loop.first }) }}
+  {% endfor %}
+</div>
+
+{# Desktop table: toujours présente #}
+<div class="table-responsive d-none d-md-block mt-2" data-recipe-ingredients-target="desktopTable">
+  <table class="table align-middle mb-0">
+    <thead>
+      <tr>
+        <th>Ingrédient</th>
+        <th class="text-end">Quantité</th>
+        <th class="text-end">Unité</th>
+        <th class="text-end">Actions</th>
+      </tr>
+    </thead>
+
+    <tbody data-recipe-ingredients-target="desktopTbody">
+      {% for ri in items %}
+        {{ include('recipe_wizard/_ingredient_item.html.twig', { ri: ri, variant: 'desktop' }) }}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

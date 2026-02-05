@@ -1,0 +1,262 @@
+{# templates/recipe_wizard/edit.html.twig #}
+{% extends 'base.html.twig' %}
+
+{% block title %}Modifier recette{% endblock %}
+
+{% block body %}
+  <div
+    class="card shadow-sm"
+    data-controller="recipe-wizard recipe-ingredients"
+    data-recipe-wizard-save-draft-url-value="{{ path('recipe_wizard_save_draft') }}"
+    data-recipe-wizard-recipe-id-value="{{ recipe.id }}"
+    data-recipe-wizard-preview-url-value="{{ path('recipe_wizard_preview', { id: recipe.id }) }}"
+
+    data-recipe-ingredients-upsert-url-value="{{ path('recipe_wizard_ingredient_upsert', { id: recipe.id }) }}"
+    data-recipe-ingredients-preview-url-value="{{ path('recipe_wizard_preview', { id: recipe.id }) }}"
+  >
+    <div class="card-body">
+
+      <div class="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
+        <h1 class="mb-0">
+          <img class="rp-title-thumb" src="{{ asset('img/actions/recipe_edit.png') }}" alt="">
+          Recette
+          {% if recipe.draft %}
+            <span class="badge text-bg-warning ms-2">Brouillon</span>
+          {% else %}
+            <span class="badge text-bg-success ms-2">Publié</span>
+          {% endif %}
+        </h1>
+
+        <a href="{{ path('app_recipe_index') }}" class="btn btn-link">← Retour</a>
+      </div>
+
+      {# ===== Steps header ===== #}
+      <div class="text-muted mb-4" data-recipe-wizard-target="stepHint">
+        Étape 1/3 — Nom
+      </div>
+
+      {# =========================
+         STEP 1 — NOM
+         ========================= #}
+      <section class="rp-step" data-recipe-wizard-target="step1">
+        <div class="mb-2" data-recipe-wizard-target="step1Error"></div>
+
+        <form data-action="submit->recipe-wizard#submitStep1" class="rp-quickadd">
+          <div class="rp-quickadd__bar">
+            <div class="rp-quickadd__field">
+              <input
+                type="text"
+                class="rp-quickadd__input"
+                placeholder="Nom de la recette"
+                autocomplete="off"
+                required
+                value="{{ recipe.name }}"
+                data-recipe-wizard-target="nameInput"
+              >
+            </div>
+
+            <button type="submit" class="rp-quickadd__btn">
+              <span>Valider</span>
+              <span class="rp-quickadd__btnChevron">›</span>
+            </button>
+          </div>
+        </form>
+
+        <div class="d-flex justify-content-end mt-3">
+          <button
+            type="button"
+            class="btn btn-outline-primary"
+            data-action="recipe-wizard#goStep2"
+          >
+            Passer aux ingrédients →
+          </button>
+        </div>
+      </section>
+
+      {# =========================
+         STEP 2 — INGRÉDIENTS (style stock)
+         ========================= #}
+      <section class="rp-step is-hidden" data-recipe-wizard-target="step2">
+        <div class="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
+          <h2 class="h5 mb-0">🧂 Ingrédients</h2>
+
+          <button
+            type="button"
+            class="btn btn-outline-secondary"
+            data-action="recipe-wizard#goStep1"
+          >
+            ← Modifier le nom
+          </button>
+        </div>
+
+        <div class="text-muted mb-3">
+          Étape 2/3 — Ajoute les ingrédients de ta recette
+        </div>
+
+        {# Erreurs du form AJAX #}
+        <div class="mb-2" data-recipe-ingredients-target="formErrors"></div>
+
+        {# ===== Quick Add Bar (copie stock) ===== #}
+        {{ form_start(form, {
+          action: path('recipe_wizard_ingredient_upsert', { id: recipe.id }),
+          method: 'POST',
+          attr: {
+            class: 'rp-quickadd',
+            'data-action': 'submit->recipe-ingredients#submitUpsert'
+          }
+        }) }}
+
+          <div class="rp-quickadd__bar">
+            <div class="rp-quickadd__field">
+              {{ form_widget(form.ingredient, { attr: { class: 'rp-quickadd__input', placeholder: 'Ajouter rapidement' } }) }}
+              {{ form_errors(form.ingredient) }}
+            </div>
+
+            <div class="rp-quickadd__mini">
+              {{ form_widget(form.quantity, { attr: { class: 'rp-quickadd__miniInput', placeholder: 'Qté…', inputmode: 'decimal' } }) }}
+              {{ form_errors(form.quantity) }}
+            </div>
+
+            <div class="rp-quickadd__mini">
+              <div class="rp-quickadd__miniFake" aria-hidden="true">—</div>
+            </div>
+
+            <button type="submit" class="rp-quickadd__btn">
+              <span class="rp-quickadd__btnIcon">+</span>
+              <span>Ajouter</span>
+              <span class="rp-quickadd__btnChevron">›</span>
+            </button>
+          </div>
+
+        {{ form_end(form) }}
+
+        {# ===== Listing ingrédients ===== #}
+        <div class="mt-3" data-recipe-ingredients-target="listing">
+          {{ include('recipe_wizard/_ingredient_listing.html.twig', { recipe: recipe }) }}
+        </div>
+
+        {# ✅ Destination du bouton selon draft/published #}
+        {% set nextUrl = recipe.draft
+          ? path('recipe_wizard_preview', { id: recipe.id })
+          : path('app_recipe_show', { id: recipe.id })
+        %}
+
+        <div class="d-flex justify-content-between mt-4">
+          <button
+            type="button"
+            class="btn btn-outline-secondary"
+            data-action="recipe-wizard#goStep1"
+          >
+            ← Retour
+          </button>
+
+          <a href="{{ nextUrl }}" class="btn btn-success">
+            {% if recipe.draft %}
+              Continuer → Preview
+            {% else %}
+              Terminer → Voir la recette
+            {% endif %}
+          </a>
+        </div>
+      </section>
+
+      {# STEP 3 : route dédiée /preview #}
+
+      {# ===== Delete Modal (copie stock, adapté) ===== #}
+      <div
+        class="modal fade"
+        id="recipeIngredientDeleteModal"
+        tabindex="-1"
+        aria-hidden="true"
+        data-recipe-ingredients-target="deleteModal"
+      >
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content rp-modal">
+            <div class="modal-header border-0 pb-0">
+              <h5 class="modal-title d-flex align-items-center gap-2">
+                <img src="{{ asset('img/actions/delete.png') }}" alt="" width="22" height="22" style="object-fit:contain;">
+                Supprimer l’ingrédient
+              </h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+
+            <div class="modal-body pt-2">
+              <div class="rp-modal-text">
+                Tu es sûr de vouloir supprimer
+                <span class="fw-bold" data-recipe-ingredients-target="deleteName">cet ingrédient</span>
+                ?
+              </div>
+
+              <div class="mt-3" data-recipe-ingredients-target="deleteError"></div>
+            </div>
+
+            <div class="modal-footer border-0 pt-0">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+              <button
+                type="button"
+                class="btn btn-danger d-inline-flex align-items-center gap-2"
+                data-action="recipe-ingredients#confirmDelete"
+                data-recipe-ingredients-target="confirmDeleteBtn"
+              >
+                <span>Supprimer</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ===== Quantity Modal (mobile) ===== #}
+      <div
+        class="modal fade"
+        id="recipeIngredientQuantityModal"
+        tabindex="-1"
+        aria-hidden="true"
+        data-recipe-ingredients-target="qtyModal"
+      >
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content rp-modal">
+            <div class="modal-header border-0 pb-0">
+              <h5 class="modal-title">Modifier la quantité</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+
+            <div class="modal-body pt-2">
+              <div class="rp-modal-text">
+                <span class="fw-bold" data-recipe-ingredients-target="qtyName">Ingrédient</span>
+              </div>
+
+              <div class="mt-3">
+                <div class="input-group">
+                  <input
+                    type="text"
+                    inputmode="decimal"
+                    class="form-control fw-bold"
+                    placeholder="Ex: 250"
+                    data-recipe-ingredients-target="qtyModalInput"
+                    data-action="focus->recipe-ingredients#clearQtyOnFocus click->recipe-ingredients#clearQtyOnFocus"
+                  >
+                  <span class="input-group-text fw-bold" data-recipe-ingredients-target="qtyUnit">unité</span>
+                </div>
+              </div>
+
+              <div class="mt-3" data-recipe-ingredients-target="qtyError"></div>
+            </div>
+
+            <div class="modal-footer border-0 pt-0">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+              <button
+                type="button"
+                class="btn btn-primary"
+                data-action="recipe-ingredients#confirmQtyModal"
+                data-recipe-ingredients-target="qtyConfirmBtn"
+              >
+                Enregistrer
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+{% endblock %}
