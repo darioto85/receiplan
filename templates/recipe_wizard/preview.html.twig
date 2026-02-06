@@ -1,31 +1,41 @@
 {# templates/recipe_wizard/preview.html.twig #}
 {% extends 'base.html.twig' %}
 
-{% block title %}Aperçu recette{% endblock %}
+{% block title %}Récapitulatif{% endblock %}
 
 {% block body %}
+  {# ✅ image recette (helper existant) avec fallback placeholder #}
+  {% set recipeImg = recipe_image(recipe) %}
+  {% if not recipeImg %}
+    {% set recipeImg = asset('img/recipe/placeholder.png') %}
+  {% endif %}
+
   <div class="card shadow-sm">
     <div class="card-body">
 
+      {# =========================
+         HEADER : image recette + titre "Récapitulatif" + bouton retour (seul bouton retour)
+         ========================= #}
       <div class="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
-        <h1 class="mb-0">
-          <img class="rp-title-thumb" src="{{ asset('img/actions/recipe_preview.png') }}" alt="">
-          Aperçu
-          {% if recipe.draft %}
-            <span class="badge text-bg-warning ms-2">Brouillon</span>
-          {% else %}
-            <span class="badge text-bg-success ms-2">Publié</span>
-          {% endif %}
-        </h1>
+        <div class="d-flex align-items-center gap-3" style="min-width:0;">
+          <img
+            src="{{ recipeImg }}"
+            alt="{{ recipe.name }}"
+            width="56"
+            height="56"
+            loading="lazy"
+            decoding="async"
+            style="object-fit: contain; background:#fff; border-radius: 14px;"
+          >
+          <h1 class="mb-0">Récapitulatif</h1>
+        </div>
 
-        <a href="{{ path('app_recipe_index') }}" class="btn btn-link">← Retour</a>
+        <a href="{{ path('recipe_wizard_edit', { id: recipe.id }) }}?step=2" class="btn btn-outline-primary">
+          ← Retour
+        </a>
       </div>
 
-      <div class="text-muted mb-4">
-        Étape 3/3 — Vérifie la recette avant validation
-      </div>
-
-      {# ===== NOM ===== #}
+      {# ===== Nom de la recette ===== #}
       <div class="mb-4">
         <div class="text-muted small mb-1">Nom</div>
         <div class="h4 mb-0">{{ recipe.name }}</div>
@@ -33,13 +43,9 @@
 
       <hr class="my-4">
 
-      {# ===== INGRÉDIENTS ===== #}
+      {# ===== Ingrédients ===== #}
       <div class="mb-3 d-flex align-items-center justify-content-between gap-2 flex-wrap">
         <h2 class="h5 mb-0">🧂 Ingrédients</h2>
-
-        <a href="{{ path('recipe_wizard_edit', { id: recipe.id }) }}" class="btn btn-outline-secondary">
-          Modifier
-        </a>
       </div>
 
       {% set items = recipe.recipeIngredients %}
@@ -78,23 +84,21 @@
         </div>
       {% endif %}
 
-      {# ===== ACTIONS ===== #}
-      <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
-        <a href="{{ path('recipe_wizard_edit', { id: recipe.id }) }}" class="btn btn-outline-secondary">
-          ← Revenir modifier
-        </a>
-
-        {% if recipe.draft %}
-          <form method="post" action="{{ path('recipe_wizard_publish', { id: recipe.id }) }}">
-            <input type="hidden" name="_token" value="{{ csrf_token('recipe_publish_' ~ recipe.id) }}">
-            <button type="submit" class="btn btn-success">
-              ✅ Valider et publier
-            </button>
-          </form>
-        {% else %}
-          <span class="text-muted">Cette recette est déjà publiée.</span>
-        {% endif %}
-      </div>
+      {# ===== CTA ===== #}
+      {% if recipe.draft %}
+        <form method="post" action="{{ path('recipe_wizard_publish', { id: recipe.id }) }}" class="d-flex justify-content-end">
+          <input type="hidden" name="_token" value="{{ csrf_token('recipe_publish_' ~ recipe.id) }}">
+          <button type="submit" class="btn btn-primary">
+            Enregistrer la recette
+          </button>
+        </form>
+      {% else %}
+        <div class="d-flex justify-content-end">
+          <a href="{{ path('app_recipe_show', { id: recipe.id }) }}" class="btn btn-primary">
+            Voir la recette
+          </a>
+        </div>
+      {% endif %}
 
     </div>
   </div>

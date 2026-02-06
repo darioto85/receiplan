@@ -4,8 +4,8 @@ import { Controller } from "@hotwired/stimulus";
 export default class extends Controller {
   static values = {
     saveDraftUrl: String,
-    recipeId: Number,     // présent sur edit.html.twig
-    previewUrl: String,   // présent sur edit.html.twig
+    recipeId: Number,   // présent sur edit.html.twig
+    previewUrl: String, // présent sur edit.html.twig (pas obligatoire ici)
   };
 
   static targets = [
@@ -17,9 +17,15 @@ export default class extends Controller {
   ];
 
   connect() {
-    // Si on est sur edit, on a step2 dans le DOM.
-    // Par défaut on laisse step1 visible (c’est ce que fait le twig).
-    this._setHint(1);
+    // ✅ Si on arrive avec ?step=2 (ex: après création), on ouvre directement l'étape 2
+    const params = new URLSearchParams(window.location.search);
+    const step = params.get("step");
+
+    if (step === "2" && this.hasStep2Target) {
+      this._showStep(2);
+    } else {
+      this._showStep(1);
+    }
   }
 
   async submitStep1(event) {
@@ -44,24 +50,24 @@ export default class extends Controller {
     try {
       const res = await fetch(this.saveDraftUrlValue, {
         method: "POST",
-        headers: {
-          "X-Requested-With": "XMLHttpRequest",
-        },
+        headers: { "X-Requested-With": "XMLHttpRequest" },
         body: formData,
       });
 
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        const msg = data?.message || "Impossible d’enregistrer le brouillon.";
+        const msg = data?.message || "Impossible d’enregistrer.";
         this._showError(msg);
         return;
       }
 
-      // Cas création (new.html.twig) : on redirige vers /wizard/{id}
+      // ✅ Cas création (new.html.twig) : on redirige vers /wizard/{id}?step=2
       if (!this.hasRecipeIdValue || !this.recipeIdValue) {
         if (data?.editUrl) {
-          window.location.href = data.editUrl;
+          const url = new URL(data.editUrl, window.location.origin);
+          url.searchParams.set("step", "2");
+          window.location.href = url.toString();
           return;
         }
         // fallback
@@ -69,9 +75,8 @@ export default class extends Controller {
         return;
       }
 
-      // Cas édition : on avance en step2 avec fondu
+      // ✅ Cas édition : on passe directement à l'étape suivante (sans reload)
       this.goStep2();
-
     } catch (e) {
       this._showError("Erreur réseau. Réessaie.");
     }
@@ -83,22 +88,30 @@ export default class extends Controller {
 
   goStep2() {
     this._showStep(2);
+
+    // ✅ Optionnel : met à jour l'URL sans recharger (pratique si refresh)
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("step", "2");
+      window.history.replaceState({}, "", url.toString());
+    } catch (e) {
+      // ignore
+    }
   }
 
   _showStep(stepNumber) {
-    // Step 1 toujours présent
+    // Step 1
     if (stepNumber === 1) {
-      this.step1Target.classList.remove("is-hidden");
+      if (this.hasStep1Target) this.step1Target.classList.remove("is-hidden");
       if (this.hasStep2Target) this.step2Target.classList.add("is-hidden");
       this._setHint(1);
-      // focus UX
       this.nameInputTarget?.focus?.();
       return;
     }
 
     // Step 2 (uniquement sur edit)
     if (stepNumber === 2 && this.hasStep2Target) {
-      this.step1Target.classList.add("is-hidden");
+      if (this.hasStep1Target) this.step1Target.classList.add("is-hidden");
       this.step2Target.classList.remove("is-hidden");
       this._setHint(2);
       return;

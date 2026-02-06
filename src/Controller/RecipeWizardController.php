@@ -112,7 +112,7 @@ final class RecipeWizardController extends AbstractController
             'status' => 'ok',
             'recipeId' => $recipe->getId(),
             // On redirige vers la page wizard "edit" qui contient step2 + listing
-            'editUrl' => $this->generateUrl('recipe_wizard_edit', ['id' => $recipe->getId()]),
+            'editUrl' => $this->generateUrl('recipe_wizard_edit', ['id' => $recipe->getId()]) . '?step=2',
             'previewUrl' => $this->generateUrl('recipe_wizard_preview', ['id' => $recipe->getId()]),
         ]);
     }

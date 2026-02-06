@@ -4,6 +4,12 @@
 {% block title %}Modifier recette{% endblock %}
 
 {% block body %}
+  {# ✅ image recette (helper existant) avec fallback placeholder #}
+  {% set recipeImg = recipe_image(recipe) %}
+  {% if not recipeImg %}
+    {% set recipeImg = asset('img/recipe/placeholder.png') %}
+  {% endif %}
+
   <div
     class="card shadow-sm"
     data-controller="recipe-wizard recipe-ingredients"
@@ -16,21 +22,35 @@
   >
     <div class="card-body">
 
+      {# =========================
+         HEADER (visible step 2 & 3) : nom + image + bouton modifier nom
+         ========================= #}
       <div class="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
-        <h1 class="mb-0">
-          <img class="rp-title-thumb" src="{{ asset('img/actions/recipe_edit.png') }}" alt="">
-          Recette
-          {% if recipe.draft %}
-            <span class="badge text-bg-warning ms-2">Brouillon</span>
-          {% else %}
-            <span class="badge text-bg-success ms-2">Publié</span>
-          {% endif %}
-        </h1>
+        <div class="d-flex align-items-center gap-3" style="min-width:0;">
+          <img
+            src="{{ recipeImg }}"
+            alt="{{ recipe.name }}"
+            width="56"
+            height="56"
+            loading="lazy"
+            decoding="async"
+            style="object-fit: contain; background:#fff; border-radius: 14px;"
+          >
+          <h1 class="mb-0 text-truncate" style="max-width: min(70vw, 640px);">
+            {{ recipe.name ?: 'Recette' }}
+          </h1>
+        </div>
 
-        <a href="{{ path('app_recipe_index') }}" class="btn btn-link">← Retour</a>
+        <button
+          type="button"
+          class="btn btn-outline-primary"
+          data-action="recipe-wizard#goStep1"
+        >
+          Modifier le nom
+        </button>
       </div>
 
-      {# ===== Steps header ===== #}
+      {# ===== Steps header (on le garde) ===== #}
       <div class="text-muted mb-4" data-recipe-wizard-target="stepHint">
         Étape 1/3 — Nom
       </div>
@@ -77,26 +97,11 @@
          STEP 2 — INGRÉDIENTS (style stock)
          ========================= #}
       <section class="rp-step is-hidden" data-recipe-wizard-target="step2">
-        <div class="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
-          <h2 class="h5 mb-0">🧂 Ingrédients</h2>
-
-          <button
-            type="button"
-            class="btn btn-outline-secondary"
-            data-action="recipe-wizard#goStep1"
-          >
-            ← Modifier le nom
-          </button>
-        </div>
-
-        <div class="text-muted mb-3">
-          Étape 2/3 — Ajoute les ingrédients de ta recette
-        </div>
 
         {# Erreurs du form AJAX #}
         <div class="mb-2" data-recipe-ingredients-target="formErrors"></div>
 
-        {# ===== Quick Add Bar (copie stock) ===== #}
+        {# ===== Quick Add Bar ===== #}
         {{ form_start(form, {
           action: path('recipe_wizard_ingredient_upsert', { id: recipe.id }),
           method: 'POST',
@@ -141,18 +146,10 @@
           : path('app_recipe_show', { id: recipe.id })
         %}
 
-        <div class="d-flex justify-content-between mt-4">
-          <button
-            type="button"
-            class="btn btn-outline-secondary"
-            data-action="recipe-wizard#goStep1"
-          >
-            ← Retour
-          </button>
-
-          <a href="{{ nextUrl }}" class="btn btn-success">
+        <div class="d-flex justify-content-end mt-4">
+          <a href="{{ nextUrl }}" class="btn btn-primary">
             {% if recipe.draft %}
-              Continuer → Preview
+              Continuer
             {% else %}
               Terminer → Voir la recette
             {% endif %}
@@ -162,7 +159,7 @@
 
       {# STEP 3 : route dédiée /preview #}
 
-      {# ===== Delete Modal (copie stock, adapté) ===== #}
+      {# ===== Delete Modal ===== #}
       <div
         class="modal fade"
         id="recipeIngredientDeleteModal"
