@@ -2,34 +2,143 @@
 
 namespace App\Controller;
 
+use App\Entity\Ingredient;
+use App\Entity\Shopping;
 use App\Entity\User;
+use App\Form\StockUpsertType;
 use App\Repository\ShoppingRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
-
 
 #[Route('/shopping')]
 #[IsGranted('ROLE_USER')]
 final class ShoppingController extends AbstractController
 {
     #[Route('', name: 'shopping_index', methods: ['GET'])]
-        public function index(
-        ShoppingRepository $shoppingRepository,
-        \App\Service\ShoppingListService $shoppingService
+    public function index(
+        ShoppingRepository $shoppingRepository
     ): Response {
         $user = $this->getUser();
-        if (!$user instanceof \App\Entity\User) {
+        if (!$user instanceof User) {
             throw $this->createAccessDeniedException();
         }
 
         $items = $shoppingRepository->findForUser($user);
 
+        // ✅ même form que Stock
+        $form = $this->createForm(StockUpsertType::class);
+
         return $this->render('shopping/index.html.twig', [
             'items' => $items,
+            'form' => $form->createView(),
+        ]);
+    }
+
+    #[Route('/upsert', name: 'shopping_upsert', methods: ['POST'])]
+    public function upsert(
+        Request $request,
+        ShoppingRepository $shoppingRepository,
+        EntityManagerInterface $em
+    ): Response {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $form = $this->createForm(StockUpsertType::class);
+        $form->handleRequest($request);
+
+        $isAjax = $request->isXmlHttpRequest();
+
+        if (!$form->isSubmitted() || !$form->isValid()) {
+            if ($isAjax) {
+                return new JsonResponse([
+                    'status' => 'error',
+                    'message' => 'Formulaire invalide.',
+                    'errors' => (string) $this->renderView('shopping/_form_errors.html.twig', [
+                        'form' => $form->createView(),
+                    ]),
+                ], 422);
+            }
+
+            $this->addFlash('danger', 'Formulaire invalide.');
+            return $this->redirectToRoute('shopping_index');
+        }
+
+        /** @var Ingredient $ingredient */
+        $ingredient = $form->get('ingredient')->getData();
+        $quantityToAdd = (float) $form->get('quantity')->getData();
+
+        if ($quantityToAdd <= 0) {
+            if ($isAjax) {
+                return new JsonResponse([
+                    'status' => 'error',
+                    'message' => 'Quantité invalide.',
+                ], 422);
+            }
+
+            $this->addFlash('danger', 'Quantité invalide.');
+            return $this->redirectToRoute('shopping_index');
+        }
+
+        // ✅ upsert sur Shopping (même ingredient => addition)
+        $existing = $shoppingRepository->findOneBy([
+            'user' => $user,
+            'ingredient' => $ingredient,
+        ]);
+
+        $isNew = false;
+
+        if (!$existing) {
+            $existing = new Shopping();
+            $existing->setUser($user);
+            $existing->setIngredient($ingredient);
+            $existing->setChecked(false);
+            $existing->setQuantity(0);
+            $em->persist($existing);
+            $isNew = true;
+        }
+
+        $current = (float) $existing->getQuantity();
+        $newQty = $current + $quantityToAdd;
+        $existing->setQuantity($newQty);
+
+        $em->flush();
+
+        if (!$isAjax) {
+            $this->addFlash('success', 'Liste de courses mise à jour.');
+            return $this->redirectToRoute('shopping_index');
+        }
+
+        // ✅ HTML partiels (desktop + mobile)
+        $htmlDesktop = $this->renderView('shopping/_shopping_item.html.twig', [
+            'item' => $existing,
+            'variant' => 'desktop',
+        ]);
+
+        $htmlMobile = $this->renderView('shopping/_shopping_item.html.twig', [
+            'item' => $existing,
+            'variant' => 'mobile',
+            'first' => true,
+        ]);
+
+        // ✅ compteur
+        $count = (int) $shoppingRepository->count(['user' => $user]);
+
+        return new JsonResponse([
+            'status' => 'ok',
+            'isNew' => $isNew,
+            'id' => $existing->getId(),
+            'quantity' => $existing->getQuantity(),
+            'checked' => $existing->isChecked(),
+            'count' => $count,
+            'htmlDesktop' => $htmlDesktop,
+            'htmlMobile' => $htmlMobile,
         ]);
     }
 
@@ -44,18 +153,17 @@ final class ShoppingController extends AbstractController
 
         $shoppingService->syncAutoMissingFromInsufficientRecipes($user);
 
-        // Redirection vers la liste
         return $this->redirectToRoute('shopping_index');
     }
 
     #[Route('/{id}/toggle', name: 'shopping_toggle', methods: ['POST'])]
     public function toggle(
-        \App\Entity\Shopping $shopping,
+        Shopping $shopping,
         Request $request,
         EntityManagerInterface $em
     ): Response {
         $user = $this->getUser();
-        if (!$user instanceof \App\Entity\User) {
+        if (!$user instanceof User) {
             throw $this->createAccessDeniedException();
         }
 
@@ -80,11 +188,9 @@ final class ShoppingController extends AbstractController
         \App\Service\CartValidatorService $cartValidator
     ): Response {
         $user = $this->getUser();
-        if (!$user instanceof \App\Entity\User) {
+        if (!$user instanceof User) {
             throw $this->createAccessDeniedException();
         }
-
-        // (Optionnel) CSRF header ou token POST, comme tu fais ailleurs
 
         $count = $cartValidator->validateCheckedCart($user);
 
@@ -96,12 +202,12 @@ final class ShoppingController extends AbstractController
 
     #[Route('/{id}/quantity', name: 'shopping_update_quantity', methods: ['POST'])]
     public function updateQuantity(
-        \App\Entity\Shopping $shopping,
+        Shopping $shopping,
         Request $request,
         EntityManagerInterface $em
     ): Response {
         $user = $this->getUser();
-        if (!$user instanceof \App\Entity\User) {
+        if (!$user instanceof User) {
             throw $this->createAccessDeniedException();
         }
 
@@ -118,14 +224,14 @@ final class ShoppingController extends AbstractController
         $qty = (float) $raw;
 
         if ($qty <= 0) {
-            // Option UX : 0 => on retire de la liste
+            $id = $shopping->getId();
             $em->remove($shopping);
             $em->flush();
 
             return $this->json([
                 'ok' => true,
                 'removed' => true,
-                'id' => $shopping->getId(),
+                'id' => $id,
             ]);
         }
 

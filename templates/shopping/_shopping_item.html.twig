@@ -1,0 +1,164 @@
+{% set checked = item.checked is defined and item.checked %}
+{% set ing = item.ingredient %}
+{% set unit = (ing and ing.unit) ? ing.unit.value : '' %}
+
+{% if variant == 'mobile' %}
+  {% set cbId = 'shopping_cb_m_' ~ item.id %}
+
+  <div
+    class="swipe-item {{ checked ? 'is-checked' : '' }} {% if first|default(false) %}swipe-hint{% endif %}"
+    data-shopping-row-id="{{ item.id }}"
+    data-controller="swipe-reveal"
+    data-swipe-reveal-open-class-value="is-revealed"
+  >
+    <div class="swipe-actions">
+      <button
+        type="button"
+        class="rp-action-btn swipe-trash"
+        data-action="shopping#remove"
+        data-shopping-id-param="{{ item.id }}"
+        aria-label="Supprimer"
+        title="Supprimer"
+      >
+        <img src="{{ asset('img/actions/delete.png') }}" alt="" class="rp-action-thumb">
+      </button>
+    </div>
+
+    <div class="swipe-content">
+      <div class="d-flex align-items-center justify-content-between gap-2">
+
+        {# ===== LEFT: checkbox + image + name ===== #}
+        <div class="d-flex align-items-center gap-2 flex-grow-1" style="min-width:0;">
+          <input
+            id="{{ cbId }}"
+            type="checkbox"
+            class="rp-check"
+            data-shopping-target="checkbox"
+            data-action="change->shopping#toggle"
+            data-shopping-id-param="{{ item.id }}"
+            {% if checked %}checked{% endif %}
+            aria-label="Cocher l’article"
+          >
+          <label for="{{ cbId }}" class="rp-check-label" title="Cocher">
+            <img class="rp-check-off" src="{{ asset('img/actions/coche_gris.png') }}" alt="">
+            <img class="rp-check-on"  src="{{ asset('img/actions/coche.png') }}" alt="">
+          </label>
+
+          <img
+            src="{{ ingredient_image(ing) }}"
+            alt="{{ ing.name }}"
+            width="46"
+            height="46"
+            loading="lazy"
+            decoding="async"
+            style="object-fit: contain; border-radius: 8px; flex: 0 0 auto;"
+          >
+
+          {# ✅ Nom sur 2 lignes max, puis ellipsis #}
+          <div style="min-width:0;">
+            <div
+              class="fw-semibold"
+              style="
+                display: -webkit-box;
+                -webkit-box-orient: vertical;
+                -webkit-line-clamp: 2;
+                overflow: hidden;
+                word-break: break-word;
+                line-height: 1.2;
+              "
+              title="{{ ing.name|capitalize }}"
+            >
+              {{ ing.name|capitalize }}
+            </div>
+          </div>
+        </div>
+
+        {# ===== RIGHT: quantity + unit ===== #}
+        <div class="flex-shrink-0" style="width: 110px;">
+          <div class="input-group input-group-sm">
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              class="form-control text-end"
+              value="{{ item.quantity }}"
+              data-action="change->shopping#updateQuantity"
+              data-shopping-id-param="{{ item.id }}"
+              title="Modifier la quantité (0 = retirer de la liste)"
+              aria-label="Quantité"
+            >
+            <span class="input-group-text text-muted" style="max-width: 54px; overflow:hidden; text-overflow:ellipsis;">
+              {{ unit ?: '—' }}
+            </span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+{% else %}
+  {# ===== Desktop inchangé ===== #}
+  {% set cbId = 'shopping_cb_d_' ~ item.id %}
+
+  <tr data-shopping-row-id="{{ item.id }}" class="{{ checked ? 'is-checked' : '' }}">
+    <td>
+      <input
+        id="{{ cbId }}"
+        type="checkbox"
+        class="rp-check"
+        data-shopping-target="checkbox"
+        data-action="change->shopping#toggle"
+        data-shopping-id-param="{{ item.id }}"
+        {% if checked %}checked{% endif %}
+        aria-label="Cocher l’article"
+      >
+      <label for="{{ cbId }}" class="rp-check-label" title="Cocher">
+        <img class="rp-check-off" src="{{ asset('img/actions/coche_gris.png') }}" alt="">
+        <img class="rp-check-on"  src="{{ asset('img/actions/coche.png') }}" alt="">
+      </label>
+    </td>
+
+    <td>
+      <div class="d-flex align-items-center gap-2">
+        <img
+          src="{{ ingredient_image(ing) }}"
+          alt="{{ ing.name }}"
+          width="50"
+          height="50"
+          loading="lazy"
+          style="object-fit: contain; border-radius: 6px;"
+        >
+        <span>{{ ing.name|capitalize }}</span>
+      </div>
+    </td>
+
+    <td class="text-nowrap">
+      <input
+        type="number"
+        step="0.01"
+        min="0"
+        class="form-control form-control-sm"
+        value="{{ item.quantity }}"
+        data-action="change->shopping#updateQuantity"
+        data-shopping-id-param="{{ item.id }}"
+        title="Modifier la quantité (0 = retirer de la liste)"
+      >
+    </td>
+
+    <td>{{ unit }}</td>
+
+    <td class="text-end">
+      <button
+        type="button"
+        class="rp-action-btn"
+        data-action="shopping#remove"
+        data-shopping-id-param="{{ item.id }}"
+        title="Supprimer"
+        aria-label="Supprimer"
+      >
+        <img src="{{ asset('img/actions/delete.png') }}" alt="" class="rp-action-thumb">
+      </button>
+    </td>
+  </tr>
+{% endif %}

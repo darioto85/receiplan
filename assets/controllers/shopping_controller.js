@@ -6,16 +6,108 @@ export default class extends Controller {
     toggleUrl: String,
     validateUrl: String,
     updateQuantityUrl: String,
+    upsertUrl: String,
     csrfToken: String,
   };
 
-  static targets = ["checkbox", "validateBtn", "countBadge"];
+  static targets = [
+    "checkbox",
+    "validateBtn",
+    "countBadge",
+
+    // ✅ NEW (quick add)
+    "formErrors",
+    "desktopTbody",
+    "mobileList",
+  ];
 
   connect() {
     this.refreshValidateButtonState();
     this.refreshCountBadge();
   }
 
+  // =========================
+  // ✅ NEW: Quick Add (Upsert)
+  // =========================
+  async submitUpsert(event) {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    const url = form.getAttribute("action") || this.upsertUrlValue;
+
+    if (this.hasFormErrorsTarget) this.formErrorsTarget.innerHTML = "";
+
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          Accept: "application/json",
+          ...this.csrfHeader(),
+        },
+        body: new FormData(form),
+      });
+
+      const data = await this.safeJson(res);
+
+      if (!res.ok || data?.status !== "ok") {
+        // 422 => erreurs twig (comme stock)
+        if (data?.errors && this.hasFormErrorsTarget) {
+          this.formErrorsTarget.innerHTML = data.errors;
+        } else if (this.hasFormErrorsTarget) {
+          this.formErrorsTarget.innerHTML =
+            `<div class="alert alert-danger mb-0">${data?.message || "Erreur."}</div>`;
+        }
+        return;
+      }
+
+      // ✅ Desktop: prepend/replace
+      if (data.htmlDesktop && this.hasDesktopTbodyTarget) {
+        this.upsertDomRow(this.desktopTbodyTarget, data.id, data.htmlDesktop);
+      }
+
+      // ✅ Mobile: prepend/replace
+      if (data.htmlMobile && this.hasMobileListTarget) {
+        this.upsertDomRow(this.mobileListTarget, data.id, data.htmlMobile);
+      }
+
+      // ✅ reset qty input (on garde l’ingrédient sélectionné)
+      const qtyInput =
+        form.querySelector('input[name$="[quantity]"]') ||
+        form.querySelector('input[name*="[quantity]"]');
+      if (qtyInput) qtyInput.value = "";
+
+      // ✅ refresh UI
+      this.refreshValidateButtonState();
+
+      // serveur renvoie count -> sinon recalcul DOM
+      if (typeof data.count !== "undefined") {
+        this.setCountBadge(data.count);
+      } else {
+        this.refreshCountBadge();
+      }
+    } catch (e) {
+      console.error(e);
+      if (this.hasFormErrorsTarget) {
+        this.formErrorsTarget.innerHTML =
+          `<div class="alert alert-danger mb-0">Erreur réseau.</div>`;
+      }
+    }
+  }
+
+  upsertDomRow(containerEl, id, html) {
+    const selector = `[data-shopping-row-id="${CSS.escape(String(id))}"]`;
+    const existing = containerEl.querySelector(selector);
+    if (existing) {
+      existing.outerHTML = html; // replace
+    } else {
+      containerEl.insertAdjacentHTML("afterbegin", html); // prepend
+    }
+  }
+
+  // =========================
+  // Existing features
+  // =========================
   async toggle(event) {
     const checkbox = event.currentTarget;
     const id = event.params.id;
@@ -49,9 +141,16 @@ export default class extends Controller {
         return;
       }
 
-      // ✅ IMPORTANT: toggle sur TOUTES les rows (mobile + desktop)
+      // ✅ IMPORTANT: synchro toutes les rows (mobile + desktop)
       this.findRowsForId(id).forEach((row) => {
         row.classList.toggle("is-checked", checked);
+
+        // synchro checkbox dans l’autre vue
+        row
+          .querySelectorAll('[data-shopping-target="checkbox"]')
+          .forEach((cb) => {
+            cb.checked = checked;
+          });
       });
     } catch (e) {
       checkbox.checked = !checked;
@@ -82,7 +181,12 @@ export default class extends Controller {
         // ✅ retire mobile + desktop
         this.findRowsForId(id).forEach((row) => row.remove());
       } else if (typeof data.quantity !== "undefined") {
-        input.value = data.quantity;
+        // ✅ met à jour les inputs dans les 2 vues
+        this.findRowsForId(id).forEach((row) => {
+          row.querySelectorAll('input[type="number"]').forEach((n) => {
+            n.value = data.quantity;
+          });
+        });
       }
     } catch (e) {
       console.error(e);
@@ -103,9 +207,11 @@ export default class extends Controller {
 
     // ✅ on désactive ce qu'on peut sur toutes les rows
     this.findRowsForId(id).forEach((row) => {
-      row.querySelectorAll('[data-shopping-target="checkbox"], input[type="number"]').forEach((el) => {
-        el.disabled = true;
-      });
+      row
+        .querySelectorAll('[data-shopping-target="checkbox"], input[type="number"]')
+        .forEach((el) => {
+          el.disabled = true;
+        });
     });
 
     try {
@@ -114,9 +220,11 @@ export default class extends Controller {
         console.error("remove failed", data);
         // réactive si échec
         this.findRowsForId(id).forEach((row) => {
-          row.querySelectorAll('[data-shopping-target="checkbox"], input[type="number"]').forEach((el) => {
-            el.disabled = false;
-          });
+          row
+            .querySelectorAll('[data-shopping-target="checkbox"], input[type="number"]')
+            .forEach((el) => {
+              el.disabled = false;
+            });
         });
         return;
       }
@@ -125,9 +233,11 @@ export default class extends Controller {
     } catch (e) {
       console.error(e);
       this.findRowsForId(id).forEach((row) => {
-        row.querySelectorAll('[data-shopping-target="checkbox"], input[type="number"]').forEach((el) => {
-          el.disabled = false;
-        });
+        row
+          .querySelectorAll('[data-shopping-target="checkbox"], input[type="number"]')
+          .forEach((el) => {
+            el.disabled = false;
+          });
       });
     } finally {
       this.refreshValidateButtonState();
@@ -156,14 +266,17 @@ export default class extends Controller {
         return;
       }
 
-      const checkboxes = this.hasCheckboxTarget ? [...this.checkboxTargets] : [];
+      // supprime toutes les lignes cochées (mobile + desktop)
       const idsToRemove = new Set();
 
-      checkboxes.forEach((cb) => {
-        if (!cb.checked) return;
-        const id = cb.dataset.shoppingIdParam || cb.getAttribute("data-shopping-id-param");
-        if (id) idsToRemove.add(id);
-      });
+      if (this.hasCheckboxTarget) {
+        this.checkboxTargets.forEach((cb) => {
+          if (!cb.checked) return;
+          const id =
+            cb.dataset.shoppingIdParam || cb.getAttribute("data-shopping-id-param");
+          if (id) idsToRemove.add(id);
+        });
+      }
 
       idsToRemove.forEach((id) => {
         this.findRowsForId(id).forEach((row) => row.remove());
@@ -245,15 +358,24 @@ export default class extends Controller {
     this.validateBtnTarget.disabled = !anyChecked;
   }
 
+  // ✅ badge = nombre total d'items (pas nombre cochés)
   refreshCountBadge() {
     if (!this.hasCountBadgeTarget) return;
 
-    const checkedCount = this.hasCheckboxTarget
-      ? this.checkboxTargets.filter((cb) => cb.checked).length
-      : 0;
+    const ids = new Set();
 
-    this.countBadgeTarget.textContent = String(checkedCount);
-    this.countBadgeTarget.classList.toggle("d-none", checkedCount === 0);
+    // On compte une seule fois par id (car mobile + desktop)
+    this.element.querySelectorAll("[data-shopping-row-id]").forEach((el) => {
+      const id = el.getAttribute("data-shopping-row-id");
+      if (id) ids.add(id);
+    });
+
+    this.setCountBadge(ids.size);
+  }
+
+  setCountBadge(n) {
+    if (!this.hasCountBadgeTarget) return;
+    this.countBadgeTarget.textContent = String(n);
   }
 
   async safeJson(res) {

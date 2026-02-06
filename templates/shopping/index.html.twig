@@ -8,12 +8,25 @@
     data-shopping-toggle-url-value="{{ path('shopping_toggle', { id: 0 }) }}"
     data-shopping-validate-url-value="{{ path('shopping_validate_cart') }}"
     data-shopping-update-quantity-url-value="{{ path('shopping_update_quantity', { id: 0 }) }}"
+    data-shopping-upsert-url-value="{{ path('shopping_upsert') }}"
     data-shopping-csrf-token-value="{{ csrf_token('shopping_cart') }}"
   >
     <div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
       <h1 class="mb-0"><img class="rp-title-thumb" src="{{ asset('img/actions/courses.png') }}" alt=""> Courses</h1>
 
       <div class="d-flex align-items-center gap-2 flex-wrap">
+        <button
+          class="btn btn-primary d-flex align-items-center gap-2"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#shoppingUpsertForm"
+          aria-controls="shoppingUpsertForm"
+        >
+          <img class="bt-action-thumb" src="{{ asset('img/actions/stock_add.png') }}" alt="">
+          <span class="d-none d-sm-inline">Ajouter manuellement</span>
+          <span class="d-inline d-sm-none">Ajout</span>
+        </button>
+
         <a
           href="{{ path('shopping_generate') }}"
           class="btn btn-outline-primary d-flex align-items-center gap-2"
@@ -38,194 +51,46 @@
       </div>
     </div>
 
-    <div class="rp-section-title mb-3">
-      <h2 class="mb-0">Liste</h2>
-      <span class="badge bg-primary rp-count-badge">{{ items|length }}</span>
+    {# ===== Quick Add Bar (comme Stock) ===== #}
+    <div id="shoppingUpsertForm" class="collapse mb-4">
+      <div class="mb-2" data-shopping-target="formErrors"></div>
+
+      {{ form_start(form, {
+        action: path('shopping_upsert'),
+        method: 'POST',
+        attr: {
+          class: 'rp-quickadd',
+          'data-action': 'submit->shopping#submitUpsert'
+        }
+      }) }}
+
+        <div class="rp-quickadd__bar">
+          <div class="rp-quickadd__field">
+            {{ form_widget(form.ingredient, { attr: { class: 'rp-quickadd__input', placeholder: 'Ajouter rapidement' } }) }}
+            {{ form_errors(form.ingredient) }}
+          </div>
+
+          <div class="rp-quickadd__mini">
+            {{ form_widget(form.quantity, { attr: { class: 'rp-quickadd__miniInput', placeholder: 'Qté…', inputmode: 'decimal' } }) }}
+            {{ form_errors(form.quantity) }}
+          </div>
+
+          <div class="rp-quickadd__mini">
+            <div class="rp-quickadd__miniFake" aria-hidden="true">—</div>
+          </div>
+
+          <button type="submit" class="rp-quickadd__btn">
+            <span class="rp-quickadd__btnIcon">+</span>
+            <span>Ajouter</span>
+            <span class="rp-quickadd__btnChevron">›</span>
+          </button>
+        </div>
+
+      {{ form_end(form) }}
     </div>
 
-    {% if items is empty %}
-      <div class="text-center text-muted py-4">
-        Ta liste de courses est vide 🧘‍♀️
-      </div>
-    {% else %}
-
-      {# ===== Mobile: swipe to reveal delete (xs/sm) ===== #}
-      <div class="d-grid gap-2 d-md-none">
-        {% for item in items %}
-          {% set checked = item.checked is defined and item.checked %}
-          {% set ing = item.ingredient %}
-          {% set unit = (ing and ing.unit) ? ing.unit.value : '' %}
-          {% set cbId = 'shopping_cb_m_' ~ item.id %}
-
-          <div
-            class="swipe-item {{ checked ? 'is-checked' : '' }} {% if loop.first %}swipe-hint{% endif %}"
-            data-shopping-row-id="{{ item.id }}"
-            data-controller="swipe-reveal"
-            data-swipe-reveal-open-class-value="is-revealed"
-          >
-            <div class="swipe-actions">
-              <button
-                type="button"
-                class="rp-action-btn swipe-trash"
-                data-action="shopping#remove"
-                data-shopping-id-param="{{ item.id }}"
-                aria-label="Supprimer"
-                title="Supprimer"
-              >
-                <img
-                  src="{{ asset('img/actions/delete.png') }}"
-                  alt=""
-                  class="rp-action-thumb"
-                >
-              </button>
-
-            </div>
-
-            <div class="swipe-content">
-              <div class="d-flex align-items-center justify-content-between gap-2">
-                <div class="d-flex align-items-center gap-2 flex-grow-1" style="min-width:0;">
-                  <input
-                    id="{{ cbId }}"
-                    type="checkbox"
-                    class="rp-check"
-                    data-shopping-target="checkbox"
-                    data-action="change->shopping#toggle"
-                    data-shopping-id-param="{{ item.id }}"
-                    {% if checked %}checked{% endif %}
-                    aria-label="Cocher l’article"
-                  >
-                  <label for="{{ cbId }}" class="rp-check-label" title="Cocher">
-                    <img class="rp-check-off" src="{{ asset('img/actions/coche_gris.png') }}" alt="">
-                    <img class="rp-check-on"  src="{{ asset('img/actions/coche.png') }}" alt="">
-                  </label>
-
-                  <img
-                    src="{{ ingredient_image(ing) }}"
-                    alt="{{ ing.name }}"
-                    width="50"
-                    height="50"
-                    loading="lazy"
-                    decoding="async"
-                    style="object-fit: contain; border-radius: 8px;"
-                  >
-
-                  <div class="text-truncate">
-                    <span class="fw-semibold">{{ ing.name|capitalize }}</span>
-                    {% if unit %}
-                      <span class="text-muted"> · {{ unit }}</span>
-                    {% endif %}
-                  </div>
-                </div>
-
-                <div class="flex-shrink-0" style="width: 64px;">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    class="form-control form-control-sm text-end"
-                    value="{{ item.quantity }}"
-                    data-action="change->shopping#updateQuantity"
-                    data-shopping-id-param="{{ item.id }}"
-                    title="Modifier la quantité (0 = retirer de la liste)"
-                    aria-label="Quantité"
-                  >
-                </div>
-              </div>
-            </div>
-          </div>
-        {% endfor %}
-      </div>
-
-      {# ===== Desktop/tablet: table (md+) ===== #}
-      <div class="table-responsive d-none d-md-block">
-        <table class="table table-hover mb-0 align-middle">
-          <thead class="table-light">
-            <tr>
-              <th style="width: 44px;"></th>
-              <th>Ingrédient</th>
-              <th class="text-nowrap" style="width: 140px;">Quantité</th>
-              <th>Unité</th>
-              <th class="text-end">Actions</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {% for item in items %}
-              {% set checked = item.checked is defined and item.checked %}
-              {% set ing = item.ingredient %}
-              {% set cbId = 'shopping_cb_d_' ~ item.id %}
-
-              <tr data-shopping-row-id="{{ item.id }}" class="{{ checked ? 'is-checked' : '' }}">
-                <td>
-                  <input
-                    id="{{ cbId }}"
-                    type="checkbox"
-                    class="rp-check"
-                    data-shopping-target="checkbox"
-                    data-action="change->shopping#toggle"
-                    data-shopping-id-param="{{ item.id }}"
-                    {% if checked %}checked{% endif %}
-                    aria-label="Cocher l’article"
-                  >
-                  <label for="{{ cbId }}" class="rp-check-label" title="Cocher">
-                    <img class="rp-check-off" src="{{ asset('img/actions/coche_gris.png') }}" alt="">
-                    <img class="rp-check-on"  src="{{ asset('img/actions/coche.png') }}" alt="">
-                  </label>
-                </td>
-
-                <td>
-                  <div class="d-flex align-items-center gap-2">
-                    <img
-                      src="{{ ingredient_image(ing) }}"
-                      alt="{{ ing.name }}"
-                      width="50"
-                      height="50"
-                      loading="lazy"
-                      style="object-fit: contain; border-radius: 6px;"
-                    >
-                    <span>{{ ing.name|capitalize }}</span>
-                  </div>
-                </td>
-
-                <td class="text-nowrap">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    class="form-control form-control-sm"
-                    value="{{ item.quantity }}"
-                    data-action="change->shopping#updateQuantity"
-                    data-shopping-id-param="{{ item.id }}"
-                    title="Modifier la quantité (0 = retirer de la liste)"
-                  >
-                </td>
-
-                <td>
-                  {{ (ing and ing.unit) ? ing.unit.value : '' }}
-                </td>
-
-                <td class="text-end">
-                  <button
-                  type="button"
-                  class="rp-action-btn"
-                  data-action="shopping#remove"
-                  data-shopping-id-param="{{ item.id }}"
-                  title="Supprimer"
-                  aria-label="Supprimer"
-                >
-                  <img
-                    src="{{ asset('img/actions/delete.png') }}"
-                    alt=""
-                    class="rp-action-thumb"
-                  >
-                </button>
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-
-    {% endif %}
+    <div data-shopping-target="listing">
+      {{ include('shopping/_listing.html.twig', { items: items }) }}
+    </div>
   </div>
 {% endblock %}
