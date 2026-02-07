@@ -14,6 +14,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\HttpFoundation\JsonResponse;
 
 #[Route('/recipe')]
 final class RecipeController extends AbstractController
@@ -259,6 +260,40 @@ final class RecipeController extends AbstractController
         } catch (\DomainException $e) {
             return $this->json(['message' => $e->getMessage()], 400);
         }
+    }
+
+    #[Route('/{id}/favorite', name: 'app_recipe_toggle_favorite', methods: ['POST'])]
+    public function toggleFavorite(
+        Recipe $recipe,
+        Request $request,
+        EntityManagerInterface $em,
+    ): Response {
+        /** @var User|null $user */
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        if ($recipe->getUser() !== $user) {
+            throw $this->createAccessDeniedException();
+        }
+
+        if (!$request->isXmlHttpRequest()) {
+            return new JsonResponse(['status' => 'error', 'message' => 'Requête invalide.'], 400);
+        }
+
+        $csrf = (string) $request->request->get('_token', '');
+        if (!$this->isCsrfTokenValid('recipe_favorite_' . $recipe->getId(), $csrf)) {
+            return new JsonResponse(['status' => 'error', 'message' => 'Token CSRF invalide.'], 403);
+        }
+
+        $recipe->setFavorite(!$recipe->isFavorite());
+        $em->flush();
+
+        return new JsonResponse([
+            'status' => 'ok',
+            'favorite' => $recipe->isFavorite(),
+        ]);
     }
 
     /**

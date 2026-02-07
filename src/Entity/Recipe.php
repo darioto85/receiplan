@@ -26,6 +26,11 @@ class Recipe
     #[ORM\OneToMany(mappedBy: 'recipe', targetEntity: RecipeIngredient::class, cascade: ['persist'], orphanRemoval: true)]
     private Collection $recipeIngredients;
 
+    /** @var Collection<int, RecipeStep> */
+    #[ORM\OneToMany(mappedBy: 'recipe', targetEntity: RecipeStep::class, cascade: ['persist'], orphanRemoval: true)]
+    #[ORM\OrderBy(['position' => 'ASC'])]
+    private Collection $recipeSteps;
+
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $nameKey = null;
 
@@ -44,6 +49,7 @@ class Recipe
     public function __construct()
     {
         $this->recipeIngredients = new ArrayCollection();
+        $this->recipeSteps = new ArrayCollection();
     }
 
     public function getId(): ?int { return $this->id; }
@@ -138,6 +144,33 @@ class Recipe
         if ($this->recipeIngredients->removeElement($recipeIngredient)) {
             if ($recipeIngredient->getRecipe() === $this) {
                 $recipeIngredient->setRecipe(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /** @return Collection<int, RecipeStep> */
+    public function getRecipeSteps(): Collection
+    {
+        return $this->recipeSteps;
+    }
+
+    public function addRecipeStep(RecipeStep $step): static
+    {
+        if (!$this->recipeSteps->contains($step)) {
+            $this->recipeSteps->add($step);
+            $step->setRecipe($this);
+        }
+
+        return $this;
+    }
+
+    public function removeRecipeStep(RecipeStep $step): static
+    {
+        if ($this->recipeSteps->removeElement($step)) {
+            if ($step->getRecipe() === $this) {
+                $step->setRecipe(null);
             }
         }
 

@@ -1,0 +1,45 @@
+{# templates/recipe_wizard/_step_item.html.twig #}
+<div
+  class="card shadow-sm"
+  data-recipe-step-id="{{ step.id }}"
+  data-step-update-url="{{ path('recipe_wizard_step_update', { id: step.recipe.id, stepId: step.id }) }}"
+  data-step-update-token="{{ csrf_token('update_recipe_step_' ~ step.id) }}"
+>
+  <div
+    class="card-body py-3 d-flex align-items-start justify-content-between gap-3"
+    role="button"
+    tabindex="0"
+    style="cursor: text;"
+    data-action="click->recipe-steps#startEdit"
+  >
+    <div class="d-flex gap-2" style="min-width:0; flex: 1 1 auto;">
+      <div class="badge text-bg-light mt-1">#{{ step.position }}</div>
+
+      {# affichage #}
+      <div class="text-break" data-step-text>{{ step.content }}</div>
+
+      {# editor (hidden) #}
+      <div class="w-100 d-none" data-step-editor>
+        <textarea
+          class="form-control"
+          rows="3"
+          data-step-textarea
+          data-action="keydown->recipe-steps#onEditorKeydown blur->recipe-steps#onEditorBlur"
+        ></textarea>
+        <div class="text-muted small mt-1">
+          Entrée = valider · Shift+Entrée = saut de ligne · Échap = annuler
+        </div>
+      </div>
+    </div>
+
+    <form
+      method="post"
+      action="{{ path('recipe_wizard_step_delete', { id: step.recipe.id, stepId: step.id }) }}"
+      data-action="submit->recipe-steps#deleteItem"
+      class="ms-auto"
+    >
+      <input type="hidden" name="_token" value="{{ csrf_token('delete_recipe_step_' ~ step.id) }}">
+      <button type="submit" class="btn btn-sm btn-outline-danger">Supprimer</button>
+    </form>
+  </div>
+</div>

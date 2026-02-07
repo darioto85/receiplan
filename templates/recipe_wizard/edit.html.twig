@@ -4,7 +4,6 @@
 {% block title %}Modifier recette{% endblock %}
 
 {% block body %}
-  {# ✅ image recette (helper existant) avec fallback placeholder #}
   {% set recipeImg = recipe_image(recipe) %}
   {% if not recipeImg %}
     {% set recipeImg = asset('img/recipe/placeholder.png') %}
@@ -12,19 +11,19 @@
 
   <div
     class="card shadow-sm"
-    data-controller="recipe-wizard recipe-ingredients"
+    data-controller="recipe-wizard recipe-ingredients recipe-steps"
     data-recipe-wizard-save-draft-url-value="{{ path('recipe_wizard_save_draft') }}"
     data-recipe-wizard-recipe-id-value="{{ recipe.id }}"
     data-recipe-wizard-preview-url-value="{{ path('recipe_wizard_preview', { id: recipe.id }) }}"
 
     data-recipe-ingredients-upsert-url-value="{{ path('recipe_wizard_ingredient_upsert', { id: recipe.id }) }}"
     data-recipe-ingredients-preview-url-value="{{ path('recipe_wizard_preview', { id: recipe.id }) }}"
+
+    data-recipe-steps-add-url-value="{{ path('recipe_wizard_step_add', { id: recipe.id }) }}"
   >
     <div class="card-body">
 
-      {# =========================
-         HEADER (visible step 2 & 3) : nom + image + bouton modifier nom
-         ========================= #}
+      {# HEADER #}
       <div class="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
         <div class="d-flex align-items-center gap-3" style="min-width:0;">
           <img
@@ -41,23 +40,33 @@
           </h1>
         </div>
 
-        <button
-          type="button"
-          class="btn btn-outline-primary"
-          data-action="recipe-wizard#goStep1"
-        >
-          Modifier le nom
-        </button>
+        {# ✅ Bouton contextuel : step1/2 => modifier nom ; step3 => retour ingrédients #}
+        <div class="d-flex gap-2">
+          <button
+            type="button"
+            class="btn btn-outline-primary"
+            data-action="recipe-wizard#goStep1"
+            data-recipe-wizard-target="headerToStep1"
+          >
+            Modifier le nom
+          </button>
+
+          <button
+            type="button"
+            class="btn btn-outline-primary is-hidden"
+            data-action="recipe-wizard#goStep2"
+            data-recipe-wizard-target="headerToStep2"
+          >
+            ← Retour aux ingrédients
+          </button>
+        </div>
       </div>
 
-      {# ===== Steps header (on le garde) ===== #}
       <div class="text-muted mb-4" data-recipe-wizard-target="stepHint">
-        Étape 1/3 — Nom
+        Étape 1/4 — Nom
       </div>
 
-      {# =========================
-         STEP 1 — NOM
-         ========================= #}
+      {# STEP 1 #}
       <section class="rp-step" data-recipe-wizard-target="step1">
         <div class="mb-2" data-recipe-wizard-target="step1Error"></div>
 
@@ -83,25 +92,17 @@
         </form>
 
         <div class="d-flex justify-content-end mt-3">
-          <button
-            type="button"
-            class="btn btn-outline-primary"
-            data-action="recipe-wizard#goStep2"
-          >
+          <button type="button" class="btn btn-outline-primary" data-action="recipe-wizard#goStep2">
             Passer aux ingrédients →
           </button>
         </div>
       </section>
 
-      {# =========================
-         STEP 2 — INGRÉDIENTS (style stock)
-         ========================= #}
+      {# STEP 2 — INGREDIENTS #}
       <section class="rp-step is-hidden" data-recipe-wizard-target="step2">
 
-        {# Erreurs du form AJAX #}
         <div class="mb-2" data-recipe-ingredients-target="formErrors"></div>
 
-        {# ===== Quick Add Bar ===== #}
         {{ form_start(form, {
           action: path('recipe_wizard_ingredient_upsert', { id: recipe.id }),
           method: 'POST',
@@ -110,7 +111,6 @@
             'data-action': 'submit->recipe-ingredients#submitUpsert'
           }
         }) }}
-
           <div class="rp-quickadd__bar">
             <div class="rp-quickadd__field">
               {{ form_widget(form.ingredient, { attr: { class: 'rp-quickadd__input', placeholder: 'Ajouter rapidement' } }) }}
@@ -132,34 +132,59 @@
               <span class="rp-quickadd__btnChevron">›</span>
             </button>
           </div>
-
         {{ form_end(form) }}
 
-        {# ===== Listing ingrédients ===== #}
         <div class="mt-3" data-recipe-ingredients-target="listing">
           {{ include('recipe_wizard/_ingredient_listing.html.twig', { recipe: recipe }) }}
         </div>
 
-        {# ✅ Destination du bouton selon draft/published #}
-        {% set nextUrl = recipe.draft
-          ? path('recipe_wizard_preview', { id: recipe.id })
-          : path('app_recipe_show', { id: recipe.id })
-        %}
+        <div class="d-flex justify-content-end mt-4">
+          {% if recipe.draft %}
+            <button type="button" class="btn btn-primary" data-action="recipe-wizard#goStep3">
+              Continuer
+            </button>
+          {% else %}
+            <a href="{{ path('app_recipe_show', { id: recipe.id }) }}" class="btn btn-primary">
+              Terminer → Voir la recette
+            </a>
+          {% endif %}
+        </div>
+      </section>
+
+      {# STEP 3 — STEPS (RecipeStep) #}
+      <section class="rp-step is-hidden" data-recipe-wizard-target="step3">
+
+        <div class="mb-2" data-recipe-steps-target="formError"></div>
+
+        <form class="mb-3" data-action="submit->recipe-steps#submitAdd">
+          <div class="mb-2">
+            <textarea
+              class="form-control"
+              rows="3"
+              placeholder="Décris une étape… (ex: Faire revenir les oignons 5 min)"
+              data-recipe-steps-target="content"
+            ></textarea>
+          </div>
+
+          <div class="d-flex justify-content-end">
+            <button type="submit" class="btn btn-outline-primary">
+              + Ajouter une étape
+            </button>
+          </div>
+        </form>
+
+        <div data-recipe-steps-target="listing">
+          {{ include('recipe_wizard/_step_listing.html.twig', { recipe: recipe }) }}
+        </div>
 
         <div class="d-flex justify-content-end mt-4">
-          <a href="{{ nextUrl }}" class="btn btn-primary">
-            {% if recipe.draft %}
-              Continuer
-            {% else %}
-              Terminer → Voir la recette
-            {% endif %}
+          <a href="{{ path('recipe_wizard_preview', { id: recipe.id }) }}" class="btn btn-primary">
+            Continuer
           </a>
         </div>
       </section>
 
-      {# STEP 3 : route dédiée /preview #}
-
-      {# ===== Delete Modal ===== #}
+      {# ===== Delete Modal + Quantity Modal ingrédients (inchangés) ===== #}
       <div
         class="modal fade"
         id="recipeIngredientDeleteModal"
@@ -202,7 +227,6 @@
         </div>
       </div>
 
-      {# ===== Quantity Modal (mobile) ===== #}
       <div
         class="modal fade"
         id="recipeIngredientQuantityModal"

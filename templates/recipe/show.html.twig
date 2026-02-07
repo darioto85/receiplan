@@ -17,7 +17,34 @@
       <i class="fa-solid fa-arrow-left"></i>
     </button>
 
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 align-items-center">
+      {# ⭐ Favori (AJAX) #}
+      {% set favOn = asset('img/actions/star.png') %}
+      {% set favOff = asset('img/actions/star_grey.png') %}
+      {% set favIcon = recipe.favorite ? favOn : favOff %}
+
+      <button
+        type="button"
+        class="rp-action-btn"
+        data-controller="recipe-favorite"
+        data-action="click->recipe-favorite#toggle"
+        data-recipe-favorite-url-value="{{ path('app_recipe_toggle_favorite', { id: recipe.id }) }}"
+        data-recipe-favorite-token-value="{{ csrf_token('recipe_favorite_' ~ recipe.id) }}"
+        data-recipe-favorite-icon-on-value="{{ favOn }}"
+        data-recipe-favorite-icon-off-value="{{ favOff }}"
+        aria-pressed="{{ recipe.favorite ? 'true' : 'false' }}"
+        aria-label="{{ recipe.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris' }}"
+        title="{{ recipe.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris' }}"
+      >
+        {# ✅ évite un éventuel cache du navigateur (premier rendu) #}
+        <img
+          src="{{ favIcon }}?v={{ recipe.favorite ? 1 : 0 }}"
+          alt=""
+          class="rp-action-thumb"
+          data-recipe-favorite-target="img"
+        >
+      </button>
+
       <a
         href="{{ path('recipe_wizard_edit', { id: recipe.id }) }}"
         class="rp-action-btn"
@@ -49,6 +76,9 @@
       <div class="card">
         <div class="card-body text-center">
           {% set recipeImg = recipe_image(recipe) %}
+          {% if not recipeImg %}
+            {% set recipeImg = asset('img/recipe/placeholder.png') %}
+          {% endif %}
           <img
             src="{{ recipeImg }}"
             alt="{{ recipe.name }}"
@@ -63,79 +93,93 @@
     </div>
 
     {# Ingredients list (left on desktop, second on mobile) #}
-        <div class="col-12 col-lg-7 order-2 order-lg-1">
-          {% if recipe.recipeIngredients|length == 0 %}
-            <div class="p-3 text-muted">
-              Aucun ingrédient pour l’instant.
-            </div>
-          {% else %}
+    <div class="col-12 col-lg-7 order-2 order-lg-1">
+      {% if recipe.recipeIngredients|length == 0 %}
+        <div class="p-3 text-muted">
+          Aucun ingrédient pour l’instant.
+        </div>
+      {% else %}
+        <div class="table-responsive">
+          <table class="table mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Ingrédient</th>
+                <th class="text-end" style="width: 160px;">Quantité</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for ri in recipe.recipeIngredients %}
+                {% set ing = ri.ingredient %}
+                {% set unit = (ing and ing.unit) ? ing.unit.value : '' %}
 
-            <div class="table-responsive">
-              <table class="table mb-0 align-middle">
-                <thead class="table-light">
-                  <tr>
-                    <th>Ingrédient</th>
-                    <th class="text-end" style="width: 160px;">Quantité</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for ri in recipe.recipeIngredients %}
-                    {% set ing = ri.ingredient %}
-                    {# unité via l'ingrédient (RecipeIngredient n'a pas unit) #}
-                    {% set unit = (ing and ing.unit) ? ing.unit.value : '' %}
+                <tr>
+                  <td>
+                    {% if ing %}
+                      {% set ingImg = ingredient_image(ing) %}
+                      <div class="d-flex align-items-center gap-2">
+                        <img
+                          src="{{ ingImg }}"
+                          alt="{{ ing.name }}"
+                          width="28"
+                          height="28"
+                          loading="lazy"
+                          decoding="async"
+                          style="object-fit: contain; border-radius: 8px; background:#fff;"
+                        >
+                        <span class="fw-semibold">{{ ing.name }}</span>
+                      </div>
+                    {% else %}
+                      <span class="text-muted">Ingrédient supprimé</span>
+                    {% endif %}
+                  </td>
 
-                    <tr>
-                      <td>
-                        {% if ing %}
-                          {% set ingImg = ingredient_image(ing) %}
-                          <div class="d-flex align-items-center gap-2">
-                            <img
-                              src="{{ ingImg }}"
-                              alt="{{ ing.name }}"
-                              width="28"
-                              height="28"
-                              loading="lazy"
-                              decoding="async"
-                              style="object-fit: contain; border-radius: 8px; background:#fff;"
-                            >
-                            <span class="fw-semibold">{{ ing.name }}</span>
-                          </div>
-                        {% else %}
-                          <span class="text-muted">Ingrédient supprimé</span>
-                        {% endif %}
-                      </td>
-
-                      <td class="text-end">
-                        {% if ri.quantity is null %}
-                          <span class="text-muted">—</span>
-                        {% else %}
-                          <span class="fw-semibold">{{ ri.quantity }}</span>
-                          {% if unit %}
-                            <span class="text-muted ms-1">{{ unit }}</span>
-                          {% endif %}
-                        {% endif %}
-                      </td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          {% endif %}
+                  <td class="text-end">
+                    {% if ri.quantity is null %}
+                      <span class="text-muted">—</span>
+                    {% else %}
+                      <span class="fw-semibold">{{ ri.quantity }}</span>
+                      {% if unit %}
+                        <span class="text-muted ms-1">{{ unit }}</span>
+                      {% endif %}
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
     </div>
   </div>
 
-  {# ===== Steps full width (placeholder) ===== #}
+  {# ===== Steps full width ===== #}
   <div class="card">
     <div class="card-header fw-semibold">
       ✅ Étapes
     </div>
     <div class="card-body">
-      <div class="border rounded-3 p-3 bg-light">
-        <div class="fw-semibold mb-1">Emplacement des étapes</div>
-        <div class="text-muted small">
-          Ici on affichera bientôt les étapes de la recette (1, 2, 3…).
+
+      {% set steps = recipe.recipeSteps|default([]) %}
+
+      {% if steps is empty %}
+        <div class="text-muted">
+          Aucune étape pour l’instant.
         </div>
-      </div>
+      {% else %}
+        <div class="list-group">
+          {% for step in steps %}
+            <div class="list-group-item">
+              <div class="d-flex align-items-start gap-3">
+                <span class="badge text-bg-light mt-1">#{{ step.position }}</span>
+                <div class="text-break">
+                  {{ step.content }}
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
     </div>
   </div>
 

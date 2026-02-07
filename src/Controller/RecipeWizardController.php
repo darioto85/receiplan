@@ -5,9 +5,11 @@ namespace App\Controller;
 use App\Entity\Ingredient;
 use App\Entity\Recipe;
 use App\Entity\RecipeIngredient;
+use App\Entity\RecipeStep;
 use App\Entity\User;
 use App\Form\RecipeIngredientUpsertType;
 use App\Repository\RecipeIngredientRepository;
+use App\Repository\RecipeStepRepository;
 use App\Service\NameKeyNormalizer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -24,7 +26,6 @@ final class RecipeWizardController extends AbstractController
     #[Route('/new', name: 'new', methods: ['GET'])]
     public function new(): Response
     {
-        // Wizard création : pas encore de recipeId
         return $this->render('recipe_wizard/new.html.twig');
     }
 
@@ -39,7 +40,6 @@ final class RecipeWizardController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        // Form quick-add Step 2 (même logique que Stock)
         $form = $this->createForm(RecipeIngredientUpsertType::class);
 
         return $this->render('recipe_wizard/edit.html.twig', [
@@ -50,9 +50,6 @@ final class RecipeWizardController extends AbstractController
 
     /**
      * STEP 1 - AJAX: crée un brouillon (draft=true) ou met à jour le nom d'un brouillon existant.
-     * Payload attendu (x-www-form-urlencoded ou FormData):
-     * - name: string
-     * - recipeId?: int (optionnel)
      */
     #[Route('/draft', name: 'save_draft', methods: ['POST'])]
     public function saveDraft(
@@ -71,10 +68,7 @@ final class RecipeWizardController extends AbstractController
 
         $name = trim((string) $request->request->get('name', ''));
         if ($name === '') {
-            return new JsonResponse([
-                'status' => 'error',
-                'message' => 'Le nom est obligatoire.',
-            ], 422);
+            return new JsonResponse(['status' => 'error', 'message' => 'Le nom est obligatoire.'], 422);
         }
 
         $recipeIdRaw = $request->request->get('recipeId');
@@ -93,15 +87,12 @@ final class RecipeWizardController extends AbstractController
             $recipe->setUser($user);
             $recipe->setDraft(true);
             $recipe->setFavorite(false);
-
             $em->persist($recipe);
         }
 
         $recipe->setName($name);
         $recipe->setNameKey($nameKeyNormalizer->toKey($name));
 
-        // Si l’utilisateur reprend une recette publiée via wizard, on ne force pas draft=true
-        // MAIS pour la création wizard, on veut un brouillon tant que pas publié.
         if ($recipeIdRaw === null || $recipeIdRaw === '') {
             $recipe->setDraft(true);
         }
@@ -111,15 +102,14 @@ final class RecipeWizardController extends AbstractController
         return new JsonResponse([
             'status' => 'ok',
             'recipeId' => $recipe->getId(),
-            // On redirige vers la page wizard "edit" qui contient step2 + listing
             'editUrl' => $this->generateUrl('recipe_wizard_edit', ['id' => $recipe->getId()]) . '?step=2',
+            'stepsUrl' => $this->generateUrl('recipe_wizard_edit', ['id' => $recipe->getId()]) . '?step=3',
             'previewUrl' => $this->generateUrl('recipe_wizard_preview', ['id' => $recipe->getId()]),
         ]);
     }
 
     /**
-     * STEP 2 - AJAX: ajoute / additionne un ingrédient à une recette (brouillon ou non).
-     * Copie du comportement StockController::upsert, adapté à RecipeIngredient.
+     * STEP 2 - AJAX: ajoute / additionne un ingrédient à une recette.
      */
     #[Route('/{id}/ingredient/upsert', name: 'ingredient_upsert', methods: ['POST'])]
     public function ingredientUpsert(
@@ -139,8 +129,7 @@ final class RecipeWizardController extends AbstractController
         $form = $this->createForm(RecipeIngredientUpsertType::class);
         $form->handleRequest($request);
 
-        $isAjax = $request->isXmlHttpRequest();
-        if (!$isAjax) {
+        if (!$request->isXmlHttpRequest()) {
             return new JsonResponse(['status' => 'error', 'message' => 'Requête invalide.'], 400);
         }
 
@@ -161,15 +150,10 @@ final class RecipeWizardController extends AbstractController
         if (!$ingredient) {
             return new JsonResponse(['status' => 'error', 'message' => 'Ingrédient invalide.'], 422);
         }
-
         if ($quantityToAdd <= 0) {
-            return new JsonResponse([
-                'status' => 'error',
-                'message' => 'Quantité invalide.',
-            ], 422);
+            return new JsonResponse(['status' => 'error', 'message' => 'Quantité invalide.'], 422);
         }
 
-        // Recherche si déjà présent dans la recette
         $existing = $recipeIngredientRepository->findOneBy([
             'recipe' => $recipe,
             'ingredient' => $ingredient,
@@ -186,14 +170,12 @@ final class RecipeWizardController extends AbstractController
             $isNew = true;
         }
 
-        // Addition (comme stock)
         $current = (float) $existing->getQuantity();
         $newQty = $current + $quantityToAdd;
         $existing->setQuantity(number_format($newQty, 2, '.', ''));
 
         $em->flush();
 
-        // Rendu HTML partiel
         $htmlDesktop = $this->renderView('recipe_wizard/_ingredient_item.html.twig', [
             'ri' => $existing,
             'variant' => 'desktop',
@@ -218,9 +200,6 @@ final class RecipeWizardController extends AbstractController
         ]);
     }
 
-    /**
-     * STEP 2 - AJAX: modifie la quantité d'un ingrédient de recette
-     */
     #[Route('/{id}/ingredient/{riId}/quantity', name: 'ingredient_update_quantity', methods: ['POST'])]
     public function ingredientUpdateQuantity(
         Recipe $recipe,
@@ -236,9 +215,7 @@ final class RecipeWizardController extends AbstractController
         if ($recipe->getUser() !== $user) {
             throw $this->createAccessDeniedException();
         }
-
-        $isAjax = $request->isXmlHttpRequest();
-        if (!$isAjax) {
+        if (!$request->isXmlHttpRequest()) {
             return new JsonResponse(['status' => 'error', 'message' => 'Requête invalide.'], 400);
         }
 
@@ -272,9 +249,6 @@ final class RecipeWizardController extends AbstractController
         ]);
     }
 
-    /**
-     * STEP 2 - AJAX: supprime un ingrédient de recette
-     */
     #[Route('/{id}/ingredient/{riId}/delete', name: 'ingredient_delete', methods: ['POST'])]
     public function ingredientDelete(
         Recipe $recipe,
@@ -290,9 +264,7 @@ final class RecipeWizardController extends AbstractController
         if ($recipe->getUser() !== $user) {
             throw $this->createAccessDeniedException();
         }
-
-        $isAjax = $request->isXmlHttpRequest();
-        if (!$isAjax) {
+        if (!$request->isXmlHttpRequest()) {
             return new JsonResponse(['status' => 'error', 'message' => 'Requête invalide.'], 400);
         }
 
@@ -322,7 +294,103 @@ final class RecipeWizardController extends AbstractController
     }
 
     /**
-     * STEP 3 - Preview (route dédiée)
+     * STEP 3 - AJAX: ajoute une étape (RecipeStep)
+     * Payload: content (string)
+     */
+    #[Route('/{id}/step/add', name: 'step_add', methods: ['POST'])]
+    public function stepAdd(
+        Recipe $recipe,
+        Request $request,
+        RecipeStepRepository $recipeStepRepository,
+        EntityManagerInterface $em,
+    ): Response {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+        if ($recipe->getUser() !== $user) {
+            throw $this->createAccessDeniedException();
+        }
+        if (!$request->isXmlHttpRequest()) {
+            return new JsonResponse(['status' => 'error', 'message' => 'Requête invalide.'], 400);
+        }
+
+        $content = trim((string) $request->request->get('content', ''));
+        if ($content === '') {
+            return new JsonResponse(['status' => 'error', 'message' => 'Le texte est obligatoire.'], 422);
+        }
+
+        $step = new RecipeStep();
+        $step->setRecipe($recipe);
+        $step->setContent($content);
+        $step->setPosition($recipeStepRepository->getNextPositionForRecipe($recipe));
+
+        $em->persist($step);
+        $em->flush();
+
+        $html = $this->renderView('recipe_wizard/_step_item.html.twig', [
+            'step' => $step,
+        ]);
+
+        $count = (int) $recipeStepRepository->count(['recipe' => $recipe]);
+
+        return new JsonResponse([
+            'status' => 'ok',
+            'id' => $step->getId(),
+            'count' => $count,
+            'html' => $html,
+        ]);
+    }
+
+    /**
+     * STEP 3 - AJAX: supprime une étape
+     */
+    #[Route('/{id}/step/{stepId}/delete', name: 'step_delete', methods: ['POST'])]
+    public function stepDelete(
+        Recipe $recipe,
+        int $stepId,
+        Request $request,
+        RecipeStepRepository $recipeStepRepository,
+        EntityManagerInterface $em,
+    ): Response {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+        if ($recipe->getUser() !== $user) {
+            throw $this->createAccessDeniedException();
+        }
+        if (!$request->isXmlHttpRequest()) {
+            return new JsonResponse(['status' => 'error', 'message' => 'Requête invalide.'], 400);
+        }
+
+        $step = $recipeStepRepository->find($stepId);
+        if (!$step) {
+            return new JsonResponse(['status' => 'error', 'message' => 'Étape introuvable.'], 404);
+        }
+        if ($step->getRecipe()?->getId() !== $recipe->getId()) {
+            return new JsonResponse(['status' => 'error', 'message' => 'Accès refusé.'], 403);
+        }
+
+        if (!$this->isCsrfTokenValid('delete_recipe_step_'.$step->getId(), (string) $request->request->get('_token'))) {
+            return new JsonResponse(['status' => 'error', 'message' => 'Token CSRF invalide.'], 403);
+        }
+
+        $deletedId = $step->getId();
+        $em->remove($step);
+        $em->flush();
+
+        $count = (int) $recipeStepRepository->count(['recipe' => $recipe]);
+
+        return new JsonResponse([
+            'status' => 'ok',
+            'id' => $deletedId,
+            'count' => $count,
+        ]);
+    }
+
+    /**
+     * STEP 4 - Preview
      */
     #[Route('/{id}/preview', name: 'preview', methods: ['GET'])]
     public function preview(Recipe $recipe): Response
@@ -340,9 +408,6 @@ final class RecipeWizardController extends AbstractController
         ]);
     }
 
-    /**
-     * Publish: draft=false puis redirect listing recettes
-     */
     #[Route('/{id}/publish', name: 'publish', methods: ['POST'])]
     public function publish(
         Recipe $recipe,
@@ -369,4 +434,60 @@ final class RecipeWizardController extends AbstractController
 
         return $this->redirectToRoute('app_recipe_index');
     }
+
+    /**
+     * STEP 3 - AJAX: met à jour le contenu d'une étape
+     * Payload: content (string), _token
+     */
+    #[Route('/{id}/step/{stepId}/update', name: 'step_update', methods: ['POST'])]
+    public function stepUpdate(
+        Recipe $recipe,
+        int $stepId,
+        Request $request,
+        RecipeStepRepository $recipeStepRepository,
+        EntityManagerInterface $em,
+    ): Response {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+        if ($recipe->getUser() !== $user) {
+            throw $this->createAccessDeniedException();
+        }
+        if (!$request->isXmlHttpRequest()) {
+            return new JsonResponse(['status' => 'error', 'message' => 'Requête invalide.'], 400);
+        }
+
+        $step = $recipeStepRepository->find($stepId);
+        if (!$step) {
+            return new JsonResponse(['status' => 'error', 'message' => 'Étape introuvable.'], 404);
+        }
+        if ($step->getRecipe()?->getId() !== $recipe->getId()) {
+            return new JsonResponse(['status' => 'error', 'message' => 'Accès refusé.'], 403);
+        }
+
+        if (
+            !$this->isCsrfTokenValid(
+                'update_recipe_step_' . $step->getId(),
+                (string) $request->request->get('_token')
+            )
+        ) {
+            return new JsonResponse(['status' => 'error', 'message' => 'Token CSRF invalide.'], 403);
+        }
+
+        $content = trim((string) $request->request->get('content', ''));
+        if ($content === '') {
+            return new JsonResponse(['status' => 'error', 'message' => 'Le texte est obligatoire.'], 422);
+        }
+
+        $step->setContent($content);
+        $em->flush();
+
+        return new JsonResponse([
+            'status' => 'ok',
+            'id' => $step->getId(),
+            'content' => $step->getContent(),
+        ]);
+    }
+
 }

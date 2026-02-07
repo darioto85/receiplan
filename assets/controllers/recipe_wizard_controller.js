@@ -4,24 +4,29 @@ import { Controller } from "@hotwired/stimulus";
 export default class extends Controller {
   static values = {
     saveDraftUrl: String,
-    recipeId: Number,   // présent sur edit.html.twig
-    previewUrl: String, // présent sur edit.html.twig (pas obligatoire ici)
+    recipeId: Number,
+    previewUrl: String,
   };
 
   static targets = [
     "step1",
     "step2",
+    "step3",
     "nameInput",
     "step1Error",
     "stepHint",
+    // ✅ header button swap (step3 => retour ingrédients)
+    "headerToStep1",
+    "headerToStep2",
   ];
 
   connect() {
-    // ✅ Si on arrive avec ?step=2 (ex: après création), on ouvre directement l'étape 2
     const params = new URLSearchParams(window.location.search);
     const step = params.get("step");
 
-    if (step === "2" && this.hasStep2Target) {
+    if (step === "3" && this.hasStep3Target) {
+      this._showStep(3);
+    } else if (step === "2" && this.hasStep2Target) {
       this._showStep(2);
     } else {
       this._showStep(1);
@@ -42,7 +47,6 @@ export default class extends Controller {
     const formData = new FormData();
     formData.append("name", name);
 
-    // Sur edit, on passe recipeId pour update
     if (this.hasRecipeIdValue && this.recipeIdValue) {
       formData.append("recipeId", String(this.recipeIdValue));
     }
@@ -57,25 +61,21 @@ export default class extends Controller {
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        const msg = data?.message || "Impossible d’enregistrer.";
-        this._showError(msg);
+        this._showError(data?.message || "Impossible d’enregistrer.");
         return;
       }
 
-      // ✅ Cas création (new.html.twig) : on redirige vers /wizard/{id}?step=2
+      // ✅ Création : redirect vers step2 (URL renvoyée par le controller)
       if (!this.hasRecipeIdValue || !this.recipeIdValue) {
         if (data?.editUrl) {
-          const url = new URL(data.editUrl, window.location.origin);
-          url.searchParams.set("step", "2");
-          window.location.href = url.toString();
+          window.location.href = data.editUrl;
           return;
         }
-        // fallback
         window.location.reload();
         return;
       }
 
-      // ✅ Cas édition : on passe directement à l'étape suivante (sans reload)
+      // ✅ Édition : passe directement step2 (sans reload)
       this.goStep2();
     } catch (e) {
       this._showError("Erreur réseau. Réessaie.");
@@ -84,15 +84,23 @@ export default class extends Controller {
 
   goStep1() {
     this._showStep(1);
+    this._setUrlStep("1");
   }
 
   goStep2() {
     this._showStep(2);
+    this._setUrlStep("2");
+  }
 
-    // ✅ Optionnel : met à jour l'URL sans recharger (pratique si refresh)
+  goStep3() {
+    this._showStep(3);
+    this._setUrlStep("3");
+  }
+
+  _setUrlStep(step) {
     try {
       const url = new URL(window.location.href);
-      url.searchParams.set("step", "2");
+      url.searchParams.set("step", step);
       window.history.replaceState({}, "", url.toString());
     } catch (e) {
       // ignore
@@ -100,41 +108,60 @@ export default class extends Controller {
   }
 
   _showStep(stepNumber) {
-    // Step 1
-    if (stepNumber === 1) {
-      if (this.hasStep1Target) this.step1Target.classList.remove("is-hidden");
-      if (this.hasStep2Target) this.step2Target.classList.add("is-hidden");
+    if (this.hasStep1Target) this.step1Target.classList.add("is-hidden");
+    if (this.hasStep2Target) this.step2Target.classList.add("is-hidden");
+    if (this.hasStep3Target) this.step3Target.classList.add("is-hidden");
+
+    // ✅ swap bouton header selon étape
+    this._toggleHeaderButtons(stepNumber);
+
+    if (stepNumber === 1 && this.hasStep1Target) {
+      this.step1Target.classList.remove("is-hidden");
       this._setHint(1);
       this.nameInputTarget?.focus?.();
       return;
     }
 
-    // Step 2 (uniquement sur edit)
     if (stepNumber === 2 && this.hasStep2Target) {
-      if (this.hasStep1Target) this.step1Target.classList.add("is-hidden");
       this.step2Target.classList.remove("is-hidden");
       this._setHint(2);
       return;
+    }
+
+    if (stepNumber === 3 && this.hasStep3Target) {
+      this.step3Target.classList.remove("is-hidden");
+      this._setHint(3);
+      return;
+    }
+  }
+
+  _toggleHeaderButtons(stepNumber) {
+    // step 3 => bouton "retour ingrédients", sinon "modifier le nom"
+    if (!this.hasHeaderToStep1Target || !this.hasHeaderToStep2Target) return;
+
+    if (stepNumber === 3) {
+      this.headerToStep1Target.classList.add("is-hidden");
+      this.headerToStep2Target.classList.remove("is-hidden");
+    } else {
+      this.headerToStep1Target.classList.remove("is-hidden");
+      this.headerToStep2Target.classList.add("is-hidden");
     }
   }
 
   _setHint(step) {
     if (!this.hasStepHintTarget) return;
 
-    if (step === 1) {
-      this.stepHintTarget.textContent = "Étape 1/3 — Nom";
-    } else if (step === 2) {
-      this.stepHintTarget.textContent = "Étape 2/3 — Ingrédients";
-    } else if (step === 3) {
-      this.stepHintTarget.textContent = "Étape 3/3 — Preview";
-    }
+    if (step === 1) this.stepHintTarget.textContent = "Étape 1/4 — Nom";
+    if (step === 2) this.stepHintTarget.textContent = "Étape 2/4 — Ingrédients";
+    if (step === 3) this.stepHintTarget.textContent = "Étape 3/4 — Étapes";
+    if (step === 4) this.stepHintTarget.textContent = "Étape 4/4 — Récapitulatif";
   }
 
   _showError(message) {
     if (!this.hasStep1ErrorTarget) return;
-    this.step1ErrorTarget.innerHTML = `
-      <div class="alert alert-danger mb-0">${this._escapeHtml(message)}</div>
-    `;
+    this.step1ErrorTarget.innerHTML = `<div class="alert alert-danger mb-0">${this._escapeHtml(
+      message
+    )}</div>`;
   }
 
   _clearError() {

@@ -19,6 +19,8 @@ import AssistantChatController from './controllers/assistant_chat_controller.js'
 import StockController from './controllers/stock_controller.js';
 import RecipeWizardController from './controllers/recipe_wizard_controller.js';
 import RecipeIngredientController from './controllers/recipe_ingredients_controller.js';
+import RecipeStepController from './controllers/recipe_steps_controller.js';
+import RecipeFavoriteController from './controllers/recipe_favorite_controller.js';
 
 const app = startStimulusApp();
 app.register('collection', CollectionController);
@@ -41,3 +43,5 @@ app.register('assistant-chat', AssistantChatController);
 app.register('stock', StockController);
 app.register('recipe-wizard', RecipeWizardController);
 app.register('recipe-ingredient', RecipeIngredientController);
+app.register('recipe-step', RecipeStepController);
+app.register('recipe-favorite', RecipeFavoriteController);

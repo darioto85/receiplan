@@ -30,7 +30,7 @@
           <h1 class="mb-0">Récapitulatif</h1>
         </div>
 
-        <a href="{{ path('recipe_wizard_edit', { id: recipe.id }) }}?step=2" class="btn btn-outline-primary">
+        <a href="{{ path('recipe_wizard_edit', { id: recipe.id }) }}?step=3" class="btn btn-outline-primary">
           ← Retour
         </a>
       </div>
@@ -78,6 +78,30 @@
               <div class="fw-bold text-nowrap">
                 {{ ri.quantity }}
                 {% if unit %} {{ unit }}{% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <hr class="my-4">
+
+      {# ===== Étapes ===== #}
+      <div class="mb-3 d-flex align-items-center justify-content-between gap-2 flex-wrap">
+        <h2 class="h5 mb-0">📝 Étapes</h2>
+      </div>
+
+      {% set steps = recipe.recipeSteps %}
+
+      {% if steps is empty %}
+        <div class="text-muted mb-4">Aucune étape.</div>
+      {% else %}
+        <div class="list-group mb-4">
+          {% for step in steps %}
+            <div class="list-group-item">
+              <div class="d-flex align-items-start gap-2">
+                <span class="badge text-bg-light mt-1">#{{ step.position }}</span>
+                <div class="text-break">{{ step.content }}</div>
               </div>
             </div>
           {% endfor %}

@@ -1,21 +1,52 @@
 {# templates/recipe/_card.html.twig #}
 {% set recipe = view.recipe %}
 {% set recipeImg = recipe_image(recipe) %}
+{% if not recipeImg %}
+  {% set recipeImg = asset('img/recipe/placeholder.png') %}
+{% endif %}
+
 {% set missingItems = view.items|filter(i => i.is_missing ?? false) %}
 {% set missingCount = missingItems|length %}
+
+{# ⭐ icônes favori (toujours visible) #}
+{% set favOn = asset('img/actions/star.png') %}
+{% set favOff = asset('img/actions/star_grey.png') %}
+{% set favIcon = recipe.favorite ? favOn : favOff %}
 
 <a href="{{ path('app_recipe_show', { id: recipe.id }) }}"
    class="rp-recipe-item text-decoration-none text-reset"
    aria-label="Ouvrir la recette {{ recipe.name }}">
   <div class="rp-recipe-main">
-    <div class="rp-recipe-left">
+    <div class="rp-recipe-left" style="position:relative;">
+      {# ⭐ étoile en overlay coin haut-gauche de la vignette #}
+      <img
+        src="{{ favIcon }}"
+        alt=""
+        width="25"
+        height="25"
+        loading="lazy"
+        decoding="async"
+        style="
+          position:absolute;
+          top:-6px;
+          left:-6px;
+          z-index:2;
+          width:25px;
+          height:25px;
+          object-fit:contain;
+          filter: drop-shadow(0 1px 2px rgba(0,0,0,.25));
+        "
+      >
+
       <img
         src="{{ recipeImg }}"
         alt="{{ recipe.name }}"
         class="rp-recipe-thumb"
-        width="44" height="44"
+        width="44"
+        height="44"
         loading="lazy"
         decoding="async"
+        style="position:relative; z-index:1;"
       />
 
       <div class="rp-recipe-meta">
@@ -57,7 +88,8 @@
                     src="{{ ingredient_image(ing) }}"
                     alt="{{ ing.name }}"
                     class="rp-missing-thumb"
-                    width="22" height="22"
+                    width="22"
+                    height="22"
                     loading="lazy"
                     decoding="async"
                   />

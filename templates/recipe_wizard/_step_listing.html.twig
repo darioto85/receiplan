@@ -1,0 +1,12 @@
+{# templates/recipe_wizard/_step_listing.html.twig #}
+{% set steps = recipe.recipeSteps %}
+
+{% if steps is empty %}
+  <div class="text-muted">Aucune étape pour le moment.</div>
+{% endif %}
+
+<div class="d-grid gap-2" data-recipe-steps-target="list">
+  {% for step in steps %}
+    {{ include('recipe_wizard/_step_item.html.twig', { step: step }) }}
+  {% endfor %}
+</div>
