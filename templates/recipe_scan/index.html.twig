@@ -1,0 +1,74 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Scanner une recette{% endblock %}
+
+{% block body %}
+<div class="container py-4" style="max-width: 760px;">
+
+  <div class="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
+    <div>
+      <h1 class="h3 mb-1">📸 Scanner une recette</h1>
+      <div class="text-muted">Photo nette (ingrédients + étapes si possible).</div>
+    </div>
+
+    <a href="{{ path('recipe_wizard_new') }}" class="btn btn-outline-secondary">
+      ➕ Saisie manuelle
+    </a>
+  </div>
+
+  <div class="card shadow-sm mb-3">
+    <div class="card-body">
+
+      <form method="post" action="{{ path('recipe_scan_upload') }}" enctype="multipart/form-data" class="vstack gap-3">
+        <input type="hidden" name="_token" value="{{ csrf_token('recipe_scan_upload') }}">
+
+        <div>
+          <label class="form-label fw-semibold">Photo</label>
+          <input class="form-control" type="file" name="photo" accept="image/*" capture="environment" required>
+          <div class="form-text">Astuce : évite les reflets, cadre bien, rapproche-toi.</div>
+        </div>
+
+        <div class="d-flex gap-2 justify-content-end flex-wrap">
+          <button type="submit" class="btn btn-primary">📤 Envoyer la photo</button>
+        </div>
+      </form>
+
+      {% if last_upload %}
+        <hr class="my-4">
+
+        <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+          <div style="min-width:0;">
+            <div class="fw-semibold">Dernière photo envoyée</div>
+            <div class="text-muted small text-truncate">{{ last_upload.originalName }}</div>
+            <div class="text-muted small">{{ last_upload.mime }} • {{ last_upload.uploadedAt }}</div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <form method="post" action="{{ path('recipe_scan_analyze') }}">
+              <input type="hidden" name="_token" value="{{ csrf_token('recipe_scan_analyze') }}">
+              <button class="btn btn-success">🤖 Analyser & créer le brouillon</button>
+            </form>
+
+            <form method="post" action="{{ path('recipe_scan_reset') }}">
+              <input type="hidden" name="_token" value="{{ csrf_token('recipe_scan_reset') }}">
+              <button class="btn btn-outline-danger">🗑️ Supprimer</button>
+            </form>
+          </div>
+        </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+  {# Debug optionnel #}
+  {% if last_result %}
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h2 class="h6 mb-2">Résultat IA (debug)</h2>
+        <pre class="bg-light p-3 rounded-3 mb-0" style="white-space: pre-wrap;">{{ last_result|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_UNICODE')) }}</pre>
+      </div>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

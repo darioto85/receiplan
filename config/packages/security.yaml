@@ -40,6 +40,7 @@ security:
   access_control:
     - { path: ^/login, roles: PUBLIC_ACCESS }
     - { path: ^/logout, roles: PUBLIC_ACCESS }
+    - { path: ^/_debug/phpini, roles: PUBLIC_ACCESS }
 
     # ✅ OAuth Google
     - { path: ^/connect/google, roles: PUBLIC_ACCESS }

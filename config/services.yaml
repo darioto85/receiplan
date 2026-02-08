@@ -100,3 +100,13 @@ services:
   App\Service\PushActionTokenService:
     arguments:
       $secret: '%env(CRON_SECRET)%'
+
+  App\Service\Ai\RecipePhotoExtractionService:
+    arguments:
+      $openAiApiKey: '%env(OPENAI_API_KEY)%'
+      $model: 'gpt-4o'
+
+  App\Service\Image\RecipeScanImageResizer:
+    arguments:
+      $maxWidth: 1024
+      $jpegQuality: 82
