@@ -27,6 +27,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
+# ✅ INI PROD: taille upload + post size
+# (PHP_INI_DIR est défini dans les images officielles PHP)
+COPY docker/php/uploads.ini ${PHP_INI_DIR}/conf.d/99-uploads.ini
+
 WORKDIR /app
 COPY . .
 
