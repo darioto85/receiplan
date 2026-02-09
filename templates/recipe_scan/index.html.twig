@@ -3,72 +3,168 @@
 {% block title %}Scanner une recette{% endblock %}
 
 {% block body %}
-<div class="container py-4" style="max-width: 760px;">
 
-  <div class="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
-    <div>
-      <h1 class="h3 mb-1">📸 Scanner une recette</h1>
-      <div class="text-muted">Photo nette (ingrédients + étapes si possible).</div>
-    </div>
+  <h1 class="mb-0">
+    <img class="rp-title-thumb" src="{{ asset('img/actions/photo.png') }}" alt="">
+    Scanner une recette
+  </h1>
+  <div class="rp-scan-sub">Une photo suffit. Kuko s’occupe du reste.</div>
+  <div class="rp-scan-note">Rien n’est enregistré sans ton accord.</div>
 
-    <a href="{{ path('recipe_wizard_new') }}" class="btn btn-outline-secondary">
-      ➕ Saisie manuelle
+  {# ===== ZONE UPLOAD ===== #}
+  <div class="rp-scan-body">
+    <form method="post"
+          action="{{ path('recipe_scan_upload') }}"
+          enctype="multipart/form-data"
+          class="rp-scan-form"
+          id="rp-scan-form">
+      <input type="hidden" name="_token" value="{{ csrf_token('recipe_scan_upload') }}">
+
+      {# Zone “drop” cliquable #}
+      <label class="rp-scan-drop" for="rp-scan-photo" id="rp-scan-drop">
+        <div class="rp-scan-illus" aria-hidden="true">
+          <div class="rp-scan-illus-fallback">
+            <img
+              id="rp-scan-illus-img"
+              src="{{ asset('img/actions/charger_recette.jpg') }}"
+              data-empty-src="{{ asset('img/actions/charger_recette.jpg') }}"
+              data-filled-src="{{ asset('img/actions/recette_chargee.jpg') }}"
+              alt=""
+            />
+          </div>
+        </div>
+
+        <div class="rp-scan-drop-title" id="rp-scan-title">Dépose une photo de la recette</div>
+        <div class="rp-scan-drop-sub" id="rp-scan-sub">ou prends-la directement avec ton téléphone</div>
+
+        <div class="rp-scan-hint" id="rp-scan-hint">
+          Astuce : une photo nette aide Kuko à mieux comprendre, mais fais au mieux 💚
+        </div>
+
+        <div class="rp-scan-file" id="rp-scan-file" hidden>
+          <span class="rp-scan-file-badge">✅ Photo prête</span>
+          <span class="rp-scan-file-name" id="rp-scan-file-name"></span>
+        </div>
+      </label>
+
+      <input
+        id="rp-scan-photo"
+        class="rp-scan-input"
+        type="file"
+        name="photo"
+        accept="image/*"
+        capture="environment"
+        required
+      >
+
+      <div class="rp-scan-actions">
+        <button type="submit" class="btn btn-primary rp-scan-btn" id="rp-scan-submit" disabled>
+          Analyser la recette
+        </button>
+      </div>
+    </form>
+
+    {% if last_upload %}
+      <div class="rp-scan-divider"></div>
+
+      <div class="rp-scan-uploaded">
+        <div class="rp-scan-uploaded-meta">
+          <div class="rp-scan-uploaded-title">Dernière photo envoyée</div>
+          <div class="rp-scan-uploaded-file text-truncate">{{ last_upload.originalName }}</div>
+          <div class="rp-scan-uploaded-info">
+            {{ last_upload.mime }} • {{ last_upload.uploadedAt }}
+          </div>
+        </div>
+
+        <div class="rp-scan-uploaded-cta">
+          <form method="post" action="{{ path('recipe_scan_analyze') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('recipe_scan_analyze') }}">
+            <button class="btn btn-success rp-scan-btn">
+              🤖 Analyser
+            </button>
+          </form>
+
+          <form method="post" action="{{ path('recipe_scan_reset') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('recipe_scan_reset') }}">
+            <button class="btn btn-outline-danger rp-scan-btn">
+              🗑️ Supprimer
+            </button>
+          </form>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  {# ===== BOTTOM "manual" ===== #}
+  <div class="rp-scan-footer">
+    <div class="rp-scan-footer-label">Tu préfères faire autrement ?</div>
+    <a href="{{ path('recipe_wizard_new') }}" class="rp-scan-pill">
+      <span class="rp-scan-pill-ico" aria-hidden="true">✏️</span>
+      Saisir la recette manuellement
     </a>
   </div>
 
-  <div class="card shadow-sm mb-3">
-    <div class="card-body">
+  <script>
+    (function () {
+      const input = document.getElementById('rp-scan-photo');
+      const drop = document.getElementById('rp-scan-drop');
+      const img = document.getElementById('rp-scan-illus-img');
+      const fileWrap = document.getElementById('rp-scan-file');
+      const fileName = document.getElementById('rp-scan-file-name');
+      const submit = document.getElementById('rp-scan-submit');
 
-      <form method="post" action="{{ path('recipe_scan_upload') }}" enctype="multipart/form-data" class="vstack gap-3">
-        <input type="hidden" name="_token" value="{{ csrf_token('recipe_scan_upload') }}">
+      if (!input || !drop || !img || !fileWrap || !fileName || !submit) return;
 
-        <div>
-          <label class="form-label fw-semibold">Photo</label>
-          <input class="form-control" type="file" name="photo" accept="image/*" capture="environment" required>
-          <div class="form-text">Astuce : évite les reflets, cadre bien, rapproche-toi.</div>
-        </div>
+      function setEmpty() {
+        drop.classList.remove('is-filled');
 
-        <div class="d-flex gap-2 justify-content-end flex-wrap">
-          <button type="submit" class="btn btn-primary">📤 Envoyer la photo</button>
-        </div>
-      </form>
+        img.src = img.dataset.emptySrc || img.src;
 
-      {% if last_upload %}
-        <hr class="my-4">
+        // Affiche les textes
+        document.getElementById('rp-scan-title').hidden = false;
+        document.getElementById('rp-scan-sub').hidden = false;
+        document.getElementById('rp-scan-hint').hidden = false;
 
-        <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
-          <div style="min-width:0;">
-            <div class="fw-semibold">Dernière photo envoyée</div>
-            <div class="text-muted small text-truncate">{{ last_upload.originalName }}</div>
-            <div class="text-muted small">{{ last_upload.mime }} • {{ last_upload.uploadedAt }}</div>
-          </div>
+        // Cache l’état fichier
+        fileWrap.hidden = true;
+        fileName.textContent = '';
 
-          <div class="d-flex gap-2">
-            <form method="post" action="{{ path('recipe_scan_analyze') }}">
-              <input type="hidden" name="_token" value="{{ csrf_token('recipe_scan_analyze') }}">
-              <button class="btn btn-success">🤖 Analyser & créer le brouillon</button>
-            </form>
+        submit.disabled = true;
+      }
 
-            <form method="post" action="{{ path('recipe_scan_reset') }}">
-              <input type="hidden" name="_token" value="{{ csrf_token('recipe_scan_reset') }}">
-              <button class="btn btn-outline-danger">🗑️ Supprimer</button>
-            </form>
-          </div>
-        </div>
-      {% endif %}
+      function setFilled(file) {
+        drop.classList.add('is-filled');
 
-    </div>
-  </div>
+        img.src = img.dataset.filledSrc || img.src;
 
-  {# Debug optionnel #}
-  {% if last_result %}
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <h2 class="h6 mb-2">Résultat IA (debug)</h2>
-        <pre class="bg-light p-3 rounded-3 mb-0" style="white-space: pre-wrap;">{{ last_result|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_UNICODE')) }}</pre>
-      </div>
-    </div>
-  {% endif %}
+        // Cache les textes
+        document.getElementById('rp-scan-title').hidden = true;
+        document.getElementById('rp-scan-sub').hidden = true;
+        document.getElementById('rp-scan-hint').hidden = true;
 
-</div>
+        // Affiche l’état fichier
+        fileWrap.hidden = false;
+        fileName.textContent = file?.name ? '— ' + file.name : '';
+
+        submit.disabled = false;
+      }
+
+
+      setEmpty();
+
+      input.addEventListener('change', function () {
+        const file = input.files && input.files[0] ? input.files[0] : null;
+        if (!file) return setEmpty();
+        setFilled(file);
+      });
+
+      document.getElementById('rp-scan-form')?.addEventListener('submit', function () {
+        const btn = document.getElementById('rp-scan-submit');
+        if (!btn) return;
+        btn.disabled = true;
+        btn.textContent = 'Analyse en cours…';
+      });
+    })();
+  </script>
+
 {% endblock %}

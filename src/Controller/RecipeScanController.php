@@ -28,18 +28,25 @@ final class RecipeScanController extends AbstractController
     #[Route('', name: 'index', methods: ['GET'])]
     public function index(Request $request): Response
     {
-        $last = $request->getSession()->get('recipe_scan.last_upload');
-        $lastResult = $request->getSession()->get('recipe_scan.last_result'); // debug optionnel
-
         return $this->render('recipe_scan/index.html.twig', [
-            'last_upload' => $last,
-            'last_result' => $lastResult,
+            'last_upload' => $request->getSession()->get('recipe_scan.last_upload'),
+            'last_result' => $request->getSession()->get('recipe_scan.last_result'),
         ]);
     }
 
+    /**
+     * Upload + resize + analyse + persist + redirect preview (1 clic)
+     */
     #[Route('/upload', name: 'upload', methods: ['POST'])]
-    public function upload(Request $request, RecipeScanImageResizer $resizer): Response
-    {
+    public function upload(
+        Request $request,
+        RecipeScanImageResizer $resizer,
+        RecipePhotoExtractionService $extractor,
+        IngredientRepository $ingredientRepository,
+        EntityManagerInterface $em,
+        NameKeyNormalizer $nameKeyNormalizer,
+        UnitStringMapper $unitMapper,
+    ): Response {
         $user = $this->getUser();
         if (!$user instanceof User) {
             throw $this->createAccessDeniedException();
@@ -62,21 +69,14 @@ final class RecipeScanController extends AbstractController
             return $this->redirectToRoute('recipe_scan_index');
         }
 
-        // Limite app (8 Mo) - tes limites PHP sont maintenant plus hautes
+        // Limite app (8 Mo)
         $maxBytes = 8 * 1024 * 1024;
         if (($file->getSize() ?? 0) > $maxBytes) {
             $this->addFlash('danger', 'Image trop lourde (max 8 Mo).');
             return $this->redirectToRoute('recipe_scan_index');
         }
 
-        $allowed = [
-            'image/jpeg',
-            'image/png',
-            'image/webp',
-            'image/heic',
-            'image/heif',
-        ];
-
+        $allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
         $mime = $file->getMimeType() ?? '';
         if (!in_array($mime, $allowed, true)) {
             $this->addFlash('danger', 'Format non supporté. Utilise JPG, PNG, WEBP (ou HEIC sur iPhone).');
@@ -108,18 +108,20 @@ final class RecipeScanController extends AbstractController
         try {
             $resizer->resizeToJpeg($originalAbs, $aiAbs);
         } catch (\Throwable $e) {
+            // fallback : utilise l’original
             $this->addFlash('warning', 'Redimensionnement impossible, utilisation de l’original : ' . $e->getMessage());
             $aiAbs = $originalAbs;
             $aiFilename = $originalFilename;
         }
 
-        // Supprime l’original si on a un _ai
+        // Supprime original si on a un _ai
         if ($aiAbs !== $originalAbs) {
             @unlink($originalAbs);
         }
 
         $storedPath = 'var/uploads/recipe_scan/user_' . $user->getId() . '/' . $aiFilename;
 
+        // Stocke en session (utile si analyse échoue -> relancer)
         $request->getSession()->set('recipe_scan.last_upload', [
             'originalName' => $file->getClientOriginalName(),
             'mime' => $mime,
@@ -127,14 +129,121 @@ final class RecipeScanController extends AbstractController
             'uploadedAt' => (new \DateTimeImmutable())->format(DATE_ATOM),
         ]);
 
-        // reset debug résultat précédent
+        // reset debug ancien résultat
         $request->getSession()->remove('recipe_scan.last_result');
 
-        $this->addFlash('success', 'Photo reçue ✅ (optimisée pour l’analyse)');
+        // 3) Analyse + persist
+        $absPath = $projectDir . '/' . ltrim($storedPath, '/');
 
-        return $this->redirectToRoute('recipe_scan_index');
+        try {
+            $data = $extractor->extractRecipeFromImage($absPath);
+
+            // debug optionnel
+            $request->getSession()->set('recipe_scan.last_result', $data);
+
+            $recipe = $em->wrapInTransaction(function () use (
+                $data,
+                $user,
+                $nameKeyNormalizer,
+                $ingredientRepository,
+                $em,
+                $unitMapper
+            ) {
+                $recipe = new Recipe();
+                $recipe->setUser($user);
+                $recipe->setDraft(true);
+                $recipe->setFavorite(false);
+
+                $name = trim((string) ($data['name'] ?? ''));
+                if ($name === '') {
+                    throw new \RuntimeException('Nom de recette vide.');
+                }
+
+                $recipe->setName($name);
+                $recipe->setNameKey($nameKeyNormalizer->toKey($name));
+                $em->persist($recipe);
+
+                // Ingrédients
+                $ingredients = is_array($data['ingredients'] ?? null) ? $data['ingredients'] : [];
+                foreach ($ingredients as $row) {
+                    if (!is_array($row)) continue;
+
+                    $rawName = trim((string) ($row['name'] ?? ''));
+                    if ($rawName === '') continue;
+
+                    $ingKey = $nameKeyNormalizer->toKey($rawName);
+
+                    $ingredient = $ingredientRepository->findOneBy([
+                        'user' => $user,
+                        'nameKey' => $ingKey,
+                    ]);
+
+                    if (!$ingredient) {
+                        $ingredient = new Ingredient();
+                        $ingredient->setUser($user);
+                        $ingredient->setName($this->cleanIngredientDisplayName($rawName));
+                        $ingredient->setNameKey($ingKey);
+
+                        $unit = $unitMapper->map(isset($row['unit']) ? (string) $row['unit'] : null);
+                        $ingredient->setUnit($unit);
+
+                        $em->persist($ingredient);
+                    }
+
+                    $qty = $row['quantity'] ?? null;
+                    $qtyFloat = ($qty !== null && $qty !== '') ? (float) $qty : null;
+                    $qtyFloat = $qtyFloat ?? 0.0;
+
+                    $ri = new RecipeIngredient();
+                    $ri->setRecipe($recipe);
+                    $ri->setIngredient($ingredient);
+                    $ri->setQuantity(number_format($qtyFloat, 2, '.', ''));
+
+                    $em->persist($ri);
+                }
+
+                // Étapes
+                $steps = is_array($data['steps'] ?? null) ? $data['steps'] : [];
+                $pos = 1;
+                foreach ($steps as $row) {
+                    if (!is_array($row)) continue;
+
+                    $content = trim((string) ($row['text'] ?? ''));
+                    if ($content === '') continue;
+
+                    $position = (int) ($row['position'] ?? 0);
+                    if ($position <= 0) {
+                        $position = $pos;
+                    }
+
+                    $step = new RecipeStep();
+                    $step->setRecipe($recipe);
+                    $step->setContent($content);
+                    $step->setPosition($position);
+
+                    $em->persist($step);
+                    $pos++;
+                }
+
+                return $recipe;
+            });
+
+            $this->addFlash('success', 'Recette importée en brouillon ✅');
+
+            // Option : tu peux nettoyer la session upload pour éviter d’afficher “dernière photo”
+            $request->getSession()->remove('recipe_scan.last_upload');
+
+            return $this->redirectToRoute('recipe_wizard_preview', ['id' => $recipe->getId()]);
+        } catch (\Throwable $e) {
+            // On garde last_upload en session -> l’utilisateur peut relancer
+            $this->addFlash('danger', 'Analyse / import impossible : ' . $e->getMessage());
+            return $this->redirectToRoute('recipe_scan_index');
+        }
     }
 
+    /**
+     * Fallback : relancer l'analyse sans ré-uploader (utile si OpenAI tombe)
+     */
     #[Route('/analyze', name: 'analyze', methods: ['POST'])]
     public function analyze(
         Request $request,
@@ -169,13 +278,9 @@ final class RecipeScanController extends AbstractController
         }
 
         try {
-            // 1) Extraction IA -> tableau structuré
             $data = $extractor->extractRecipeFromImage($absPath);
-
-            // (debug optionnel)
             $request->getSession()->set('recipe_scan.last_result', $data);
 
-            // 2) Persist Recipe draft + ingrédients + steps
             $recipe = $em->wrapInTransaction(function () use (
                 $data,
                 $user,
@@ -196,24 +301,17 @@ final class RecipeScanController extends AbstractController
 
                 $recipe->setName($name);
                 $recipe->setNameKey($nameKeyNormalizer->toKey($name));
-
                 $em->persist($recipe);
 
-                // Ingrédients
                 $ingredients = is_array($data['ingredients'] ?? null) ? $data['ingredients'] : [];
                 foreach ($ingredients as $row) {
-                    if (!is_array($row)) {
-                        continue;
-                    }
+                    if (!is_array($row)) continue;
 
                     $rawName = trim((string) ($row['name'] ?? ''));
-                    if ($rawName === '') {
-                        continue;
-                    }
+                    if ($rawName === '') continue;
 
                     $ingKey = $nameKeyNormalizer->toKey($rawName);
 
-                    // On force “par utilisateur” (unique constraint user_id + name_key)
                     $ingredient = $ingredientRepository->findOneBy([
                         'user' => $user,
                         'nameKey' => $ingKey,
@@ -224,21 +322,12 @@ final class RecipeScanController extends AbstractController
                         $ingredient->setUser($user);
                         $ingredient->setName($this->cleanIngredientDisplayName($rawName));
                         $ingredient->setNameKey($ingKey);
-
-                        // unité (enum) : map depuis string IA, fallback g
-                        $unit = $unitMapper->map(isset($row['unit']) ? (string) $row['unit'] : null);
-                        $ingredient->setUnit($unit);
-
+                        $ingredient->setUnit($unitMapper->map(isset($row['unit']) ? (string) $row['unit'] : null));
                         $em->persist($ingredient);
                     }
 
                     $qty = $row['quantity'] ?? null;
-                    $qtyFloat = null;
-                    if ($qty !== null && $qty !== '') {
-                        $qtyFloat = (float) $qty;
-                    }
-
-                    // Si pas de quantité (ex poivre) on met 0.00 (l’utilisateur corrigera en preview)
+                    $qtyFloat = ($qty !== null && $qty !== '') ? (float) $qty : null;
                     $qtyFloat = $qtyFloat ?? 0.0;
 
                     $ri = new RecipeIngredient();
@@ -249,22 +338,16 @@ final class RecipeScanController extends AbstractController
                     $em->persist($ri);
                 }
 
-                // Étapes
                 $steps = is_array($data['steps'] ?? null) ? $data['steps'] : [];
                 $pos = 1;
                 foreach ($steps as $row) {
-                    if (!is_array($row)) {
-                        continue;
-                    }
+                    if (!is_array($row)) continue;
+
                     $content = trim((string) ($row['text'] ?? ''));
-                    if ($content === '') {
-                        continue;
-                    }
+                    if ($content === '') continue;
 
                     $position = (int) ($row['position'] ?? 0);
-                    if ($position <= 0) {
-                        $position = $pos;
-                    }
+                    if ($position <= 0) $position = $pos;
 
                     $step = new RecipeStep();
                     $step->setRecipe($recipe);
@@ -275,21 +358,13 @@ final class RecipeScanController extends AbstractController
                     $pos++;
                 }
 
-                // Renumérote proprement 1..N si besoin (sécurité)
-                // On ne refait pas une requête: on fait simple avec $pos ci-dessus.
-
                 return $recipe;
             });
 
-            // Nettoyage session photo (optionnel)
+            $this->addFlash('success', 'Recette importée en brouillon ✅');
             $request->getSession()->remove('recipe_scan.last_upload');
 
-            $this->addFlash('success', 'Recette importée en brouillon ✅');
-
-            // 3) Redirect preview wizard existant
-            return $this->redirectToRoute('recipe_wizard_preview', [
-                'id' => $recipe->getId(),
-            ]);
+            return $this->redirectToRoute('recipe_wizard_preview', ['id' => $recipe->getId()]);
         } catch (\Throwable $e) {
             $this->addFlash('danger', 'Analyse / import impossible : ' . $e->getMessage());
             return $this->redirectToRoute('recipe_scan_index');
@@ -308,7 +383,6 @@ final class RecipeScanController extends AbstractController
         $request->getSession()->remove('recipe_scan.last_result');
 
         $this->addFlash('info', 'Photo et résultat temporaire supprimés.');
-
         return $this->redirectToRoute('recipe_scan_index');
     }
 
@@ -316,7 +390,6 @@ final class RecipeScanController extends AbstractController
     {
         $name = trim($name);
         $name = preg_replace('/\s+/u', ' ', $name) ?? $name;
-        // on laisse la casse “humaine” mais on évite un nom tout en uppercase
         return mb_strtolower($name);
     }
 }
