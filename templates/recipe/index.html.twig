@@ -3,17 +3,30 @@
 {% block title %}Recettes{% endblock %}
 
 {% block body %}
-  <div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
-    <h1 class="mb-0">
-      <img class="rp-title-thumb" src="{{ asset('img/actions/recettes.png') }}" alt="">
-      Recettes
-    </h1>
+  
 
-    <a href="{{ path('recipe_wizard_new') }}" class="btn btn-primary">
-      <img class="bt-action-thumb" src="{{ asset('img/actions/recette_add.png') }}" alt="">
-      Nouvelle recette
-    </a>
-  </div>
+  <div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
+      <h1 class="mb-0"><img class="rp-title-thumb" src="{{ asset('img/actions/recettes.png') }}" alt=""> Recettes</h1>
+
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <a
+          href="{{ path('recipe_scan_index') }}"
+          class="btn btn-outline-primary d-flex align-items-center gap-2"
+        >
+          <img class="bt-action-thumb" src="{{ asset('img/actions/photo.png') }}" alt="">
+          <span class="d-none d-sm-inline">Scanner</span>
+        </a>
+
+        <a
+          href="{{ path('recipe_wizard_new') }}"
+          class="btn btn-primary d-flex align-items-center gap-2"
+        >
+          <img class="bt-action-thumb" src="{{ asset('img/actions/recette_add.png') }}" alt="">
+          <span class="d-none d-sm-inline">Nouvelle recette</span>
+        </a>
+        
+      </div>
+    </div>
 
   <div class="accordion rp-accordion" id="recipesAccordion">
 
