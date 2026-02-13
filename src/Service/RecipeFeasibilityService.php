@@ -2,15 +2,18 @@
 
 namespace App\Service;
 
+use App\Entity\MealPlan;
 use App\Entity\Recipe;
 use App\Entity\User;
 use App\Entity\UserIngredient;
+use App\Repository\MealPlanRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 final class RecipeFeasibilityService
 {
     public function __construct(
         private readonly EntityManagerInterface $em,
+        private readonly MealPlanRepository $mealPlanRepository,
     ) {}
 
     /**
@@ -21,7 +24,7 @@ final class RecipeFeasibilityService
      *     ingredient: mixed,
      *     needed: float|null,
      *     stock: float,
-     *     unit: string|null,
+     *     unit: mixed,
      *     is_missing: bool,
      *     missing_amount: float|null
      *   }>,
@@ -43,6 +46,70 @@ final class RecipeFeasibilityService
     {
         $views = $this->buildRecipeViews($user);
 
+        return array_values(array_filter($views, static fn(array $v) => $v['is_feasible'] === false));
+    }
+
+    /**
+     * ✅ NOUVEAU: recettes planifiées (sur une période) qui sont insuffisantes.
+     * Par défaut on ne prend que le planning non validé.
+     *
+     * @return array<int, array{...same as getFeasibleRecipes...}>
+     */
+    public function getInsufficientPlannedRecipes(
+        User $user,
+        \DateTimeImmutable $from,
+        \DateTimeImmutable $to,
+        bool $onlyUnvalidated = true
+    ): array {
+        $plans = $this->mealPlanRepository->findBetween($user, $from, $to);
+
+        // Filtrer validés si demandé
+        if ($onlyUnvalidated) {
+            $plans = array_values(array_filter(
+                $plans,
+                static fn(MealPlan $mp) => $mp->isValidated() === false
+            ));
+        }
+
+        // Extraire les recettes uniques (évite doublons)
+        /** @var array<int, Recipe> $recipesById */
+        $recipesById = [];
+
+        foreach ($plans as $mp) {
+            $recipe = $mp->getRecipe();
+            if (!$recipe instanceof Recipe) {
+                continue;
+            }
+            $rid = $recipe->getId();
+            if ($rid) {
+                $recipesById[$rid] = $recipe;
+            }
+        }
+
+        if ($recipesById === []) {
+            return [];
+        }
+
+        // Charger ces recettes avec leurs ingrédients en une requête (évite N+1)
+        $recipeIds = array_keys($recipesById);
+
+        /** @var Recipe[] $recipes */
+        $recipes = $this->em->createQueryBuilder()
+            ->select('r', 'ri', 'i')
+            ->from(Recipe::class, 'r')
+            ->leftJoin('r.recipeIngredients', 'ri')
+            ->leftJoin('ri.ingredient', 'i')
+            ->andWhere('r.user = :user')
+            ->andWhere('r.id IN (:ids)')
+            ->setParameter('user', $user)
+            ->setParameter('ids', $recipeIds)
+            ->orderBy('r.name', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        $views = $this->buildViewsForRecipes($user, $recipes);
+
+        // Ne retourner que les insuffisantes
         return array_values(array_filter($views, static fn(array $v) => $v['is_feasible'] === false));
     }
 
@@ -102,7 +169,6 @@ final class RecipeFeasibilityService
      */
     private function buildRecipeViews(User $user): array
     {
-        // 1) Charger recipes + recipeIngredients + ingredient en une requête (évite N+1)
         /** @var Recipe[] $recipes */
         $recipes = $this->em->createQueryBuilder()
             ->select('r', 'ri', 'i')
@@ -115,10 +181,32 @@ final class RecipeFeasibilityService
             ->getQuery()
             ->getResult();
 
-        // 2) Charger stock utilisateur
+        return $this->buildViewsForRecipes($user, $recipes);
+    }
+
+    /**
+     * Construit les views pour une liste de recettes déjà chargées (avec ingredients).
+     *
+     * @param Recipe[] $recipes
+     * @return array<int, array{
+     *   recipe: Recipe,
+     *   items: array<int, array{
+     *     recipeIngredient: mixed,
+     *     ingredient: mixed,
+     *     needed: float|null,
+     *     stock: float,
+     *     unit: mixed,
+     *     is_missing: bool,
+     *     missing_amount: float|null
+     *   }>,
+     *   is_feasible: bool,
+     *   missing_count: int
+     * }>
+     */
+    private function buildViewsForRecipes(User $user, array $recipes): array
+    {
         $stockByIngredientId = $this->buildStockMap($user);
 
-        // 3) Construire la “vue” par recette
         $views = [];
 
         foreach ($recipes as $recipe) {

@@ -12,7 +12,10 @@
     data-shopping-csrf-token-value="{{ csrf_token('shopping_cart') }}"
   >
     <div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
-      <h1 class="mb-0"><img class="rp-title-thumb" src="{{ asset('img/actions/courses.png') }}" alt=""> Courses</h1>
+      <h1 class="mb-0">
+        <img class="rp-title-thumb" src="{{ asset('img/actions/courses.png') }}" alt="">
+        Courses
+      </h1>
 
       <div class="d-flex align-items-center gap-2 flex-wrap">
         <button
@@ -27,14 +30,18 @@
           <span class="d-inline d-sm-none">Ajout</span>
         </button>
 
-        <a
-          href="{{ path('shopping_generate') }}"
+        {# ✅ ouvre la modale de génération #}
+        <button
+          type="button"
           class="btn btn-outline-primary d-flex align-items-center gap-2"
-          title="Générer ma liste d'ingrédient nécessaire a mes recettes"
+          data-bs-toggle="modal"
+          data-bs-target="#shoppingGenerateModal"
+          title="Générer ma liste de courses"
         >
           <img class="bt-action-thumb" src="{{ asset('img/actions/generer_courses.png') }}" alt="">
           <span class="d-none d-sm-inline">Générer ma liste</span>
-        </a>
+          <span class="d-inline d-sm-none">Générer</span>
+        </button>
 
         <button
           type="button"
@@ -92,5 +99,82 @@
     <div data-shopping-target="listing">
       {{ include('shopping/_listing.html.twig', { items: items }) }}
     </div>
+
+    {# =========================
+       ✅ MODALE: Génération
+       ========================= #}
+    <div class="modal fade" id="shoppingGenerateModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+
+          <div class="modal-header">
+            <h5 class="modal-title d-flex align-items-center gap-2">
+              <img class="bt-action-thumb" src="{{ asset('img/actions/generer_courses.png') }}" alt="">
+              Générer ma liste
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+          </div>
+
+          {# ✅ AJAX optionnel : si branché, le JS intercepte et fait un reload propre #}
+          <form
+            method="post"
+            action="{{ path('shopping_generate') }}"
+            data-action="submit->shopping#submitGenerate"
+          >
+            <div class="modal-body">
+              <input type="hidden" name="_token" value="{{ csrf_token('shopping_generate') }}">
+
+              <div class="d-grid gap-2">
+                <label class="card shadow-sm border-0 p-3 mb-0" style="cursor:pointer;">
+                  <div class="d-flex align-items-start gap-3">
+                    <input class="form-check-input mt-1" type="radio" name="mode" value="all" checked>
+                    <div>
+                      <div class="fw-semibold">Toutes mes recettes</div>
+                      <div class="text-muted small">
+                        Ingrédients manquants pour l’ensemble de tes recettes.
+                      </div>
+                    </div>
+                  </div>
+                </label>
+
+                <label class="card shadow-sm border-0 p-3 mb-0" style="cursor:pointer;">
+                  <div class="d-flex align-items-start gap-3">
+                    <input class="form-check-input mt-1" type="radio" name="mode" value="favorites">
+                    <div>
+                      <div class="fw-semibold">Mes recettes favorites</div>
+                      <div class="text-muted small">
+                        Liste basée uniquement sur tes recettes ⭐ favorites.
+                      </div>
+                    </div>
+                  </div>
+                </label>
+
+                <label class="card shadow-sm border-0 p-3 mb-0" style="cursor:pointer;">
+                  <div class="d-flex align-items-start gap-3">
+                    <input class="form-check-input mt-1" type="radio" name="mode" value="week">
+                    <div>
+                      <div class="fw-semibold">La semaine qui vient</div>
+                      <div class="text-muted small">
+                        Ingrédients manquants pour tes repas planifiés à venir.
+                      </div>
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
+              <button type="submit" class="btn btn-primary d-flex align-items-center gap-2">
+                <img class="bt-action-thumb" src="{{ asset('img/actions/generer_courses.png') }}" alt="">
+                Générer
+              </button>
+            </div>
+          </form>
+
+        </div>
+      </div>
+    </div>
+
   </div>
 {% endblock %}

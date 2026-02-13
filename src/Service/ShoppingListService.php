@@ -17,26 +17,79 @@ final class ShoppingListService
     ) {}
 
     /**
-     * Synchronise la liste "AUTO missing" à partir des recettes insuffisantes.
-     *
-     * Règles:
-     * - Unique (user, ingredient) => une seule ligne possible.
-     * - Si ligne MANUAL existe: on la garde, et on la monte seulement si le "missing" est supérieur.
-     * - Si ligne AUTO existe: on l'overwrite avec le missing.
-     * - Si missing <= 0:
-     *    - on supprime la ligne AUTO
-     *    - on ne touche pas aux MANUAL (l'utilisateur a peut-être ses raisons)
-     *
-     * Objectif: prendre en compte ce que l'utilisateur a déjà mis, et ne jamais "gonfler" à chaque sync.
+     * ✅ Mode "Toutes mes recettes"
      */
-    public function syncAutoMissingFromInsufficientRecipes(User $user): void
+    public function syncAutoMissingFromAllRecipes(User $user): void
+    {
+        $views = $this->feasibility->getInsufficientRecipes($user);
+        $this->syncAutoMissingFromViews($user, $views);
+    }
+
+    /**
+     * ✅ Mode "Mes recettes favorites"
+     */
+    public function syncAutoMissingFromFavoriteRecipes(User $user): void
     {
         $views = $this->feasibility->getInsufficientRecipes($user);
 
-        // 1) Agréger missing par ingredientId
+        $filtered = [];
+        foreach ($views as $view) {
+            $recipe = $view['recipe'] ?? null;
+
+            // On filtre uniquement si on a bien la méthode (chez toi c’est le cas)
+            if ($recipe && method_exists($recipe, 'isFavorite') && $recipe->isFavorite()) {
+                $filtered[] = $view;
+            }
+        }
+
+        $this->syncAutoMissingFromViews($user, $filtered);
+    }
+
+    /**
+     * ✅ Mode "Semaine qui vient"
+     */
+    public function syncAutoMissingFromPlannedWeek(
+        User $user,
+        ?\DateTimeImmutable $from = null
+    ): void {
+        $from ??= new \DateTimeImmutable('today');
+        $to = $from->modify('+7 days');
+
+        $views = $this->feasibility->getInsufficientPlannedRecipes(
+            $user,
+            $from,
+            $to,
+            true // uniquement non validés
+        );
+
+        $this->syncAutoMissingFromViews($user, $views);
+    }
+
+    /**
+     * Ancienne méthode conservée pour compatibilité
+     */
+    public function syncAutoMissingFromInsufficientRecipes(User $user): void
+    {
+        $this->syncAutoMissingFromAllRecipes($user);
+    }
+
+    /**
+     * 🔁 Implémentation centrale
+     *
+     * Compromis UX demandé :
+     * - On NE SUPPRIME PAS les lignes AUTO automatiquement.
+     * - On NE DIMINUE PAS une ligne AUTO automatiquement.
+     *
+     * => Donc les générations successives (favorites, puis week, etc.) s'additionnent naturellement.
+     *
+     * @param iterable<mixed> $views
+     */
+    private function syncAutoMissingFromViews(User $user, iterable $views): void
+    {
         /** @var array<int, array{ingredient: Ingredient, qty: float}> $missingByIngredientId */
         $missingByIngredientId = [];
 
+        // 1) Agréger missing par ingrédient
         foreach ($views as $view) {
             foreach (($view['items'] ?? []) as $item) {
                 if (($item['is_missing'] ?? false) !== true) {
@@ -59,20 +112,22 @@ final class ShoppingListService
                 }
 
                 if (!isset($missingByIngredientId[$iid])) {
-                    $missingByIngredientId[$iid] = ['ingredient' => $ingredient, 'qty' => 0.0];
+                    $missingByIngredientId[$iid] = [
+                        'ingredient' => $ingredient,
+                        'qty' => 0.0,
+                    ];
                 }
 
                 $missingByIngredientId[$iid]['qty'] += $missing;
             }
         }
 
-        // 2) Charger toutes les lignes existantes
+        // 2) Charger toutes les lignes existantes (user)
         /** @var Shopping[] $existingAll */
         $existingAll = $this->shoppingRepository->findBy(['user' => $user]);
 
         /** @var array<int, Shopping> $existingByIngredientId */
         $existingByIngredientId = [];
-
         foreach ($existingAll as $line) {
             $iid = $line->getIngredient()?->getId();
             if ($iid) {
@@ -80,7 +135,7 @@ final class ShoppingListService
             }
         }
 
-        // 3) Appliquer le missing sur les lignes existantes / créer AUTO si besoin
+        // 3) Upsert / update (sans suppression)
         foreach ($missingByIngredientId as $iid => $row) {
             $missingQty = round((float) $row['qty'], 2);
             $ingredient = $row['ingredient'];
@@ -88,7 +143,7 @@ final class ShoppingListService
             $line = $existingByIngredientId[$iid] ?? null;
 
             if ($line === null) {
-                // Rien n'existe -> créer une ligne AUTO avec missing
+                // Rien n'existe -> créer une ligne AUTO
                 $line = (new Shopping())
                     ->setUser($user)
                     ->setIngredient($ingredient)
@@ -99,41 +154,19 @@ final class ShoppingListService
                 continue;
             }
 
-            // Une ligne existe déjà (manual ou auto)
             $currentQty = round((float) $line->getQuantity(), 2);
 
-            if ($line->isAuto() || $line->getSource() === 'auto') {
-                // AUTO: overwrite idempotent
-                $line->setQuantity($missingQty);
+            if ($line->isAuto()) {
+                // ✅ AUTO: ne jamais diminuer automatiquement
+                $line->setQuantity(max($currentQty, $missingQty));
             } else {
-                // MANUAL: prendre en compte ce que l'utilisateur a déjà mis
-                // On veut "ajouter le complément" => au niveau DB on ne peut pas stocker 2 quantités,
-                // donc on fixe la quantité totale à acheter = max(manual, missing).
-                //
-                // Différence à ajouter (pour comprendre le calcul) :
-                // $deltaToAdd = max(0, $missingQty - $currentQty);
-                // mais on n'applique PAS addQuantity (sinon ça gonfle à chaque sync).
+                // ✅ MANUAL: ne jamais diminuer non plus, juste max(manual, missing)
                 $line->setQuantity(max($currentQty, $missingQty));
             }
         }
 
-        // 4) Supprimer les AUTO qui ne sont plus manquants
-        //    MAIS uniquement les lignes source=auto, pour éviter de supprimer du manuel.
-        foreach ($existingAll as $line) {
-            if (!$line->isAuto()) {
-                continue;
-            }
-
-            $iid = $line->getIngredient()?->getId();
-            if (!$iid) {
-                continue;
-            }
-
-            // Si l'ingrédient n'est plus dans les missing -> on supprime
-            if (!isset($missingByIngredientId[$iid])) {
-                $this->em->remove($line);
-            }
-        }
+        // ✅ 4) IMPORTANT: on ne supprime plus les AUTO absents du missing
+        // (compromis pour permettre favorites puis week sans perdre des items auto)
 
         $this->em->flush();
     }

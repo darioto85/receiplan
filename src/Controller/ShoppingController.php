@@ -142,8 +142,15 @@ final class ShoppingController extends AbstractController
         ]);
     }
 
-    #[Route('/generate', name: 'shopping_generate', methods: ['GET'])]
+    /**
+     * ✅ Génération de liste avec modes :
+     * - all       : toutes les recettes
+     * - favorites : uniquement favorites
+     * - week      : semaine à venir (planning)
+     */
+    #[Route('/generate', name: 'shopping_generate', methods: ['POST'])]
     public function generate(
+        Request $request,
         \App\Service\ShoppingListService $shoppingService
     ): Response {
         $user = $this->getUser();
@@ -151,8 +158,47 @@ final class ShoppingController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        $shoppingService->syncAutoMissingFromInsufficientRecipes($user);
+        $isAjax = $request->isXmlHttpRequest();
 
+        // ✅ CSRF
+        $token = (string) $request->request->get('_token', '');
+        if (!$this->isCsrfTokenValid('shopping_generate', $token)) {
+            if ($isAjax) {
+                return $this->json(['ok' => false, 'message' => 'CSRF invalide.'], 403);
+            }
+            $this->addFlash('danger', 'Action refusée (CSRF invalide).');
+            return $this->redirectToRoute('shopping_index');
+        }
+
+        $mode = (string) $request->request->get('mode', 'all');
+        $mode = strtolower(trim($mode));
+        if (!in_array($mode, ['all', 'favorites', 'week'], true)) {
+            $mode = 'all';
+        }
+
+        $flash = 'Liste générée.';
+
+        // ✅ Appels cibles (à implémenter ensuite dans ShoppingListService)
+        if ($mode === 'favorites' && method_exists($shoppingService, 'syncAutoMissingFromFavoriteRecipes')) {
+            $shoppingService->syncAutoMissingFromFavoriteRecipes($user);
+            $flash = 'Liste générée depuis tes recettes favorites.';
+        } elseif ($mode === 'week' && method_exists($shoppingService, 'syncAutoMissingFromPlannedWeek')) {
+            $shoppingService->syncAutoMissingFromPlannedWeek($user);
+            $flash = 'Liste générée pour la semaine à venir.';
+        } elseif ($mode === 'all' && method_exists($shoppingService, 'syncAutoMissingFromAllRecipes')) {
+            $shoppingService->syncAutoMissingFromAllRecipes($user);
+            $flash = 'Liste générée depuis toutes tes recettes.';
+        } else {
+            // ✅ Fallback: comportement actuel
+            $shoppingService->syncAutoMissingFromInsufficientRecipes($user);
+            $flash = 'Liste générée.';
+        }
+
+        if ($isAjax) {
+            return $this->json(['ok' => true, 'message' => $flash]);
+        }
+
+        $this->addFlash('success', $flash);
         return $this->redirectToRoute('shopping_index');
     }
 
