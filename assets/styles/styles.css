@@ -648,6 +648,7 @@ h2{
   display:inline-flex;
   align-items:center;
   justify-content:center;
+  min-width: 45px;
 }
 .rp-day-propose-btn i{
   margin: 0 !important;

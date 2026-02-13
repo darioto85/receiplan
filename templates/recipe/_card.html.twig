@@ -1,8 +1,15 @@
 {# templates/recipe/_card.html.twig #}
+
 {% set recipe = view.recipe %}
-{% set recipeImg = recipe_image(recipe) %}
-{% if not recipeImg %}
+
+{# image recette #}
+{% set recipeImgRaw = recipe_image(recipe) %}
+
+{# Normalise en URL: si le helper renvoie un path relatif (ex: "recipes/x.png"), on l'encapsule avec asset() #}
+{% if recipeImgRaw is empty %}
   {% set recipeImg = asset('img/recipe/placeholder.png') %}
+{% else %}
+  {% set recipeImg = recipeImgRaw starts with 'http' or recipeImgRaw starts with '/' ? recipeImgRaw : asset(recipeImgRaw) %}
 {% endif %}
 
 {% set missingItems = view.items|filter(i => i.is_missing ?? false) %}
@@ -16,14 +23,15 @@
 <a href="{{ path('app_recipe_show', { id: recipe.id }) }}"
    class="rp-recipe-item text-decoration-none text-reset"
    aria-label="Ouvrir la recette {{ recipe.name }}">
+
   <div class="rp-recipe-main">
     <div class="rp-recipe-left" style="position:relative;">
-      {# ⭐ étoile en overlay coin haut-gauche de la vignette #}
+
+      {# ⭐ étoile overlay #}
       <img
         src="{{ favIcon }}"
         alt=""
-        width="25"
-        height="25"
+        width="25" height="25"
         loading="lazy"
         decoding="async"
         style="
@@ -42,8 +50,7 @@
         src="{{ recipeImg }}"
         alt="{{ recipe.name }}"
         class="rp-recipe-thumb"
-        width="44"
-        height="44"
+        width="44" height="44"
         loading="lazy"
         decoding="async"
         style="position:relative; z-index:1;"
@@ -56,7 +63,8 @@
           <div class="rp-recipe-sub">Tous les ingrédients sont disponibles.</div>
         {% else %}
           <div class="rp-recipe-sub">
-            {{ missingCount }} ingrédient{{ missingCount > 1 ? 's' : '' }} manquant{{ missingCount > 1 ? 's' : '' }}
+            {{ missingCount }} ingrédient{{ missingCount > 1 ? 's' : '' }}
+            manquant{{ missingCount > 1 ? 's' : '' }}
           </div>
         {% endif %}
       </div>
@@ -77,6 +85,7 @@
       {% else %}
         <ul class="rp-missing-list">
           {% set maxLines = 3 %}
+
           {% for item in missingItems|slice(0, maxLines) %}
             {% set ing = item.ingredient %}
             {% set unit = item.unitLabel ?? (item.unit is defined and item.unit ? item.unit.value : '') %}
@@ -88,8 +97,7 @@
                     src="{{ ingredient_image(ing) }}"
                     alt="{{ ing.name }}"
                     class="rp-missing-thumb"
-                    width="22"
-                    height="22"
+                    width="22" height="22"
                     loading="lazy"
                     decoding="async"
                   />
@@ -120,4 +128,5 @@
       {% endif %}
     </div>
   {% endif %}
+
 </a>

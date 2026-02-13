@@ -26,7 +26,6 @@
   </div>
 
   <div class="card-body rp-card-body">
-    {# ✅ Grille de jours (1 card = 1 jour) #}
     <div class="rp-week-grid">
       {% for i in 0..6 %}
         {% set day = weekStart|date_modify("+" ~ i ~ " days") %}
@@ -35,7 +34,6 @@
         {% set isPast = day < today %}
         {% set meals = planningByDate[dayKey] ?? [] %}
 
-        {# classes globales de la card jour #}
         {% set dayCardClasses = [
           'rp-day-card',
           isPast ? 'rp-day-card--past' : '',
@@ -43,33 +41,51 @@
         ]|filter(v => v != '')|join(' ') %}
 
         <div class="{{ dayCardClasses }}">
-          {# ✅ On garde TON wrapper day (data-* identiques) #}
           <div
-            data-controller="day-propose"
+            data-controller="day-propose recipe-picker"
             data-day-propose-url-value="{{ path('meal_plan_propose_ajax') }}"
             data-day-propose-date-value="{{ dayKey }}"
             data-day-propose-csrf-value="{{ csrf_token('mealplan_propose') }}"
             data-day-key="{{ dayKey }}"
             data-day="{{ dayKey }}"
+
+            {# ✅ recipe picker endpoints (nouveaux) #}
+            data-recipe-picker-search-url-value="{{ path('meal_plan_recipe_search') }}"
+            data-recipe-picker-assign-url-value="{{ path('meal_plan_assign_ajax') }}"
+            data-recipe-picker-csrf-value="{{ csrf_token('mealplan_assign') }}"
           >
-            {# ✅ Header du jour (date courte + bouton proposer petit) #}
             <div class="rp-day-head">
               <div class="rp-day-date {{ isToday ? 'rp-day-date--today' : '' }}">
                 {{ day|date('D d') }}
               </div>
 
-              <button
-                type="button"
-                class="btn btn-outline-primary btn-sm rp-day-propose-btn"
-                title="Proposer un repas pour ce jour"
-                data-action="day-propose#propose"
-                data-day-propose-target="button"
-              >
-                <i class="fa-solid fa-wand-magic-sparkles"></i>
-              </button>
+              <div class="d-flex gap-2">
+                {# ✅ bouton loupe => ouvre le picker #}
+                <button
+                  type="button"
+                  class="btn btn-outline-primary btn-sm"
+                  title="Choisir une recette"
+                  aria-label="Choisir une recette"
+                  data-action="recipe-picker#open"
+                  data-recipe-picker-date-param="{{ dayKey }}"
+                >
+                  <i class="fa-solid fa-magnifying-glass"></i>
+                </button>
+
+                {# bouton proposer (existant) #}
+                <button
+                  type="button"
+                  class="btn btn-outline-primary btn-sm rp-day-propose-btn"
+                  title="Proposer un repas pour ce jour"
+                  aria-label="Proposer un repas"
+                  data-action="day-propose#propose"
+                  data-day-propose-target="button"
+                >
+                  <i class="fa-solid fa-wand-magic-sparkles"></i>
+                </button>
+              </div>
             </div>
 
-            {# ✅ Ton contenu intérieur inchangé #}
             <div class="d-flex flex-column gap-2 meal-list" data-day-propose-target="meals">
               {% if meals is empty %}
                 <div class="text-body-secondary small fst-italic" data-day-propose-target="empty">
@@ -77,7 +93,6 @@
                 </div>
               {% else %}
                 {% for meal in meals %}
-                  {# ✅ safe: recipe peut être null si supprimée #}
                   {% set recipeId = meal.recipe ? meal.recipe.id : null %}
                   {% set ok = recipeId ? (feasibleByRecipeId[recipeId] ?? true) : true %}
 

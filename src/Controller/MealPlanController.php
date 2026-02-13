@@ -2,7 +2,9 @@
 
 namespace App\Controller;
 
+use App\Entity\MealPlan;
 use App\Repository\MealPlanRepository;
+use App\Repository\RecipeRepository;
 use App\Service\DailyMealSuggestionService;
 use App\Service\MealPlanProposer;
 use App\Service\RecipeFeasibilityService;
@@ -14,7 +16,6 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\User\UserInterface;
-
 
 #[Route('/meal-plan')]
 final class MealPlanController extends AbstractController
@@ -54,9 +55,7 @@ final class MealPlanController extends AbstractController
         DailyMealSuggestionService $dailySuggestion,
         UserInterface $user,
     ): Response {
-
         // auto-propose si aucun repas aujourd’hui
-        $today = new \DateTimeImmutable('today');
         $dailySuggestion->ensureTodaySuggestion($user);
 
         $startStr = (string) $request->query->get('start', '');
@@ -65,6 +64,8 @@ final class MealPlanController extends AbstractController
         if (!$weekStart) {
             return new JsonResponse(['message' => 'Paramètre start invalide.'], 400);
         }
+
+        $today = new \DateTimeImmutable('today');
 
         $weekStart = $weekStart->modify('monday this week');
         $weekEnd   = $weekStart->modify('+6 days');
@@ -93,7 +94,7 @@ final class MealPlanController extends AbstractController
             'feasibleByRecipeId' => $feasibleByRecipeId,
             'weekStart'      => $weekStart,
             'weekEnd'        => $weekEnd,
-            'today'          => new \DateTimeImmutable('today'),
+            'today'          => $today,
         ]);
     }
 
@@ -294,4 +295,114 @@ final class MealPlanController extends AbstractController
         ]);
     }
 
+    // ============================================================
+    // ✅ NOUVEAU: Search recettes (picker)
+    // GET /meal-plan/recipes?query=...
+    // ============================================================
+    #[Route('/recipes', name: 'meal_plan_recipe_search', methods: ['GET'])]
+    public function recipeSearch(
+        Request $request,
+        RecipeRepository $recipeRepository,
+        RecipeFeasibilityService $feasibility,
+        UserInterface $user,
+    ): Response {
+        $q = trim((string) $request->query->get('query', ''));
+
+        // Simple & robuste : on filtre en PHP si tu n'as pas encore de méthode dédiée
+        // (on optimisera avec une vraie query ensuite)
+        $all = $recipeRepository->findBy(['user' => $user], ['name' => 'ASC']);
+
+        $recipes = $all;
+        if ($q !== '') {
+            $qLower = mb_strtolower($q);
+            $recipes = array_values(array_filter($all, static function ($r) use ($qLower) {
+                if (!method_exists($r, 'getName')) return false;
+                return str_contains(mb_strtolower((string) $r->getName()), $qLower);
+            }));
+        }
+
+        $feasibleByRecipeId = $feasibility->getFeasibilityMapForRecipes($user, $recipes);
+
+        return $this->render('mealplan/_recipe_picker_results.html.twig', [
+            'recipes' => $recipes,
+            'feasibleByRecipeId' => $feasibleByRecipeId,
+        ]);
+    }
+
+    // ============================================================
+    // ✅ NOUVEAU: Assign recette à une date (multi repas)
+    // POST /meal-plan/assign-ajax { date, recipeId }
+    // ============================================================
+    #[Route('/assign-ajax', name: 'meal_plan_assign_ajax', methods: ['POST'])]
+    public function assignAjax(
+        Request $request,
+        RecipeRepository $recipeRepository,
+        EntityManagerInterface $em,
+        RecipeFeasibilityService $feasibility,
+        UserInterface $user,
+    ): Response {
+        $csrf = $request->headers->get('X-CSRF-TOKEN', '');
+        if (!$this->isCsrfTokenValid('mealplan_assign', $csrf)) {
+            return $this->json(['message' => 'CSRF invalide.'], 419);
+        }
+
+        $payload = $request->toArray();
+        $dateStr = $payload['date'] ?? null;
+        $recipeIdRaw = $payload['recipeId'] ?? null;
+
+        if (!is_string($dateStr) || $dateStr === '') {
+            return $this->json(['message' => 'Date manquante.'], 400);
+        }
+
+        $date = \DateTimeImmutable::createFromFormat('Y-m-d', $dateStr);
+        if (!$date) {
+            return $this->json(['message' => 'Date invalide.'], 400);
+        }
+
+        // recipeId peut venir en string depuis JSON
+        if (is_int($recipeIdRaw)) {
+            $recipeId = $recipeIdRaw;
+        } elseif (is_string($recipeIdRaw) && ctype_digit($recipeIdRaw)) {
+            $recipeId = (int) $recipeIdRaw;
+        } else {
+            return $this->json(['message' => 'recipeId invalide.'], 400);
+        }
+
+        $recipe = $recipeRepository->find($recipeId);
+        if (!$recipe) {
+            return $this->json(['message' => 'Recette introuvable.'], 404);
+        }
+
+        // sécurité : recette doit appartenir à l'utilisateur
+        if (method_exists($recipe, 'getUser') && $recipe->getUser() !== $user) {
+            return $this->json(['message' => 'Accès refusé.'], 403);
+        }
+
+        // ✅ multi repas : on crée toujours un nouvel enregistrement
+        $meal = new MealPlan();
+        $meal->setUser($user);
+        $meal->setDate($date);
+        $meal->setRecipe($recipe);
+
+        $em->persist($meal);
+        $em->flush();
+
+        // faisabilité pour le badge
+        $ok = true;
+        $map = $feasibility->getFeasibilityMapForRecipes($user, [$recipe]);
+        $ok = $map[$recipe->getId()] ?? true;
+
+        $html = $this->renderView('mealplan/_meal_item.html.twig', [
+            'meal' => $meal,
+            'is_feasible' => $ok,
+            'swipe_hint' => false,
+        ]);
+
+        return $this->json([
+            'ok' => true,
+            'date' => $dateStr,
+            'mealId' => $meal->getId(),
+            'html' => $html,
+        ]);
+    }
 }

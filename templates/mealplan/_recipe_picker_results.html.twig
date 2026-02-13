@@ -1,0 +1,42 @@
+{# templates/mealplan/_recipe_picker_results.html.twig #}
+
+{% if recipes is empty %}
+  <div class="text-muted small">
+    Aucune recette trouvée.
+  </div>
+{% else %}
+  <div class="list-group">
+    {% for recipe in recipes %}
+      {% set recipeId = recipe.id %}
+      {% set ok = feasibleByRecipeId[recipeId] ?? true %}
+
+      <button
+        type="button"
+        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+        data-action="recipe-picker#choose"
+        data-recipe-id="{{ recipeId }}"
+        title="Ajouter au planning"
+      >
+        <div class="me-2">
+          <div class="fw-semibold">{{ recipe.name }}</div>
+
+          {% if not ok %}
+            <div class="small text-muted">
+              Stock insuffisant
+            </div>
+          {% else %}
+            <div class="small text-muted">
+              Disponible
+            </div>
+          {% endif %}
+        </div>
+
+        {% if not ok %}
+          <span class="badge text-bg-warning">Stock</span>
+        {% else %}
+          <span class="badge text-bg-success">OK</span>
+        {% endif %}
+      </button>
+    {% endfor %}
+  </div>
+{% endif %}
