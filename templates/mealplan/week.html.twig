@@ -1,6 +1,7 @@
 {# templates/mealplan/week.html.twig #}
 {% set todayKey = today|date('Y-m-d') %}
 
+{# Hint : uniquement un repas non validé du jour, si présent dans cette semaine #}
 {% set hintMealId = null %}
 {% for i in 0..6 %}
   {% if hintMealId is null %}
@@ -39,7 +40,8 @@
           isToday ? 'rp-day-card--today' : ''
         ]|filter(v => v != '')|join(' ') %}
 
-        <div class="{{ dayCardClasses }}">
+        {# ✅ Ancre stable pour le scroll auto #}
+        <div class="{{ dayCardClasses }}" id="day-{{ dayKey }}">
           <div
             data-controller="day-propose recipe-picker"
             data-day-propose-url-value="{{ path('meal_plan_propose_ajax') }}"
@@ -49,6 +51,7 @@
             data-day="{{ dayKey }}"
             {% if isToday %}data-is-today="1"{% endif %}
 
+            {# recipe picker endpoints #}
             data-recipe-picker-search-url-value="{{ path('meal_plan_recipe_search') }}"
             data-recipe-picker-assign-url-value="{{ path('meal_plan_assign_ajax') }}"
             data-recipe-picker-csrf-value="{{ csrf_token('mealplan_assign') }}"

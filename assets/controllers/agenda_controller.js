@@ -14,7 +14,7 @@ export default class extends Controller {
     "bottomSentinel",
     "loading",
     "error",
-    "overlay", // ✅ nouveau
+    "overlay",
   ];
 
   connect() {
@@ -29,43 +29,30 @@ export default class extends Controller {
       return;
     }
 
-    // ✅ scroll auto 1 seule fois
-    this.didAutoScroll = false;
-
-    // ✅ bloque les loads auto déclenchés par IntersectionObserver
-    this.suppressInfiniteLoad = true;
-
     this.loadingUp = false;
     this.loadingDown = false;
 
+    // anti double load
     this.loadedWeeks = new Set();
     this.loadingWeeks = new Set();
 
     this.earliestStart = this.initialStartValue;
     this.latestStart = this.initialStartValue;
 
-    // ✅ UI: loader overlay au démarrage
+    // évite triggers observer juste après preload/scroll
+    this.ignoreObserverUntil = 0;
+
+    // UI
     this.#showOverlay(true);
     this.#showSentinels(false);
     this.#showLoading(false);
 
-    // ✅ charge la semaine courante
-    this.#loadWeek(this.initialStartValue, "append")
+    this.#bootstrap()
       .catch((e) => {
         console.error(e);
-        this.#showError("Impossible de charger la semaine courante.");
+        this.#showError("Impossible de charger le planning.");
       })
       .finally(() => {
-        // ✅ 1) auto-scroll
-        this.#scrollToTodayOnce();
-
-        // ✅ 2) seulement après, on met les observers
-        this.#setupObservers();
-
-        // ✅ 3) on autorise l'infinite scroll uniquement après un scroll utilisateur
-        this.#enableInfiniteLoadAfterUserScroll();
-
-        // ✅ 4) on masque le loader overlay et on affiche les sentinels
         this.#showOverlay(false);
         this.#showSentinels(true);
       });
@@ -74,8 +61,35 @@ export default class extends Controller {
   disconnect() {
     this.topObserver?.disconnect();
     this.bottomObserver?.disconnect();
-    this.scrollerTarget?.removeEventListener("scroll", this._onFirstUserScroll);
   }
+
+  async #bootstrap() {
+    // 1) semaine courante
+    await this.#loadWeek(this.initialStartValue, "append");
+
+    // 2) preload -1 et +1
+    const prev = this.#addDaysUtc(this.initialStartValue, -7);
+    const next = this.#addDaysUtc(this.initialStartValue, +7);
+
+    // ⚠️ prepend = ajuste le scrollTop pour ne pas “sauter”
+    await this.#prependWeekPreserveScroll(prev);
+
+    // append next
+    await this.#loadWeek(next, "append");
+
+    // bornes recalculées
+    this.#recomputeBoundsFromDom();
+
+    // ✅ 3) scroll auto sur aujourd’hui (après preload, layout plus stable)
+    this.#scrollToToday();
+
+    // ✅ 4) ignore observer un court instant (un peu plus large pour éviter un load immédiat)
+    this.ignoreObserverUntil = Date.now() + 1200;
+
+    // ✅ 5) infinite scroll (après avoir scrollé)
+    this.#setupObservers();
+  }
+
 
   #setupObservers() {
     const rootEl = this.scrollerTarget;
@@ -87,12 +101,12 @@ export default class extends Controller {
     };
 
     this.topObserver = new IntersectionObserver((entries) => {
-      if (this.suppressInfiniteLoad) return;
+      if (Date.now() < this.ignoreObserverUntil) return;
       if (entries.some((e) => e.isIntersecting)) this.#loadPreviousWeek();
     }, opts);
 
     this.bottomObserver = new IntersectionObserver((entries) => {
-      if (this.suppressInfiniteLoad) return;
+      if (Date.now() < this.ignoreObserverUntil) return;
       if (entries.some((e) => e.isIntersecting)) this.#loadNextWeek();
     }, opts);
 
@@ -100,33 +114,12 @@ export default class extends Controller {
     this.bottomObserver.observe(this.bottomSentinelTarget);
   }
 
-  #enableInfiniteLoadAfterUserScroll() {
-    // ✅ dès que l'user touche au scroll, on autorise les loads infinis
-    const scroller = this.scrollerTarget;
-
-    this._onFirstUserScroll = () => {
-      this.suppressInfiniteLoad = false;
-      scroller.removeEventListener("scroll", this._onFirstUserScroll);
-      console.log("[agenda] infinite load enabled (user scrolled)");
-    };
-
-    scroller.addEventListener("scroll", this._onFirstUserScroll, { passive: true });
-  }
-
   async #loadPreviousWeek() {
     if (this.loadingUp) return;
     this.loadingUp = true;
 
     const prev = this.#addDaysUtc(this.earliestStart, -7);
-
-    const scroller = this.scrollerTarget;
-    const beforeHeight = scroller.scrollHeight;
-    const beforeTop = scroller.scrollTop;
-
-    await this.#loadWeek(prev, "prepend");
-
-    const afterHeight = scroller.scrollHeight;
-    scroller.scrollTop = beforeTop + (afterHeight - beforeHeight);
+    await this.#prependWeekPreserveScroll(prev);
 
     this.earliestStart = prev;
     this.loadingUp = false;
@@ -138,9 +131,22 @@ export default class extends Controller {
 
     const next = this.#addDaysUtc(this.latestStart, 7);
     await this.#loadWeek(next, "append");
-    this.latestStart = next;
 
+    this.latestStart = next;
     this.loadingDown = false;
+  }
+
+  async #prependWeekPreserveScroll(start) {
+    const scroller = this.scrollerTarget;
+    const beforeHeight = scroller.scrollHeight;
+    const beforeTop = scroller.scrollTop;
+
+    await this.#loadWeek(start, "prepend");
+
+    const afterHeight = scroller.scrollHeight;
+    scroller.scrollTop = beforeTop + (afterHeight - beforeHeight);
+
+    this.#recomputeBoundsFromDom();
   }
 
   async #loadWeek(start, mode) {
@@ -196,6 +202,62 @@ export default class extends Controller {
     this.#recomputeBoundsFromDom();
   }
 
+  // ✅ scroll robuste (re-tente si le layout bouge encore)
+  #scrollToToday() {
+    const today = this.#getTodayKey();
+    if (!today) return;
+
+    const scroller = this.scrollerTarget;
+    const target = this.element.querySelector(`#day-${today}`);
+    if (!target) {
+      console.log("[agenda] today anchor not found:", `#day-${today}`);
+      return;
+    }
+
+    const offset = 12;
+
+    const tryScroll = (attempt = 0) => {
+      if (attempt > 12) return;
+
+      requestAnimationFrame(() => {
+        const scrollerRect = scroller.getBoundingClientRect();
+        const targetRect = target.getBoundingClientRect();
+
+        // Position du target dans le flux scrollable :
+        const desiredTop =
+          scroller.scrollTop + (targetRect.top - scrollerRect.top) - offset;
+
+        scroller.scrollTo({
+          top: Math.max(0, desiredTop),
+          behavior: "auto",
+        });
+
+        // Re-check (images/fonts peuvent encore bouger)
+        requestAnimationFrame(() => {
+          const scrollerRect2 = scroller.getBoundingClientRect();
+          const targetRect2 = target.getBoundingClientRect();
+          const desiredTop2 =
+            scroller.scrollTop + (targetRect2.top - scrollerRect2.top) - offset;
+
+          const delta = Math.abs(desiredTop2 - scroller.scrollTop);
+          if (delta > 2) tryScroll(attempt + 1);
+        });
+      });
+    };
+
+    tryScroll(0);
+  }
+
+
+  #getTodayKey() {
+    if (this.hasTodayValue && this.todayValue) return this.todayValue;
+    const dt = new Date();
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, "0");
+    const dd = String(dt.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
   #recomputeBoundsFromDom() {
     const weeks = Array.from(this.element.querySelectorAll("[data-week-start]"))
       .map((el) => el.getAttribute("data-week-start"))
@@ -206,48 +268,6 @@ export default class extends Controller {
     weeks.sort();
     this.earliestStart = weeks[0];
     this.latestStart = weeks[weeks.length - 1];
-  }
-
-  #scrollToTodayOnce() {
-    if (this.didAutoScroll) return;
-    this.didAutoScroll = true;
-
-    const today = this.#getTodayKey();
-    if (!today) return;
-
-    const scroller = this.scrollerTarget;
-
-    const dayEl =
-      this.element.querySelector(`[data-day="${today}"]`) ||
-      this.element.querySelector(`[data-day-key="${today}"]`) ||
-      this.element.querySelector(`[data-is-today="1"]`);
-
-    if (!dayEl) {
-      console.log("[agenda] today not found in DOM:", today);
-      return;
-    }
-
-    // ✅ 2 frames pour être safe (layout + fonts/images)
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const offset = 12;
-        const top = dayEl.offsetTop - offset;
-
-        scroller.scrollTo({
-          top: Math.max(0, top),
-          behavior: "auto", // 👈 important: pas de smooth => pas de “décalage” visuel
-        });
-      });
-    });
-  }
-
-  #getTodayKey() {
-    if (this.hasTodayValue && this.todayValue) return this.todayValue;
-    const dt = new Date();
-    const yyyy = dt.getFullYear();
-    const mm = String(dt.getMonth() + 1).padStart(2, "0");
-    const dd = String(dt.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
   }
 
   #showOverlay(show) {
@@ -261,7 +281,6 @@ export default class extends Controller {
   }
 
   #showLoading(show) {
-    // (tu peux le garder, mais on ne l'utilise plus vraiment)
     if (!this.hasLoadingTarget) return;
     this.loadingTarget.classList.toggle("d-none", !show);
   }
@@ -272,6 +291,7 @@ export default class extends Controller {
     this.errorTarget.classList.remove("d-none");
   }
 
+  // calcul date en UTC + format manuel
   #addDaysUtc(yyyyMmDd, days) {
     const [y, m, d] = yyyyMmDd.split("-").map((x) => parseInt(x, 10));
     const dt = new Date(Date.UTC(y, m - 1, d));
