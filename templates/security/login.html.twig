@@ -2,9 +2,14 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8">
-    <title>{% block title %}Receiplan{% endblock %}</title>
+    <title>{% block title %}KuKo{% endblock %}</title>
 
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    {# Font (comme base.html.twig) #}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
 
     <!-- Bootstrap CSS -->
     <link
@@ -12,7 +17,16 @@
       rel="stylesheet"
     >
 
-    {% block stylesheets %}{% endblock %}
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+
+    {% block stylesheets %}
+      <link rel="stylesheet" href="{{ asset('styles/styles.css') }}">
+    {% endblock %}
 
     {% block javascripts %}
       {{ importmap('app') }}
@@ -29,6 +43,14 @@
 
       <div class="row justify-content-center align-items-center min-vh-100">
         <div class="col-12 col-sm-10 col-md-8 col-lg-5 col-xl-4">
+
+          {# ✅ Logo + nom (repris du header) #}
+          <div class="text-center mb-3">
+            <a href="{{ path('meal_plan_index') }}" class="rp-brand d-inline-flex align-items-center gap-2 text-decoration-none">
+              <img class="rp-brand-mark" src="{{ asset('img/logo.png') }}" alt="">
+              <span class="rp-brand-name">Kuko</span>
+            </a>
+          </div>
 
           <div class="card shadow-sm">
             <div class="card-body p-4">
