@@ -1,0 +1,278 @@
+/* =========================================================
+   MEALPLAN — day cards + meals + actions
+   ========================================================= */
+
+.rp-card-body{
+  padding: 0 !important; /* list-group flush gère déjà */
+}
+
+/* Past / today */
+.rp-day-past{ opacity: .55; }
+.rp-day-today{ opacity: 1; background: rgba(255,255,255,.55); }
+
+/* “chip” mini calendrier */
+.rp-day-chip{
+  width: 64px;
+  height: 44px;
+  flex: 0 0 64px;
+  border-radius: 14px;
+
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 2px;
+
+  background: linear-gradient(180deg, rgba(231,243,219,.85), rgba(217,238,200,.75));
+  border: 1px solid rgba(120,150,120,.18);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.75);
+
+  color: rgba(47,58,47,.80);
+}
+.rp-day-chip i{ font-size: 12px; opacity: .8; line-height: 1; }
+
+.rp-day-num{ font-weight: 900; font-size: 16px; line-height: 1; }
+.rp-day-month{
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  opacity: .75;
+  line-height: 1;
+}
+
+/* Meta */
+.rp-day-meta{
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
+.rp-day-name{ font-weight: 900; color: rgba(47,58,47,.86); }
+.rp-day-date{
+  font-weight: 700;
+  font-size: 12px;
+  color: rgba(47,58,47,.60);
+}
+
+/* Pill “Aujourd’hui” */
+.rp-today-pill{
+  margin-left: auto;
+  flex-shrink: 0;
+
+  padding: .25rem .6rem;
+  border-radius: 999px;
+
+  font-weight: 900;
+  font-size: .75rem;
+
+  color: var(--rp-green-text);
+  background: linear-gradient(180deg, var(--rp-green-start), var(--rp-green-end));
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.6),
+    0 6px 14px rgba(120,170,80,.35);
+
+  text-shadow: 0 1px 0 rgba(0,0,0,.18);
+}
+
+.rp-day-past .rp-day-chip{
+  filter: grayscale(.15);
+  opacity: .85;
+}
+.rp-day-today .rp-day-chip{
+  border-color: rgba(140,185,90,.35);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.75),
+    0 10px 18px rgba(120,170,80,.15);
+}
+
+@media (max-width: 576px){
+  .rp-day-chip{
+    width: 58px;
+    flex-basis: 58px;
+    height: 42px;
+    border-radius: 13px;
+  }
+  .rp-today-pill{ font-size: .72rem; }
+}
+
+.zone_meal_wrap{ margin: 0 -15px; }
+
+/* Week grid */
+.rp-week-grid{
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 576px){
+  .rp-week-grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 992px){
+  .rp-week-grid{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1200px){
+  .rp-week-grid{ grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+.rp-day-card{
+  border-radius: 18px;
+  border: 1px solid rgba(120,150,120,.20);
+  background: rgba(255,255,255,.78);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.85),
+    0 10px 18px rgba(60,90,60,.10);
+  padding: 12px;
+}
+.rp-day-card--past{ opacity: .55; }
+.rp-day-card--today{
+  border: 2px solid rgba(140,185,90,1);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.85),
+    0 12px 22px rgba(120,170,80,.16);
+}
+.rp-day-title{ color: rgba(35,45,35,.85); }
+
+/* Day header (UNIFIÉ: tu l’avais 2 fois) */
+.rp-day-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  min-width: 0;
+}
+.rp-day-date{
+  font-weight: 900;
+  letter-spacing: -.01em;
+  color: rgba(35,45,35,.82);
+  line-height: 1;
+  font-size: 15px;
+}
+.rp-day-date--today{ color: rgba(35,45,35,.92); }
+
+.rp-day-propose-btn{
+  padding: .25rem .55rem !important;
+  border-radius: 999px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width: 45px;
+}
+.rp-day-propose-btn i{
+  margin: 0 !important;
+  font-size: 14px;
+}
+
+/* Meal card */
+.rp-meal-card{
+  border: 1px solid rgba(120,150,120,.18);
+  border-radius: 14px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.85);
+  padding: 10px;
+}
+
+.rp-meal-main{
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.rp-meal-thumb{
+  width: 80px;
+  height: 80px;
+  flex: 0 0 auto;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+.rp-meal-meta{
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.rp-meal-title{
+  font-weight: 800;
+  color: #3b5a32;
+  line-height: 1.15;
+  white-space: normal;
+  word-break: break-word;
+  font-size: 1.2rem;
+}
+
+.rp-meal-badge{ display: inline-block; margin-top: 6px; }
+
+.rp-meal-actions{
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.rp-action-btn{
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  line-height: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rp-action-thumb{
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  display: block;
+  transition: transform .12s ease, filter .12s ease;
+}
+
+.rp-action-btn:hover .rp-action-thumb{
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+.rp-action-btn:active .rp-action-thumb{
+  transform: translateY(0);
+  filter: brightness(.95);
+}
+@media (max-width: 576px){
+  .zone_meal_wrap .rp-card-body{
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .rp-meal-actions{
+    gap: 12px;
+    margin-top: 0px;
+  }
+}
+
+
+/* Desktop delete overlay */
+.rp-meal-card--desktop{ position: relative; }
+
+.rp-meal-delete{
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  z-index: 5;
+
+  opacity: 0;
+  transform: translateY(-2px) scale(0.98);
+  pointer-events: none;
+
+  transition: opacity .15s ease, transform .15s ease;
+}
+
+.rp-action-thumb--delete{ width: 44px; height: 44px; }
+
+.rp-meal-card--desktop:hover .rp-meal-delete,
+.rp-meal-card--desktop:focus-within .rp-meal-delete{
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+

@@ -1,0 +1,257 @@
+/* =========================================================
+   ASSISTANT — chat layout + scan page
+   ========================================================= */
+
+/* CHAT — fit remaining viewport inside rp-page */
+.rp-chat-page{ height: 100%; }
+
+.rp-chat-layout{
+  height: calc(100dvh - var(--rp-header-h) - var(--rp-main-gap-top) - (var(--rp-page-pad) * 2));
+  min-height: 0;
+}
+
+.rp-chat-messages{
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 991.98px){
+  .rp-chat-layout{
+    height: calc(
+      100dvh
+      - var(--rp-header-h)
+      - var(--rp-main-gap-top)
+      - (var(--rp-page-pad-mobile) * 2)
+      - var(--rp-bottom-nav-h)
+      - env(safe-area-inset-bottom)
+    );
+  }
+}
+
+/* Bubble message */
+.rp-message{
+  background: linear-gradient(180deg, var(--rp-green-start), var(--rp-green-end));
+  color: #ffffff;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.6),
+    0 6px 16px rgba(120,170,80,.45);
+  font-weight: 700;
+  text-shadow: 0 1px 0 rgba(0,0,0,.25);
+}
+
+/* ===== Scanner page (ticket) ===== */
+
+.rp-scan-page{
+  min-height: calc(100vh - 56px);
+  padding: 28px 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.rp-scan-page::before{
+  content:"";
+  position:absolute;
+  inset:-60px;
+  background:
+    radial-gradient(600px 380px at 20% 20%, rgba(168, 214, 190, .45), transparent 65%),
+    radial-gradient(520px 360px at 85% 25%, rgba(193, 232, 210, .35), transparent 62%),
+    radial-gradient(520px 420px at 55% 85%, rgba(160, 209, 183, .30), transparent 60%),
+    linear-gradient(180deg, rgba(238, 248, 242, .65), rgba(244, 250, 246, .9));
+  z-index: 0;
+}
+
+.rp-scan-shell{
+  position: relative;
+  z-index: 1;
+  max-width: 980px;
+  margin: 0 auto;
+  display:flex;
+  justify-content:center;
+}
+
+.rp-scan-card{
+  width: min(900px, 100%);
+  background: rgba(255,255,255,.82);
+  border: 1px solid rgba(0,0,0,.05);
+  border-radius: 28px;
+  box-shadow:
+    0 12px 30px rgba(16, 24, 40, .08),
+    0 2px 8px rgba(16, 24, 40, .05);
+  backdrop-filter: blur(8px);
+  overflow: hidden;
+}
+
+.rp-scan-sub{
+  font-size: 18px;
+  color: rgba(36,49,42,.82);
+}
+.rp-scan-note{
+  margin-top: 6px;
+  font-size: 14px;
+  color: rgba(36,49,42,.62);
+}
+
+.rp-scan-body{ padding: 18px 28px 10px 28px; }
+
+.rp-scan-form{
+  display:flex;
+  flex-direction:column;
+  gap: 14px;
+}
+
+.rp-scan-drop{
+  cursor: pointer;
+  user-select:none;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding: 28px 18px;
+  border-radius: 22px;
+  border: 2px dashed rgba(106, 168, 138, .35);
+  background: rgba(255,255,255,.65);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.03);
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+.rp-scan-drop:hover{
+  transform: translateY(-1px);
+  border-color: rgba(106, 168, 138, .55);
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,.03),
+    0 10px 24px rgba(16,24,40,.06);
+}
+
+.rp-scan-illus{
+  width: 400px;
+  margin-bottom: 10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.rp-scan-illus img{
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.rp-scan-illus-fallback{
+  font-size: 42px;
+  opacity: .9;
+}
+
+.rp-scan-drop-title{
+  font-size: 28px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color:#2a3a31;
+  margin-top: 8px;
+}
+.rp-scan-drop-sub{
+  font-size: 16px;
+  color: rgba(42,58,49,.75);
+  margin-top: 2px;
+}
+.rp-scan-hint{
+  margin-top: 14px;
+  font-size: 14px;
+  color: rgba(42,58,49,.68);
+  max-width: 520px;
+}
+
+.rp-scan-input{
+  position:absolute;
+  width:1px;
+  height:1px;
+  padding:0;
+  margin:-1px;
+  overflow:hidden;
+  clip: rect(0,0,0,0);
+  border:0;
+}
+
+.rp-scan-actions{
+  display:flex;
+  justify-content:flex-end;
+}
+
+.rp-scan-btn{
+  border-radius: 14px;
+  padding: 10px 14px;
+}
+
+.rp-scan-divider{
+  height: 1px;
+  background: rgba(0,0,0,.06);
+  margin: 18px 0;
+}
+
+.rp-scan-uploaded{
+  display:flex;
+  justify-content:space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items:flex-start;
+}
+
+.rp-scan-uploaded-title{
+  font-weight: 700;
+  color:#25342c;
+}
+.rp-scan-uploaded-file{
+  color: rgba(37,52,44,.75);
+  font-size: 14px;
+  max-width: 520px;
+}
+.rp-scan-uploaded-info{
+  color: rgba(37,52,44,.55);
+  font-size: 13px;
+  margin-top: 2px;
+}
+.rp-scan-uploaded-cta{
+  display:flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.rp-scan-footer{
+  padding: 18px 28px 26px 28px;
+  text-align:center;
+}
+
+.rp-scan-footer-label{
+  color: rgba(37,52,44,.62);
+  margin-bottom: 10px;
+}
+
+.rp-scan-pill{
+  display:inline-flex;
+  align-items:center;
+  gap: 10px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.75);
+  border: 1px solid rgba(0,0,0,.07);
+  color: #25342c;
+  text-decoration: none;
+  box-shadow: 0 10px 22px rgba(16,24,40,.06);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.rp-scan-pill:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 14px 26px rgba(16,24,40,.08);
+  color: #25342c;
+}
+.rp-scan-pill-ico{
+  font-size: 18px;
+  line-height: 1;
+}
+
+@media (max-width: 576px){
+  .rp-scan-head{ padding: 20px 18px 8px; }
+  .rp-scan-body{ padding: 14px 18px 8px; }
+  .rp-scan-footer{ padding: 16px 18px 22px; }
+  .rp-scan-h1{ font-size: 26px; }
+  .rp-scan-drop-title{ font-size: 22px; }
+  .rp-scan-illus{ width: 200px; height: 110px; }
+}

@@ -1,0 +1,54 @@
+/* =========================================================
+   SHOPPING — custom checkbox images + checked styles
+   ========================================================= */
+
+.rp-check{
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+}
+
+.rp-check-label{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  width: 40px;
+  height: 40px;
+}
+.rp-check-label img{
+  width: 40px;
+  height: 40px;
+  display: block;
+}
+
+.rp-check-label .rp-check-on{ display: none; }
+.rp-check-label .rp-check-off{ display: block; }
+
+.rp-check:checked + .rp-check-label .rp-check-on{ display: block; }
+.rp-check:checked + .rp-check-label .rp-check-off{ display: none; }
+
+.rp-check:focus-visible + .rp-check-label{
+  outline: 2px solid rgba(13,110,253,.6);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.rp-check-label.is-loading{
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Checked state */
+.d-md-none .swipe-item.is-checked{ opacity: 0.5; }
+
+.rp-page .table tbody tr.is-checked > td{ opacity: 0.5; }
+.rp-page .table.table-hover tbody tr.is-checked:hover > td{ opacity: 0.5; }
+
+.rp-page .table tbody tr.is-checked > td .btn,
+.d-md-none .swipe-item.is-checked .btn{
+  opacity: 1;
+}
