@@ -74,7 +74,7 @@
               <div class="col-12 col-md-6">
                 <label class="form-label">Email</label>
                 <input type="email" class="form-control" value="{{ app.user.email }}" disabled>
-                <div class="form-text">Pour changer l’email : prévoir un flow de confirmation.</div>
+                
               </div>
 
               <div class="col-12 col-md-6">
@@ -86,12 +86,7 @@
                 {% endif %}
               </div>
 
-              <div class="col-12">
-                <button class="btn btn-primary" disabled>Enregistrer</button>
-                <div class="text-body-secondary small mt-2">
-                  Branche ensuite sur un Symfony Form (profile) + handler.
-                </div>
-              </div>
+             
             </div>
           </div>
 
@@ -104,29 +99,7 @@
 
             <hr class="my-3">
 
-            <form method="post">
-              <div class="row g-3">
-                <div class="col-12 col-md-6">
-                  <label class="form-label">Langue</label>
-                  <select class="form-select" name="locale" disabled>
-                    <option value="fr-FR" selected>Français (France)</option>
-                  </select>
-                  <div class="form-text">Brancher sur User.locale (et AiContext) si tu ajoutes ce champ.</div>
-                </div>
-
-                <div class="col-12 col-md-6">
-                  <label class="form-label">Mode debug IA</label>
-                  <div class="form-check form-switch mt-2">
-                    <input class="form-check-input" type="checkbox" id="debugIa" disabled>
-                    <label class="form-check-label" for="debugIa">Afficher le payload (dev)</label>
-                  </div>
-                </div>
-
-                <div class="col-12">
-                  <button class="btn btn-primary" disabled>Enregistrer</button>
-                </div>
-              </div>
-            </form>
+            
           </div>
 
           <hr class="my-4">
@@ -198,48 +171,4 @@
 
   </div>
 
-  {# Optionnel: “active state” dans la nav en fonction du scroll #}
-  <script>
-    (function () {
-      const nav = document.getElementById('account-nav');
-      if (!nav) return;
-
-      const links = Array.from(nav.querySelectorAll('a[data-anchor]'));
-      const sections = links
-        .map(a => document.querySelector(a.getAttribute('href')))
-        .filter(Boolean);
-
-      function setActiveById(id) {
-        links.forEach(a => {
-          const isActive = a.getAttribute('href') === '#' + id;
-          a.classList.toggle('active', isActive);
-        });
-      }
-
-      // Active sur click
-      links.forEach(a => {
-        a.addEventListener('click', () => {
-          const id = a.getAttribute('href').slice(1);
-          setActiveById(id);
-        });
-      });
-
-      // Active au scroll (IntersectionObserver)
-      if ('IntersectionObserver' in window) {
-        const io = new IntersectionObserver((entries) => {
-          const visible = entries
-            .filter(e => e.isIntersecting)
-            .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-          if (visible && visible.target && visible.target.id) {
-            setActiveById(visible.target.id);
-          }
-        }, { rootMargin: '-120px 0px -70% 0px', threshold: [0.1, 0.2, 0.5] });
-
-        sections.forEach(s => io.observe(s));
-      } else {
-        // Fallback simple
-        setActiveById('profil');
-      }
-    })();
-  </script>
 {% endblock %}
