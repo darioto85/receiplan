@@ -3,6 +3,7 @@
 {% set hint = swipe_hint ?? false %}
 {% set recipe = meal.recipe %}
 {% set recipeImg = recipe ? recipe_image(recipe) : null %}
+{% set recipeUrl = recipe ? path('app_recipe_show', { id: recipe.id }) : null %}
 
 <div data-meal-id="{{ meal.id }}">
   {# =========================
@@ -43,25 +44,54 @@
              data-meal-plan-csrf-value="{{ csrf_token('mealplan_update_' ~ meal.id) }}">
 
           <div class="rp-meal-main">
-            {% if recipe and recipeImg %}
-              <img
-                src="{{ recipeImg }}"
-                alt="{{ recipe.name }}"
-                class="rp-meal-thumb"
-                loading="lazy"
-                decoding="async"
-              >
-            {% endif %}
+            {# ✅ Seuls l'image + le nom sont cliquables #}
+            {% if recipeUrl %}
+              <a href="{{ recipeUrl }}"
+                 class="rp-meal-link text-decoration-none text-reset"
+                 aria-label="Ouvrir la recette {{ recipe.name }}"
+                 style="display:flex; align-items:center; gap:12px;">
+                {% if recipe and recipeImg %}
+                  <img
+                    src="{{ recipeImg }}"
+                    alt="{{ recipe.name }}"
+                    class="rp-meal-thumb"
+                    loading="lazy"
+                    decoding="async"
+                  >
+                {% endif %}
 
-            <div class="rp-meal-meta">
-              <div class="rp-meal-title">
-                {{ recipe ? recipe.name : 'Recette supprimée' }}
-              </div>
+                <div class="rp-meal-meta">
+                  <div class="rp-meal-title">
+                    {{ recipe.name }}
+                  </div>
 
-              {% if recipe and not meal.validated and not ok %}
-                <span class="badge text-bg-warning mt-1">Stock insuffisant</span>
+                  {% if recipe and not meal.validated and not ok %}
+                    <span class="badge text-bg-warning mt-1">Stock insuffisant</span>
+                  {% endif %}
+                </div>
+              </a>
+            {% else %}
+              {# recette supprimée / null => pas de lien #}
+              {% if recipe and recipeImg %}
+                <img
+                  src="{{ recipeImg }}"
+                  alt="{{ recipe.name }}"
+                  class="rp-meal-thumb"
+                  loading="lazy"
+                  decoding="async"
+                >
               {% endif %}
-            </div>
+
+              <div class="rp-meal-meta">
+                <div class="rp-meal-title">
+                  {{ recipe ? recipe.name : 'Recette supprimée' }}
+                </div>
+
+                {% if recipe and not meal.validated and not ok %}
+                  <span class="badge text-bg-warning mt-1">Stock insuffisant</span>
+                {% endif %}
+              </div>
+            {% endif %}
           </div>
 
           <div class="rp-meal-actions">
@@ -122,10 +152,8 @@
      DESKTOP
      ========================= #}
   <div class="d-none d-md-block">
-    {# IMPORTANT: wrapper position:relative + class "rp-meal-card--desktop" #}
     <div class="border rounded rp-meal-card rp-meal-card--desktop">
       {% if not meal.validated %}
-        {# Delete overlay (desktop only, show on hover) #}
         <button
           type="button"
           class="rp-action-btn rp-meal-delete"
@@ -151,28 +179,55 @@
            data-meal-plan-csrf-value="{{ csrf_token('mealplan_update_' ~ meal.id) }}">
 
         <div class="rp-meal-main">
-          {% if recipe and recipeImg %}
-            <img
-              src="{{ recipeImg }}"
-              alt="{{ recipe.name }}"
-              class="rp-meal-thumb"
-              loading="lazy"
-              decoding="async"
-            >
-          {% endif %}
+          {# ✅ Seuls l'image + le nom sont cliquables #}
+          {% if recipeUrl %}
+            <a href="{{ recipeUrl }}"
+               class="rp-meal-link text-decoration-none text-reset"
+               aria-label="Ouvrir la recette {{ recipe.name }}"
+               style="display:flex; align-items:center; gap:12px;">
+              {% if recipe and recipeImg %}
+                <img
+                  src="{{ recipeImg }}"
+                  alt="{{ recipe.name }}"
+                  class="rp-meal-thumb"
+                  loading="lazy"
+                  decoding="async"
+                >
+              {% endif %}
 
-          <div class="rp-meal-meta">
-            <div class="rp-meal-title">
-              {{ recipe ? recipe.name : 'Recette supprimée' }}
-            </div>
+              <div class="rp-meal-meta">
+                <div class="rp-meal-title">
+                  {{ recipe.name }}
+                </div>
 
-            {% if recipe and not meal.validated and not ok %}
-              <span class="badge text-bg-warning mt-1">Stock insuffisant</span>
+                {% if recipe and not meal.validated and not ok %}
+                  <span class="badge text-bg-warning mt-1">Stock insuffisant</span>
+                {% endif %}
+              </div>
+            </a>
+          {% else %}
+            {% if recipe and recipeImg %}
+              <img
+                src="{{ recipeImg }}"
+                alt="{{ recipe.name }}"
+                class="rp-meal-thumb"
+                loading="lazy"
+                decoding="async"
+              >
             {% endif %}
-          </div>
+
+            <div class="rp-meal-meta">
+              <div class="rp-meal-title">
+                {{ recipe ? recipe.name : 'Recette supprimée' }}
+              </div>
+
+              {% if recipe and not meal.validated and not ok %}
+                <span class="badge text-bg-warning mt-1">Stock insuffisant</span>
+              {% endif %}
+            </div>
+          {% endif %}
         </div>
 
-        {# Actions desktop (sans delete ici) #}
         <div class="rp-meal-actions">
           {% if meal.validated %}
             <button

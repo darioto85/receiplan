@@ -699,7 +699,6 @@ h2{
   white-space: normal;     /* autorise retour à la ligne */
   word-break: break-word;
   font-size: 1.2rem;
-  padding-top: 1rem;
 }
 
 /* Badge stock insuffisant / etc */

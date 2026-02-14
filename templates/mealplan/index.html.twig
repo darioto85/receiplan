@@ -31,6 +31,7 @@
   data-controller="agenda"
   data-agenda-week-url-value="{{ path('meal_plan_week') }}"
   data-agenda-initial-start-value="{{ weekStart|date('Y-m-d') }}"
+  data-agenda-today-value="{{ 'now'|date('Y-m-d') }}"
 >
   <noscript>
     <div class="alert alert-warning">
@@ -38,7 +39,6 @@
     </div>
   </noscript>
 
-  {# Flash messages #}
   {% for label, messages in app.flashes %}
     {% for message in messages %}
       <div class="alert alert-{{ label == 'error' ? 'danger' : label }} mb-3">
@@ -58,17 +58,28 @@
 
   {# Zone scrollable #}
   <div
-    class="zone_meal_wrap rounded"
+    class="zone_meal_wrap rounded position-relative"
     style="height: calc(100vh - 220px); overflow: auto;"
     data-agenda-target="scroller"
   >
     <div data-agenda-target="error" class="alert alert-danger d-none m-3"></div>
 
+    {# ✅ Overlay loader (remplace les textes) #}
+    <div
+      class="d-flex flex-column justify-content-center align-items-center gap-2 position-absolute top-0 start-0 w-100 h-100"
+      style="background: rgba(255,255,255,.78); backdrop-filter: blur(2px); z-index: 20;"
+      data-agenda-target="overlay"
+    >
+      <div class="spinner-border" role="status" aria-hidden="true"></div>
+      <div class="text-muted small">Chargement du planning…</div>
+    </div>
+
+    {# (on garde ces blocs si tu veux, mais ils restent cachés) #}
     <div data-agenda-target="loading" class="text-center text-body-secondary small my-3 d-none">
       Chargement de la semaine…
     </div>
 
-    <div data-agenda-target="topSentinel" class="py-2 text-center text-body-secondary small">
+    <div data-agenda-target="topSentinel" class="py-2 text-center text-body-secondary small d-none">
       ⬆️ Charger les semaines précédentes…
     </div>
 
@@ -76,15 +87,13 @@
       {# La semaine courante sera chargée en AJAX dès connect() #}
     </div>
 
-    <div data-agenda-target="bottomSentinel" class="py-2 text-center text-body-secondary small">
+    <div data-agenda-target="bottomSentinel" class="py-2 text-center text-body-secondary small d-none">
       ⬇️ Charger les semaines suivantes…
     </div>
   </div>
 </div>
 
-{# ============================================================
-   Modal unique : choix manuel d'une recette pour un jour donné
-   ============================================================ #}
+{# Modal recipe picker inchangée #}
 <div
   class="modal fade"
   id="recipePickerModal"

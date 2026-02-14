@@ -4,6 +4,7 @@ export default class extends Controller {
   static values = {
     weekUrl: String,
     initialStart: String, // lundi YYYY-MM-DD
+    today: String,        // YYYY-MM-DD
   };
 
   static targets = [
@@ -13,12 +14,14 @@ export default class extends Controller {
     "bottomSentinel",
     "loading",
     "error",
+    "overlay", // ✅ nouveau
   ];
 
   connect() {
     console.log("[agenda] connected", {
       weekUrl: this.weekUrlValue,
       initialStart: this.initialStartValue,
+      today: this.todayValue,
     });
 
     if (!this.weekUrlValue || !this.initialStartValue) {
@@ -26,33 +29,52 @@ export default class extends Controller {
       return;
     }
 
+    // ✅ scroll auto 1 seule fois
+    this.didAutoScroll = false;
+
+    // ✅ bloque les loads auto déclenchés par IntersectionObserver
+    this.suppressInfiniteLoad = true;
+
     this.loadingUp = false;
     this.loadingDown = false;
 
-    // ✅ anti double load
     this.loadedWeeks = new Set();
     this.loadingWeeks = new Set();
 
-    // ✅ s’assurer que initialStart est bien stable (format YYYY-MM-DD)
     this.earliestStart = this.initialStartValue;
     this.latestStart = this.initialStartValue;
 
-    // ✅ charge d'abord la semaine courante, puis seulement après on observe
-    this.#showLoading(true);
+    // ✅ UI: loader overlay au démarrage
+    this.#showOverlay(true);
+    this.#showSentinels(false);
+    this.#showLoading(false);
+
+    // ✅ charge la semaine courante
     this.#loadWeek(this.initialStartValue, "append")
       .catch((e) => {
         console.error(e);
         this.#showError("Impossible de charger la semaine courante.");
       })
       .finally(() => {
-        this.#showLoading(false);
+        // ✅ 1) auto-scroll
+        this.#scrollToTodayOnce();
+
+        // ✅ 2) seulement après, on met les observers
         this.#setupObservers();
+
+        // ✅ 3) on autorise l'infinite scroll uniquement après un scroll utilisateur
+        this.#enableInfiniteLoadAfterUserScroll();
+
+        // ✅ 4) on masque le loader overlay et on affiche les sentinels
+        this.#showOverlay(false);
+        this.#showSentinels(true);
       });
   }
 
   disconnect() {
     this.topObserver?.disconnect();
     this.bottomObserver?.disconnect();
+    this.scrollerTarget?.removeEventListener("scroll", this._onFirstUserScroll);
   }
 
   #setupObservers() {
@@ -65,15 +87,30 @@ export default class extends Controller {
     };
 
     this.topObserver = new IntersectionObserver((entries) => {
+      if (this.suppressInfiniteLoad) return;
       if (entries.some((e) => e.isIntersecting)) this.#loadPreviousWeek();
     }, opts);
 
     this.bottomObserver = new IntersectionObserver((entries) => {
+      if (this.suppressInfiniteLoad) return;
       if (entries.some((e) => e.isIntersecting)) this.#loadNextWeek();
     }, opts);
 
     this.topObserver.observe(this.topSentinelTarget);
     this.bottomObserver.observe(this.bottomSentinelTarget);
+  }
+
+  #enableInfiniteLoadAfterUserScroll() {
+    // ✅ dès que l'user touche au scroll, on autorise les loads infinis
+    const scroller = this.scrollerTarget;
+
+    this._onFirstUserScroll = () => {
+      this.suppressInfiniteLoad = false;
+      scroller.removeEventListener("scroll", this._onFirstUserScroll);
+      console.log("[agenda] infinite load enabled (user scrolled)");
+    };
+
+    scroller.addEventListener("scroll", this._onFirstUserScroll, { passive: true });
   }
 
   async #loadPreviousWeek() {
@@ -107,16 +144,11 @@ export default class extends Controller {
   }
 
   async #loadWeek(start, mode) {
-    // ✅ déjà dans le DOM
     if (this.element.querySelector(`[data-week-start="${start}"]`)) {
       this.loadedWeeks.add(start);
       return;
     }
-
-    // ✅ déjà chargé / en cours
-    if (this.loadedWeeks.has(start) || this.loadingWeeks.has(start)) {
-      return;
-    }
+    if (this.loadedWeeks.has(start) || this.loadingWeeks.has(start)) return;
     this.loadingWeeks.add(start);
 
     const url = new URL(this.weekUrlValue, window.location.origin);
@@ -161,7 +193,6 @@ export default class extends Controller {
     this.loadingWeeks.delete(start);
     this.loadedWeeks.add(start);
 
-    // ✅ bornes recalculées depuis le DOM (les week-start viennent du backend, donc fiables)
     this.#recomputeBoundsFromDom();
   }
 
@@ -172,12 +203,65 @@ export default class extends Controller {
 
     if (weeks.length === 0) return;
 
-    weeks.sort(); // YYYY-MM-DD -> tri OK
+    weeks.sort();
     this.earliestStart = weeks[0];
     this.latestStart = weeks[weeks.length - 1];
   }
 
+  #scrollToTodayOnce() {
+    if (this.didAutoScroll) return;
+    this.didAutoScroll = true;
+
+    const today = this.#getTodayKey();
+    if (!today) return;
+
+    const scroller = this.scrollerTarget;
+
+    const dayEl =
+      this.element.querySelector(`[data-day="${today}"]`) ||
+      this.element.querySelector(`[data-day-key="${today}"]`) ||
+      this.element.querySelector(`[data-is-today="1"]`);
+
+    if (!dayEl) {
+      console.log("[agenda] today not found in DOM:", today);
+      return;
+    }
+
+    // ✅ 2 frames pour être safe (layout + fonts/images)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const offset = 12;
+        const top = dayEl.offsetTop - offset;
+
+        scroller.scrollTo({
+          top: Math.max(0, top),
+          behavior: "auto", // 👈 important: pas de smooth => pas de “décalage” visuel
+        });
+      });
+    });
+  }
+
+  #getTodayKey() {
+    if (this.hasTodayValue && this.todayValue) return this.todayValue;
+    const dt = new Date();
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, "0");
+    const dd = String(dt.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  #showOverlay(show) {
+    if (!this.hasOverlayTarget) return;
+    this.overlayTarget.classList.toggle("d-none", !show);
+  }
+
+  #showSentinels(show) {
+    if (this.hasTopSentinelTarget) this.topSentinelTarget.classList.toggle("d-none", !show);
+    if (this.hasBottomSentinelTarget) this.bottomSentinelTarget.classList.toggle("d-none", !show);
+  }
+
   #showLoading(show) {
+    // (tu peux le garder, mais on ne l'utilise plus vraiment)
     if (!this.hasLoadingTarget) return;
     this.loadingTarget.classList.toggle("d-none", !show);
   }
@@ -188,10 +272,9 @@ export default class extends Controller {
     this.errorTarget.classList.remove("d-none");
   }
 
-  // ✅ FIX CRITIQUE : calcul date en UTC + format manuel (pas de toISOString().slice)
   #addDaysUtc(yyyyMmDd, days) {
     const [y, m, d] = yyyyMmDd.split("-").map((x) => parseInt(x, 10));
-    const dt = new Date(Date.UTC(y, m - 1, d)); // UTC midnight
+    const dt = new Date(Date.UTC(y, m - 1, d));
     dt.setUTCDate(dt.getUTCDate() + days);
 
     const yy = dt.getUTCFullYear();
