@@ -30,6 +30,8 @@
 
     <div class="swipe-content">
       <div class="d-flex align-items-center justify-content-between gap-2">
+
+        {# ===== LEFT: image + name ===== #}
         <div class="d-flex align-items-center gap-2 flex-grow-1" style="min-width:0;">
           <img
             src="{{ ingredient_image(ing) }}"
@@ -38,30 +40,38 @@
             height="50"
             loading="lazy"
             decoding="async"
-            style="object-fit: contain; border-radius: 8px;"
+            style="object-fit: contain; border-radius: 8px; flex: 0 0 auto;"
           >
           <div class="text-truncate">
             <span class="fw-semibold">{{ ing.name|capitalize }}</span>
-            {% if unit %}
-              <span class="text-muted"> · {{ unit }}</span>
-            {% endif %}
           </div>
         </div>
 
-        {# Mobile: tap quantité -> ouvre modale quantité (avec unité en suffixe) #}
-        <button
-          type="button"
-          class="rp-qty-btn"
-          data-action="click->stock#openQuantityModal"
-          data-stock-qty-id="{{ ui.id }}"
-          data-stock-qty-name="{{ ing.name }}"
-          data-stock-qty-value="{{ ui.quantity }}"
-          data-stock-qty-unit="{{ unit ?: 'unité' }}"
-          data-stock-qty-url="{{ updateUrl }}"
-          data-stock-qty-token="{{ updateToken }}"
-        >
-          <span class="fw-bold" data-stock-qty-display>{{ ui.quantity }}</span>
-        </button>
+        {# ===== RIGHT: quantity + unit (comme shopping) ===== #}
+        <div class="flex-shrink-0" style="width: 110px;">
+          <button
+            type="button"
+            class="rp-qty-btn p-0 border-0 bg-transparent w-100"
+            data-action="click->stock#openQuantityModal"
+            data-stock-qty-id="{{ ui.id }}"
+            data-stock-qty-name="{{ ing.name }}"
+            data-stock-qty-value="{{ ui.quantity }}"
+            data-stock-qty-unit="{{ unit ?: 'unité' }}"
+            data-stock-qty-url="{{ updateUrl }}"
+            data-stock-qty-token="{{ updateToken }}"
+            aria-label="Modifier la quantité"
+          >
+            <div class="input-group input-group-sm">
+              <span class="form-control text-end" style="pointer-events:none;">
+                <span class="fw-bold" data-stock-qty-display>{{ ui.quantity }}</span>
+              </span>
+              <span class="input-group-text text-muted" style="max-width: 54px; overflow:hidden; text-overflow:ellipsis;">
+                {{ unit ?: '—' }}
+              </span>
+            </div>
+          </button>
+        </div>
+
       </div>
     </div>
   </div>
