@@ -19,15 +19,19 @@ export default class extends Controller {
     "formErrors",
     "desktopTbody",
     "mobileList",
+
+    // ✅ Empty state (placeholder “liste vide”)
+    "emptyState",
   ];
 
   connect() {
     this.refreshValidateButtonState();
     this.refreshCountBadge();
+    this.refreshEmptyState();
   }
 
   // =========================
-  // ✅ NEW: Generate (AJAX-friendly)
+  // ✅ Generate (AJAX-friendly)
   // =========================
   async submitGenerate(event) {
     event.preventDefault();
@@ -58,7 +62,8 @@ export default class extends Controller {
       // ✅ Ferme la modale si Bootstrap est présent
       const modalEl = form.closest(".modal");
       if (modalEl && window.bootstrap?.Modal) {
-        const instance = window.bootstrap.Modal.getInstance(modalEl) || new window.bootstrap.Modal(modalEl);
+        const instance =
+          window.bootstrap.Modal.getInstance(modalEl) || new window.bootstrap.Modal(modalEl);
         instance.hide();
       }
 
@@ -100,12 +105,15 @@ export default class extends Controller {
         if (data?.errors && this.hasFormErrorsTarget) {
           this.formErrorsTarget.innerHTML = data.errors;
         } else if (this.hasFormErrorsTarget) {
-          this.formErrorsTarget.innerHTML =
-            `<div class="alert alert-danger mb-0">${data?.message || "Erreur."}</div>`;
+          this.formErrorsTarget.innerHTML = `<div class="alert alert-danger mb-0">${
+            data?.message || "Erreur."
+          }</div>`;
         }
         return;
       }
 
+      // ✅ IMPORTANT: si la liste est vide, il faut aussi masquer l’emptyState
+      // et insérer dans les bons conteneurs (tbody + mobile list).
       if (data.htmlDesktop && this.hasDesktopTbodyTarget) {
         this.upsertDomRow(this.desktopTbodyTarget, data.id, data.htmlDesktop);
       }
@@ -114,11 +122,17 @@ export default class extends Controller {
         this.upsertDomRow(this.mobileListTarget, data.id, data.htmlMobile);
       }
 
+      // ✅ reset quantité
       const qtyInput =
         form.querySelector('input[name$="[quantity]"]') ||
         form.querySelector('input[name*="[quantity]"]');
       if (qtyInput) qtyInput.value = "";
 
+      // (optionnel) reset unit si besoin — on ne touche pas par défaut
+      // const unitSelect = form.querySelector('select[name$="[unit]"], select[name*="[unit]"]');
+      // if (unitSelect) unitSelect.value = unitSelect.value;
+
+      // ✅ mettre à jour UI
       this.refreshValidateButtonState();
 
       if (typeof data.count !== "undefined") {
@@ -126,18 +140,25 @@ export default class extends Controller {
       } else {
         this.refreshCountBadge();
       }
+
+      this.refreshEmptyState();
     } catch (e) {
       console.error(e);
       if (this.hasFormErrorsTarget) {
-        this.formErrorsTarget.innerHTML =
-          `<div class="alert alert-danger mb-0">Erreur réseau.</div>`;
+        this.formErrorsTarget.innerHTML = `<div class="alert alert-danger mb-0">Erreur réseau.</div>`;
       }
     }
   }
 
+  /**
+   * Insère ou remplace une row dans un conteneur.
+   * ✅ Fix: si `containerEl` est vide, insertAdjacentHTML fonctionne,
+   * mais il faut que ce soit le BON conteneur (mobileList / desktopTbody).
+   */
   upsertDomRow(containerEl, id, html) {
     const selector = `[data-shopping-row-id="${CSS.escape(String(id))}"]`;
     const existing = containerEl.querySelector(selector);
+
     if (existing) {
       existing.outerHTML = html;
     } else {
@@ -194,6 +215,7 @@ export default class extends Controller {
       if (label) label.classList.remove("is-loading");
       this.refreshValidateButtonState();
       this.refreshCountBadge();
+      // emptyState ne change pas ici
     }
   }
 
@@ -227,6 +249,7 @@ export default class extends Controller {
       input.disabled = false;
       this.refreshValidateButtonState();
       this.refreshCountBadge();
+      this.refreshEmptyState();
     }
   }
 
@@ -273,6 +296,7 @@ export default class extends Controller {
     } finally {
       this.refreshValidateButtonState();
       this.refreshCountBadge();
+      this.refreshEmptyState();
     }
   }
 
@@ -315,11 +339,21 @@ export default class extends Controller {
     } finally {
       this.refreshValidateButtonState();
       this.refreshCountBadge();
+      this.refreshEmptyState();
       if (btn) btn.disabled = false;
     }
   }
 
   // -------- Helpers --------
+
+  refreshEmptyState() {
+    if (!this.hasEmptyStateTarget) return;
+
+    const hasAnyRow = this.element.querySelector("[data-shopping-row-id]") !== null;
+
+    // emptyState est visible si vide, sinon caché
+    this.emptyStateTarget.classList.toggle("d-none", hasAnyRow);
+  }
 
   findLabelForCheckbox(checkbox) {
     const next = checkbox.nextElementSibling;

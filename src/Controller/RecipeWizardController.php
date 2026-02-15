@@ -147,6 +147,9 @@ final class RecipeWizardController extends AbstractController
         $ingredient = $form->get('ingredient')->getData();
         $quantityToAdd = (float) $form->get('quantity')->getData();
 
+        /** @var \App\Enum\Unit $unit */
+        $unit = $form->get('unit')->getData() ?? \App\Enum\Unit::G;
+
         if (!$ingredient) {
             return new JsonResponse(['status' => 'error', 'message' => 'Ingrédient invalide.'], 422);
         }
@@ -166,11 +169,16 @@ final class RecipeWizardController extends AbstractController
             $existing->setRecipe($recipe);
             $existing->setIngredient($ingredient);
             $existing->setQuantity('0.00');
+            $existing->setUnit($unit); // ✅ unité initiale de la ligne recette
             $em->persist($existing);
             $isNew = true;
+        } else {
+            // ✅ choix métier : on ne change pas l'unité automatiquement si la ligne existe déjà
+            // (sinon ajout "200 g" sur une ligne "1 pot" deviendrait incohérent)
+            // Si tu veux autoriser le switch, on fera une action dédiée plus tard.
         }
 
-        $current = (float) $existing->getQuantity();
+        $current = (float) ($existing->getQuantity() ?? '0.00');
         $newQty = $current + $quantityToAdd;
         $existing->setQuantity(number_format($newQty, 2, '.', ''));
 
@@ -194,11 +202,14 @@ final class RecipeWizardController extends AbstractController
             'isNew' => $isNew,
             'id' => $existing->getId(),
             'quantity' => $existing->getQuantity(),
+            'unit' => $existing->getUnitValue(),
+            'unitLabel' => $existing->getUnitLabel(),
             'count' => $count,
             'htmlDesktop' => $htmlDesktop,
             'htmlMobile' => $htmlMobile,
         ]);
     }
+
 
     #[Route('/{id}/ingredient/{riId}/quantity', name: 'ingredient_update_quantity', methods: ['POST'])]
     public function ingredientUpdateQuantity(

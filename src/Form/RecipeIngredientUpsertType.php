@@ -3,8 +3,10 @@
 namespace App\Form;
 
 use App\Entity\Ingredient;
+use App\Enum\Unit;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -32,6 +34,26 @@ final class RecipeIngredientUpsertType extends AbstractType
                 'constraints' => [
                     new NotBlank(message: 'Indique une quantité.'),
                     new Positive(message: 'La quantité doit être > 0.'),
+                ],
+            ])
+            ->add('unit', ChoiceType::class, [
+                'required' => true,
+                'placeholder' => false,
+                'choices' => [
+                    'g' => Unit::G,
+                    'kg' => Unit::KG,
+                    'ml' => Unit::ML,
+                    'L' => Unit::L,
+                    'pièce' => Unit::PIECE,
+                    'pot' => Unit::POT,
+                    'boîte' => Unit::BOITE,
+                    'sachet' => Unit::SACHET,
+                    'tranche' => Unit::TRANCHE,
+                    'paquet' => Unit::PAQUET,
+                ],
+                'data' => Unit::G,
+                'constraints' => [
+                    new NotBlank(message: 'Choisis une unité.'),
                 ],
             ])
         ;

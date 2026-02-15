@@ -3,8 +3,10 @@
 namespace App\Form;
 
 use App\Entity\Ingredient;
+use App\Enum\Unit;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -18,7 +20,6 @@ class StockUpsertType extends AbstractType
                 'class' => Ingredient::class,
                 'choice_label' => 'name',
                 'placeholder' => 'Rechercher un ingrédient…',
-                // clé: active Symfony UX Autocomplete
                 'autocomplete' => true,
                 'required' => true,
             ])
@@ -31,6 +32,23 @@ class StockUpsertType extends AbstractType
                     'step' => '0.01',
                     'placeholder' => '0.00',
                 ],
+            ])
+            ->add('unit', ChoiceType::class, [
+                'required' => true,
+                'placeholder' => false,
+                'choices' => [
+                    'g' => Unit::G,
+                    'kg' => Unit::KG,
+                    'ml' => Unit::ML,
+                    'L' => Unit::L,
+                    'pièce' => Unit::PIECE,
+                    'pot' => Unit::POT,
+                    'boîte' => Unit::BOITE,
+                    'sachet' => Unit::SACHET,
+                    'tranche' => Unit::TRANCHE,
+                    'paquet' => Unit::PAQUET,
+                ],
+                'data' => Unit::G, // défaut (si tu veux, on pourra le remplacer par l'unité de base de l'ingrédient côté JS plus tard)
             ])
         ;
     }

@@ -1,7 +1,8 @@
 {# templates/recipe_wizard/_ingredient_item.html.twig #}
 
 {% set ing = ri.ingredient %}
-{% set unit = (ing and ing.unit) ? ing.unit.value : '' %}
+{% set unitValue = ri.unitValue|default('') %}
+{% set unitLabel = ri.unitLabel|default(unitValue) %}
 
 {% set updateUrl = path('recipe_wizard_ingredient_update_quantity', { id: ri.recipe.id, riId: ri.id }) %}
 {% set updateToken = csrf_token('update_recipe_ingredient_' ~ ri.id) %}
@@ -43,8 +44,8 @@
           >
           <div class="text-truncate">
             <span class="fw-semibold">{{ ing.name|capitalize }}</span>
-            {% if unit %}
-              <span class="text-muted"> · {{ unit }}</span>
+            {% if unitLabel %}
+              <span class="text-muted"> · {{ unitLabel }}</span>
             {% endif %}
           </div>
         </div>
@@ -57,7 +58,7 @@
           data-recipe-ingredients-qty-id="{{ ri.id }}"
           data-recipe-ingredients-qty-name="{{ ing.name }}"
           data-recipe-ingredients-qty-value="{{ ri.quantity }}"
-          data-recipe-ingredients-qty-unit="{{ unit ?: 'unité' }}"
+          data-recipe-ingredients-qty-unit="{{ unitLabel ?: 'unité' }}"
           data-recipe-ingredients-qty-url="{{ updateUrl }}"
           data-recipe-ingredients-qty-token="{{ updateToken }}"
         >
@@ -109,7 +110,7 @@
       </span>
     </td>
 
-    <td class="text-end">{{ unit }}</td>
+    <td class="text-end">{{ unitLabel ?: '—' }}</td>
 
     <td class="text-end">
       <form

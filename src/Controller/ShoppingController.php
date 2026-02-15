@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Ingredient;
 use App\Entity\Shopping;
 use App\Entity\User;
+use App\Enum\Unit;
 use App\Form\StockUpsertType;
 use App\Repository\ShoppingRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -20,9 +21,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 final class ShoppingController extends AbstractController
 {
     #[Route('', name: 'shopping_index', methods: ['GET'])]
-    public function index(
-        ShoppingRepository $shoppingRepository
-    ): Response {
+    public function index(ShoppingRepository $shoppingRepository): Response
+    {
         $user = $this->getUser();
         if (!$user instanceof User) {
             throw $this->createAccessDeniedException();
@@ -74,6 +74,9 @@ final class ShoppingController extends AbstractController
         $ingredient = $form->get('ingredient')->getData();
         $quantityToAdd = (float) $form->get('quantity')->getData();
 
+        /** @var Unit $unit */
+        $unit = $form->has('unit') ? ($form->get('unit')->getData() ?? Unit::G) : Unit::G;
+
         if ($quantityToAdd <= 0) {
             if ($isAjax) {
                 return new JsonResponse([
@@ -100,9 +103,13 @@ final class ShoppingController extends AbstractController
             $existing->setIngredient($ingredient);
             $existing->setChecked(false);
             $existing->setQuantity(0);
+            $existing->setSource('manual');
             $em->persist($existing);
             $isNew = true;
         }
+
+        // ✅ dernier choix utilisateur = source de vérité
+        $existing->setUnit($unit);
 
         $current = (float) $existing->getQuantity();
         $newQty = $current + $quantityToAdd;
@@ -178,7 +185,6 @@ final class ShoppingController extends AbstractController
 
         $flash = 'Liste générée.';
 
-        // ✅ Appels cibles (à implémenter ensuite dans ShoppingListService)
         if ($mode === 'favorites' && method_exists($shoppingService, 'syncAutoMissingFromFavoriteRecipes')) {
             $shoppingService->syncAutoMissingFromFavoriteRecipes($user);
             $flash = 'Liste générée depuis tes recettes favorites.';
@@ -189,7 +195,6 @@ final class ShoppingController extends AbstractController
             $shoppingService->syncAutoMissingFromAllRecipes($user);
             $flash = 'Liste générée depuis toutes tes recettes.';
         } else {
-            // ✅ Fallback: comportement actuel
             $shoppingService->syncAutoMissingFromInsufficientRecipes($user);
             $flash = 'Liste générée.';
         }

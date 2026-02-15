@@ -82,8 +82,17 @@
             {{ form_errors(form.quantity) }}
           </div>
 
+          {# ✅ Unit : intégré dans la "case design" rp-quickadd__miniFake #}
           <div class="rp-quickadd__mini">
-            <div class="rp-quickadd__miniFake" aria-hidden="true">—</div>
+            <div class="rp-quickadd__miniFake rp-quickadd__miniSelectWrap">
+              {{ form_widget(form.unit, {
+                attr: {
+                  class: 'rp-quickadd__miniSelect',
+                  'aria-label': 'Unité'
+                }
+              }) }}
+            </div>
+            {{ form_errors(form.unit) }}
           </div>
 
           <button type="submit" class="rp-quickadd__btn">
@@ -115,7 +124,6 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
           </div>
 
-          {# ✅ AJAX optionnel : si branché, le JS intercepte et fait un reload propre #}
           <form
             method="post"
             action="{{ path('shopping_generate') }}"

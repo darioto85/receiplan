@@ -37,8 +37,15 @@ class Ingredient
     private ?CategoryEnum $category = null;
 
     /**
-     * ✅ Unité NORMALISÉE via Enum (limite les possibilités)
-     * Ex : g, kg, ml, l, piece, pot, boite...
+     * ✅ Unité de base / par défaut de l'ingrédient (pivot)
+     *
+     * IMPORTANT :
+     * - Le stock utilisateur (UserIngredient) possède maintenant sa propre unité.
+     * - Les quantités en recette (RecipeIngredient) possèdent aussi leur propre unité.
+     *
+     * Ce champ sert donc d'unité "par défaut" (ex: pour pré-remplir un formulaire,
+     * ou comme pivot futur pour conversions), et ne doit PAS être considéré comme
+     * l'unité unique utilisée partout.
      */
     #[ORM\Column(enumType: Unit::class)]
     private Unit $unit = Unit::G;
@@ -121,29 +128,12 @@ class Ingredient
         return $this->category?->value;
     }
 
+    /**
+     * Unité de base (alias "unit" pour compat)
+     */
     public function getUnit(): Unit
     {
         return $this->unit;
-    }
-
-    public function getUnitValue(): string
-    {
-        return $this->unit->value;
-    }
-
-    public function getUnitLabel(): string
-    {
-        return match ($this->unit) {
-            \App\Enum\Unit::G => 'g',
-            \App\Enum\Unit::KG => 'kg',
-            \App\Enum\Unit::ML => 'ml',
-            \App\Enum\Unit::L => 'L',
-            \App\Enum\Unit::PIECE => 'pièce',
-            \App\Enum\Unit::POT => 'pot',
-            \App\Enum\Unit::BOITE => 'boîte',
-            \App\Enum\Unit::SACHET => 'sachet',
-            \App\Enum\Unit::TRANCHE => 'tranche',
-        };
     }
 
     public function setUnit(Unit $unit): static
@@ -152,10 +142,140 @@ class Ingredient
         return $this;
     }
 
+    /**
+     * ✅ Alias explicites : "base unit"
+     * (pour rendre le code plus clair sans casser l’existant)
+     */
+    public function getBaseUnit(): Unit
+    {
+        return $this->unit;
+    }
+
+    public function setBaseUnit(Unit $unit): static
+    {
+        $this->unit = $unit;
+        return $this;
+    }
+
+    public function getUnitValue(): string
+    {
+        return $this->unit->value;
+    }
+
+    public function getBaseUnitValue(): string
+    {
+        return $this->unit->value;
+    }
+
+    public function getUnitLabel(): string
+    {
+        return match ($this->unit) {
+            Unit::G => 'g',
+            Unit::KG => 'kg',
+            Unit::ML => 'ml',
+            Unit::L => 'L',
+            Unit::PIECE => 'pièce',
+            Unit::POT => 'pot',
+            Unit::BOITE => 'boîte',
+            Unit::SACHET => 'sachet',
+            Unit::TRANCHE => 'tranche',
+            Unit::PAQUET => 'paquet',
+        };
+    }
+
+    public function getBaseUnitLabel(): string
+    {
+        return $this->getUnitLabel();
+    }
+
+    /**
+     * Tolérant pour IA/ticket/import :
+     * - g, gramme(s), gr
+     * - kg, kilo(s)
+     * - ml, millilitre(s)
+     * - l, litre(s)
+     * - pièce(s), pcs, pc, pce
+     * - boîte(s), boite(s), can
+     * - sachet(s)
+     * - tranche(s)
+     * - paquet(s), pack
+     *
+     * Ne throw pas : si inconnu -> conserve l'unité actuelle.
+     */
     public function setUnitFromString(string $unit): static
     {
-        $unit = trim(mb_strtolower($unit));
-        $this->unit = Unit::from($unit);
+        $raw = trim(mb_strtolower($unit));
+
+        if ($raw === '') {
+            return $this;
+        }
+
+        $map = [
+            // grammes
+            'g' => 'g',
+            'gr' => 'g',
+            'gramme' => 'g',
+            'grammes' => 'g',
+
+            // kilos
+            'kg' => 'kg',
+            'kilo' => 'kg',
+            'kilos' => 'kg',
+            'kilogramme' => 'kg',
+            'kilogrammes' => 'kg',
+
+            // millilitres
+            'ml' => 'ml',
+            'millilitre' => 'ml',
+            'millilitres' => 'ml',
+
+            // litres
+            'l' => 'l',
+            'litre' => 'l',
+            'litres' => 'l',
+
+            // pièces
+            'piece' => 'piece',
+            'pièce' => 'piece',
+            'pieces' => 'piece',
+            'pièces' => 'piece',
+            'pcs' => 'piece',
+            'pc' => 'piece',
+            'pce' => 'piece',
+
+            // pot
+            'pot' => 'pot',
+            'pots' => 'pot',
+
+            // boîte
+            'boite' => 'boite',
+            'boîtes' => 'boite',
+            'boite(s)' => 'boite',
+            'boîte' => 'boite',
+            'boites' => 'boite',
+            'can' => 'boite',
+
+            // sachet
+            'sachet' => 'sachet',
+            'sachets' => 'sachet',
+
+            // tranche
+            'tranche' => 'tranche',
+            'tranches' => 'tranche',
+
+            // paquet
+            'paquet' => 'paquet',
+            'paquets' => 'paquet',
+            'pack' => 'paquet',
+        ];
+
+        $normalized = $map[$raw] ?? $raw;
+
+        $parsed = Unit::tryFrom($normalized);
+        if ($parsed !== null) {
+            $this->unit = $parsed;
+        }
+
         return $this;
     }
 
