@@ -52,3 +52,33 @@
 .d-md-none .swipe-item.is-checked .btn{
   opacity: 1;
 }
+
+.rp-quickadd__miniSelectWrap{
+      position: relative;
+      padding: 0;
+      display: flex;
+      align-items: center;
+    }
+    .rp-quickadd__miniSelect{
+      width: 100%;
+      border: 0 !important;
+      background: transparent !important;
+      outline: none !important;
+      box-shadow: none !important;
+      padding: 0 .75rem;
+      height: 100%;
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+    }
+    /* petit chevron discret */
+    .rp-quickadd__miniSelectWrap::after{
+      content: "▾";
+      position: absolute;
+      right: .65rem;
+      opacity: .6;
+      pointer-events: none;
+    }

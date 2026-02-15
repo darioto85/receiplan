@@ -1,6 +1,11 @@
+{# templates/shopping/_shopping_item.html.twig #}
+
 {% set checked = item.checked is defined and item.checked %}
 {% set ing = item.ingredient %}
-{% set unit = (ing and ing.unit) ? ing.unit.value : '' %}
+
+{# ✅ unité portée par Shopping (source de vérité) #}
+{% set unitValue = item.unitValue|default('') %}
+{% set unitLabel = item.unitLabel|default(unitValue) %}
 
 {% if variant == 'mobile' %}
   {% set cbId = 'shopping_cb_m_' ~ item.id %}
@@ -88,7 +93,7 @@
               aria-label="Quantité"
             >
             <span class="input-group-text text-muted" style="max-width: 54px; overflow:hidden; text-overflow:ellipsis;">
-              {{ unit ?: '—' }}
+              {{ unitLabel ?: '—' }}
             </span>
           </div>
         </div>
@@ -98,7 +103,7 @@
   </div>
 
 {% else %}
-  {# ===== Desktop inchangé ===== #}
+  {# ===== Desktop ===== #}
   {% set cbId = 'shopping_cb_d_' ~ item.id %}
 
   <tr data-shopping-row-id="{{ item.id }}" class="{{ checked ? 'is-checked' : '' }}">
@@ -146,7 +151,7 @@
       >
     </td>
 
-    <td>{{ unit }}</td>
+    <td>{{ unitLabel ?: '—' }}</td>
 
     <td class="text-end">
       <button

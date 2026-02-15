@@ -1,35 +1,37 @@
-{% if items is empty %}
-  <div class="text-center text-muted py-4">
-    Ta liste de courses est vide 🧘‍♀️
-  </div>
-{% else %}
+{# templates/shopping/_listing.html.twig #}
 
-  {# ===== Mobile (xs/sm) ===== #}
-  <div class="d-grid gap-2 d-md-none" data-shopping-target="mobileList">
-    {% for item in items %}
-      {{ include('shopping/_shopping_item.html.twig', { item: item, variant: 'mobile', first: loop.first }) }}
-    {% endfor %}
-  </div>
+{# ✅ Empty state : toujours présent pour que le JS puisse le masquer #}
+<div
+  class="{% if items is not empty %}d-none{% endif %} text-center text-muted py-4"
+  data-shopping-target="emptyState"
+>
+  Ta liste de courses est vide 🧘‍♀️
+</div>
 
-  {# ===== Desktop/tablette (md+) ===== #}
-  <div class="table-responsive d-none d-md-block">
-    <table class="table table-hover mb-0 align-middle">
-      <thead class="table-light">
-        <tr>
-          <th style="width: 44px;"></th>
-          <th>Ingrédient</th>
-          <th class="text-nowrap" style="width: 140px;">Quantité</th>
-          <th>Unité</th>
-          <th class="text-end">Actions</th>
-        </tr>
-      </thead>
+{# ===== Mobile (xs/sm) : toujours présent #}
+<div class="d-grid gap-2 d-md-none" data-shopping-target="mobileList">
+  {% for item in items %}
+    {{ include('shopping/_shopping_item.html.twig', { item: item, variant: 'mobile', first: loop.first }) }}
+  {% endfor %}
+</div>
 
-      <tbody data-shopping-target="desktopTbody">
-        {% for item in items %}
-          {{ include('shopping/_shopping_item.html.twig', { item: item, variant: 'desktop' }) }}
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+{# ===== Desktop/tablette (md+) : toujours présent #}
+<div class="table-responsive d-none d-md-block">
+  <table class="table table-hover mb-0 align-middle">
+    <thead class="table-light">
+      <tr>
+        <th style="width: 44px;"></th>
+        <th>Ingrédient</th>
+        <th class="text-nowrap" style="width: 140px;">Quantité</th>
+        <th>Unité</th>
+        <th class="text-end">Actions</th>
+      </tr>
+    </thead>
 
-{% endif %}
+    <tbody data-shopping-target="desktopTbody">
+      {% for item in items %}
+        {{ include('shopping/_shopping_item.html.twig', { item: item, variant: 'desktop' }) }}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

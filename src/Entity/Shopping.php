@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Enum\Unit;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
@@ -34,25 +35,58 @@ class Shopping
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $checkedAt = null;
 
+    /**
+     * ✅ Unité portée par la ligne de shopping (source de vérité pour l'achat)
+     * (permet unités par recette / par ajout manuel)
+     */
+    #[ORM\Column(enumType: Unit::class)]
+    private Unit $unit = Unit::G;
+
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
+
     public function isAuto(): bool
     {
         return $this->source === 'auto';
     }
-    public function getId(): ?int { return $this->id; }
 
-    public function getUser(): ?User { return $this->user; }
-    public function setUser(User $user): self { $this->user = $user; return $this; }
+    public function getUser(): ?User
+    {
+        return $this->user;
+    }
 
-    public function getIngredient(): ?Ingredient { return $this->ingredient; }
-    public function setIngredient(Ingredient $ingredient): self { $this->ingredient = $ingredient; return $this; }
+    public function setUser(User $user): self
+    {
+        $this->user = $user;
+        return $this;
+    }
 
-    public function getQuantity(): float { return (float) $this->quantity; }
-    public function setQuantity(float $qty): self {
+    public function getIngredient(): ?Ingredient
+    {
+        return $this->ingredient;
+    }
+
+    public function setIngredient(Ingredient $ingredient): self
+    {
+        $this->ingredient = $ingredient;
+        return $this;
+    }
+
+    public function getQuantity(): float
+    {
+        return (float) $this->quantity;
+    }
+
+    public function setQuantity(float $qty): self
+    {
         $this->quantity = number_format(max(0, $qty), 2, '.', '');
         return $this;
     }
 
-    public function addQuantity(float $delta): self {
+    public function addQuantity(float $delta): self
+    {
         return $this->setQuantity($this->getQuantity() + $delta);
     }
 
@@ -69,7 +103,10 @@ class Shopping
         return $this;
     }
 
-    public function isChecked(): bool { return $this->checked; }
+    public function isChecked(): bool
+    {
+        return $this->checked;
+    }
 
     public function setChecked(bool $checked): self
     {
@@ -78,5 +115,40 @@ class Shopping
         return $this;
     }
 
-    public function getCheckedAt(): ?\DateTimeImmutable { return $this->checkedAt; }
+    public function getCheckedAt(): ?\DateTimeImmutable
+    {
+        return $this->checkedAt;
+    }
+
+    public function getUnit(): Unit
+    {
+        return $this->unit;
+    }
+
+    public function setUnit(Unit $unit): self
+    {
+        $this->unit = $unit;
+        return $this;
+    }
+
+    public function getUnitValue(): string
+    {
+        return $this->unit->value;
+    }
+
+    public function getUnitLabel(): string
+    {
+        return match ($this->unit) {
+            Unit::G => 'g',
+            Unit::KG => 'kg',
+            Unit::ML => 'ml',
+            Unit::L => 'L',
+            Unit::PIECE => 'pièce',
+            Unit::POT => 'pot',
+            Unit::BOITE => 'boîte',
+            Unit::SACHET => 'sachet',
+            Unit::TRANCHE => 'tranche',
+            Unit::PAQUET => 'paquet',
+        };
+    }
 }
