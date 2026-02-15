@@ -1,7 +1,8 @@
 {# templates/stock/_stock_item.html.twig #}
 
 {% set ing = ui.ingredient %}
-{% set unit = (ing and ing.unit) ? ing.unit.value : '' %}
+{% set unitValue = ui.unitValue|default('') %}
+{% set unitLabel = ui.unitLabel|default(unitValue) %}
 {% set updateUrl = path('stock_update_quantity', { id: ui.id }) %}
 {% set updateToken = csrf_token('update_stock_' ~ ui.id) %}
 
@@ -47,7 +48,7 @@
           </div>
         </div>
 
-        {# ===== RIGHT: quantity + unit (comme shopping) ===== #}
+        {# ===== RIGHT: quantity + unit (unité du stock user) ===== #}
         <div class="flex-shrink-0" style="width: 110px;">
           <button
             type="button"
@@ -56,7 +57,7 @@
             data-stock-qty-id="{{ ui.id }}"
             data-stock-qty-name="{{ ing.name }}"
             data-stock-qty-value="{{ ui.quantity }}"
-            data-stock-qty-unit="{{ unit ?: 'unité' }}"
+            data-stock-qty-unit="{{ unitLabel ?: 'unité' }}"
             data-stock-qty-url="{{ updateUrl }}"
             data-stock-qty-token="{{ updateToken }}"
             aria-label="Modifier la quantité"
@@ -66,7 +67,7 @@
                 <span class="fw-bold" data-stock-qty-display>{{ ui.quantity }}</span>
               </span>
               <span class="input-group-text text-muted" style="max-width: 54px; overflow:hidden; text-overflow:ellipsis;">
-                {{ unit ?: '—' }}
+                {{ unitLabel ?: '—' }}
               </span>
             </div>
           </button>
@@ -115,7 +116,7 @@
       </span>
     </td>
 
-    <td class="text-end">{{ unit }}</td>
+    <td class="text-end">{{ unitLabel ?: '—' }}</td>
 
     <td class="text-end">
       <form

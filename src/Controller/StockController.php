@@ -5,8 +5,8 @@ namespace App\Controller;
 use App\Entity\Ingredient;
 use App\Entity\User;
 use App\Entity\UserIngredient;
+use App\Enum\Unit;
 use App\Form\StockUpsertType;
-use App\Repository\IngredientRepository;
 use App\Repository\UserIngredientRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -15,7 +15,6 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\HttpFoundation\JsonResponse;
-
 
 #[Route('/stock', name: 'stock_')]
 #[IsGranted('ROLE_USER')]
@@ -36,11 +35,11 @@ class StockController extends AbstractController
             ->getQuery()
             ->getResult();
 
-        $form = $this->createForm(\App\Form\StockUpsertType::class);
+        $form = $this->createForm(StockUpsertType::class);
 
         return $this->render('stock/index.html.twig', [
             'items' => $items,
-            'form' => $form->createView(), // ✅ IMPORTANT
+            'form' => $form->createView(),
         ]);
     }
 
@@ -62,7 +61,6 @@ class StockController extends AbstractController
 
         if (!$form->isSubmitted() || !$form->isValid()) {
             if ($isAjax) {
-                // On renvoie des erreurs exploitables
                 return new JsonResponse([
                     'status' => 'error',
                     'message' => 'Formulaire invalide.',
@@ -79,6 +77,9 @@ class StockController extends AbstractController
         /** @var Ingredient $ingredient */
         $ingredient = $form->get('ingredient')->getData();
         $quantityToAdd = (float) $form->get('quantity')->getData();
+
+        /** @var Unit $unit */
+        $unit = $form->get('unit')->getData() ?? Unit::G;
 
         if ($quantityToAdd <= 0) {
             if ($isAjax) {
@@ -103,8 +104,13 @@ class StockController extends AbstractController
             $existing->setUser($user);
             $existing->setIngredient($ingredient);
             $existing->setQuantity('0.00');
+            $existing->setUnit($unit); // ✅ unité initiale du stock
             $em->persist($existing);
             $isNew = true;
+        } else {
+            // ✅ choix métier : on NE change PAS l’unité d’une ligne existante automatiquement
+            // (sinon tu peux te retrouver avec "2 pots" + ajout "200 g" mélangés)
+            // Si tu veux quand même autoriser le switch : on le fera via une action dédiée "convertir / changer unité".
         }
 
         // ✅ addition (et non overwrite)
@@ -119,7 +125,6 @@ class StockController extends AbstractController
             return $this->redirectToRoute('stock_index');
         }
 
-        // Rendu HTML partiel (desktop + mobile)
         $htmlDesktop = $this->renderView('stock/_stock_item.html.twig', [
             'ui' => $existing,
             'variant' => 'desktop',
@@ -128,10 +133,9 @@ class StockController extends AbstractController
         $htmlMobile = $this->renderView('stock/_stock_item.html.twig', [
             'ui' => $existing,
             'variant' => 'mobile',
-            'first' => true, // si on prepend en haut
+            'first' => true,
         ]);
 
-        // Compteur (optionnel mais pratique)
         $count = (int) $userIngredientRepository->count(['user' => $user]);
 
         return new JsonResponse([
@@ -139,6 +143,8 @@ class StockController extends AbstractController
             'isNew' => $isNew,
             'id' => $existing->getId(),
             'quantity' => $existing->getQuantity(),
+            'unit' => $existing->getUnitValue(),
+            'unitLabel' => $existing->getUnitLabel(),
             'count' => $count,
             'htmlDesktop' => $htmlDesktop,
             'htmlMobile' => $htmlMobile,
@@ -156,7 +162,6 @@ class StockController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        // sécurité: on ne modifie que SON stock
         if ($userIngredient->getUser() !== $user) {
             throw $this->createAccessDeniedException();
         }
@@ -208,7 +213,6 @@ class StockController extends AbstractController
 
         $isAjax = $request->isXmlHttpRequest();
 
-        // sécurité: on ne supprime que SON stock
         if ($userIngredient->getUser() !== $user) {
             throw $this->createAccessDeniedException();
         }
@@ -243,5 +247,4 @@ class StockController extends AbstractController
             'count' => $count,
         ]);
     }
-
 }

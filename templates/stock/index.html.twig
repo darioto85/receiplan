@@ -72,8 +72,18 @@
             {{ form_errors(form.quantity) }}
           </div>
 
+          {# ✅ Unité (vrai select) dans le "miniFake" pour coller au design #}
           <div class="rp-quickadd__mini">
-            <div class="rp-quickadd__miniFake" aria-hidden="true">—</div>
+            <div class="rp-quickadd__miniFake">
+              {{ form_widget(form.unit, {
+                attr: {
+                  class: 'rp-quickadd__miniSelect',
+                  'aria-label': 'Unité',
+                  title: 'Unité'
+                }
+              }) }}
+            </div>
+            {{ form_errors(form.unit) }}
           </div>
 
           <button type="submit" class="rp-quickadd__btn">
