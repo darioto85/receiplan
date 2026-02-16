@@ -22,7 +22,6 @@ final class Version20260215151702 extends AbstractMigration
         // this up() migration is auto-generated, please modify it to your needs
        
         $this->addSql('ALTER TABLE shopping ADD unit VARCHAR(255) NOT NULL');
-        $this->addSql('CREATE UNIQUE INDEX uniq_user_ingredient ON shopping (user_id, ingredient_id)');
     }
 
     public function down(Schema $schema): void
