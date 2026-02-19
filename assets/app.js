@@ -17,9 +17,5 @@ import './styles/partials/recipe.css';
 import './styles/partials/shopping.css';
 import './styles/partials/stock.css';
 
-// ✅ Symfony UX Autocomplete (Tom Select + controller Stimulus côté UX)
-import '@symfony/ux-autocomplete';
-
-// ✅ CSS Tom Select (dans ton importmap.php, donc importable)
+// ✅ Tom Select CSS (utilisé par notre TomSelect custom)
 import 'tom-select/dist/css/tom-select.default.min.css';
-

@@ -1,0 +1,338 @@
+import { Controller } from '@hotwired/stimulus';
+import TomSelect from 'tom-select';
+
+export default class extends Controller {
+  static values = {
+    url: String, // endpoint de recherche JSON: ?q=
+    placeholder: { type: String, default: 'Rechercher…' },
+    maxItems: { type: Number, default: 1 },
+    minQuery: { type: Number, default: 1 },
+    limit: { type: Number, default: 20 },
+    createUrl: String, // optionnel
+  };
+
+  connect() {
+    // évite double init (Turbo cache / reconnection)
+    if (this.element.tomselect) return;
+
+    const url = this.urlValue || this.element.dataset.ingredientSelectUrlValue;
+    if (!url) {
+      console.warn('[ingredient-select] Missing data-ingredient-select-url-value');
+      return;
+    }
+
+    // bind
+    this._onDropdownPointer = this._onDropdownPointer.bind(this);
+    this._onModalSubmit = this._onModalSubmit.bind(this);
+    this._onModalKeydown = this._onModalKeydown.bind(this);
+
+    const controller = this;
+
+    // IMPORTANT: on stocke l'instance dans une variable locale
+    const ts = new TomSelect(this.element, {
+      maxItems: this.maxItemsValue,
+      create: false,
+      allowEmptyOption: true,
+      placeholder: this.placeholderValue || this.element.getAttribute('placeholder') || 'Rechercher…',
+
+      valueField: 'value',
+      labelField: 'text',
+      searchField: ['text'],
+
+      preload: false,
+      closeAfterSelect: true,
+
+      load: (query, callback) => {
+        const q = String(query || '').trim();
+        if (q.length < this.minQueryValue) {
+          callback();
+          return;
+        }
+
+        const sep = url.includes('?') ? '&' : '?';
+        const fetchUrl = `${url}${sep}q=${encodeURIComponent(q)}&limit=${encodeURIComponent(this.limitValue)}`;
+
+        fetch(fetchUrl, { headers: { Accept: 'application/json' } })
+          .then((r) => r.json())
+          .then((json) => callback(Array.isArray(json) ? json : []))
+          .catch(() => callback());
+      },
+
+      render: {
+        no_results: (data, escape) => {
+          const input = data?.input ? String(data.input) : '';
+          const safe = escape(input);
+
+          return `
+            <div class="ts-no-results">
+              <div class="text-muted small mb-2">Aucun ingrédient trouvé.</div>
+              <button type="button"
+                      class="btn btn-sm btn-primary w-100"
+                      data-ts-add="1"
+                      data-ts-add-value="${safe}">
+                ➕ Ajouter “${safe}”
+              </button>
+            </div>
+          `;
+        },
+      },
+
+      // ⚠️ PAS une arrow function : ici "this" = instance TomSelect
+      onInitialize: function () {
+        // Fix placeholder "fantôme" (option vide Symfony sélectionnée)
+        try {
+          const currentValue = this.getValue();
+          if (currentValue === '' || currentValue == null) {
+            this.clear(true);
+          }
+          if (this.control_input) {
+            this.control_input.setAttribute(
+              'placeholder',
+              controller.placeholderValue || controller.element.getAttribute('placeholder') || 'Rechercher…'
+            );
+          }
+        } catch (e) {}
+
+        const dropdown = this.dropdown_content;
+        if (!dropdown) return;
+
+        // Écoute mousedown + click (TomSelect peut bouffer click)
+        dropdown.addEventListener('mousedown', controller._onDropdownPointer);
+        dropdown.addEventListener('click', controller._onDropdownPointer);
+      },
+    });
+
+    // maintenant seulement, this.ts est défini
+    this.ts = ts;
+  }
+
+  disconnect() {
+    this._detachModalListeners();
+
+    if (this.ts) {
+      try {
+        const dropdown = this.ts.dropdown_content;
+        if (dropdown) {
+          dropdown.removeEventListener('mousedown', this._onDropdownPointer);
+          dropdown.removeEventListener('click', this._onDropdownPointer);
+        }
+      } catch (e) {}
+
+      this.ts.destroy();
+      this.ts = null;
+    }
+  }
+
+  // -----------------------
+  // Dropdown add button
+  // -----------------------
+  _onDropdownPointer(e) {
+    const btn = e.target.closest?.('[data-ts-add="1"]');
+    if (!btn) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const name = btn.getAttribute('data-ts-add-value') || '';
+    const raw = this.ts?.lastQuery || name;
+    const ingredientName = String(raw || '').trim();
+
+    this._openCreateModal(ingredientName);
+
+    try { this.ts.close(); } catch (err) {}
+  }
+
+  // -----------------------
+  // Modal lookup
+  // -----------------------
+  _findModalEls() {
+    const modalEl = document.getElementById('ingredientCreateModal');
+    if (!modalEl) return null;
+
+    const nameInput = document.getElementById('ingredientCreateName');
+    const unitSelect = document.getElementById('ingredientCreateUnit');
+    const errorBox = document.getElementById('ingredientCreateError');
+    const submitBtn = document.getElementById('ingredientCreateSubmit');
+
+    if (!nameInput || !unitSelect || !errorBox || !submitBtn) return null;
+    return { modalEl, nameInput, unitSelect, errorBox, submitBtn };
+  }
+
+  _openCreateModal(prefillName) {
+    const els = this._findModalEls();
+    if (!els) {
+      alert('Modale introuvable. Vérifie include(common/_modal-ingredient.html.twig) dans cette page.');
+      return false;
+    }
+
+    this._activeModalEls = els;
+    this._pendingCreateFor = this.element;
+
+    els.errorBox.innerHTML = '';
+    els.nameInput.value = prefillName || '';
+    if (!els.unitSelect.value) els.unitSelect.value = 'g';
+
+    this._attachModalListeners();
+
+    // Bootstrap modal
+    if (window.bootstrap?.Modal) {
+      this._bsModal = this._bsModal || new window.bootstrap.Modal(els.modalEl, {
+        focus: true,
+        backdrop: true,
+        keyboard: true,
+      });
+      this._bsModal.show();
+    } else {
+      // Si bootstrap pas encore prêt, au moins une info claire
+      alert('Bootstrap Modal non disponible (bootstrap.bundle pas chargé).');
+      return false;
+    }
+
+    setTimeout(() => {
+      els.nameInput.focus();
+      els.nameInput.select?.();
+    }, 100);
+
+    return true;
+  }
+
+  _attachModalListeners() {
+    if (!this._activeModalEls) return;
+    if (this._modalListenersAttached) return;
+    this._modalListenersAttached = true;
+
+    const { modalEl, submitBtn } = this._activeModalEls;
+
+    submitBtn.addEventListener('click', this._onModalSubmit);
+    modalEl.addEventListener('keydown', this._onModalKeydown);
+
+    modalEl.addEventListener(
+      'hidden.bs.modal',
+      () => {
+        this._detachModalListeners();
+        this._pendingCreateFor = null;
+        if (this._activeModalEls) this._activeModalEls.errorBox.innerHTML = '';
+      },
+      { once: true }
+    );
+  }
+
+  _detachModalListeners() {
+    if (!this._activeModalEls || !this._modalListenersAttached) return;
+
+    this._modalListenersAttached = false;
+
+    this._activeModalEls.submitBtn.removeEventListener('click', this._onModalSubmit);
+    this._activeModalEls.modalEl.removeEventListener('keydown', this._onModalKeydown);
+  }
+
+  _onModalKeydown(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      this._onModalSubmit();
+    }
+  }
+
+  // -----------------------
+  // Submit create
+  // -----------------------
+  async _onModalSubmit() {
+    const els = this._activeModalEls;
+    if (!els) return;
+
+    els.errorBox.innerHTML = '';
+
+    const name = String(els.nameInput.value || '').trim();
+    const unit = String(els.unitSelect.value || 'g').trim();
+
+    if (!name) {
+      els.errorBox.innerHTML = `<div class="alert alert-danger mb-0">Nom requis.</div>`;
+      els.nameInput.focus();
+      return;
+    }
+
+    const createUrl =
+      this.createUrlValue ||
+      els.modalEl.dataset.ingredientCreateUrl ||
+      '';
+
+    const csrf =
+      els.modalEl.dataset.ingredientCreateCsrf ||
+      '';
+
+    if (!createUrl) {
+      els.errorBox.innerHTML = `<div class="alert alert-danger mb-0">URL de création manquante.</div>`;
+      return;
+    }
+
+    els.submitBtn.disabled = true;
+
+    try {
+      const form = new FormData();
+      form.append('name', name);
+      form.append('unit', unit);
+      if (csrf) form.append('_token', csrf);
+
+      const res = await fetch(createUrl, {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          Accept: 'application/json',
+        },
+        body: form,
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data || data.status !== 'ok') {
+        const msg = (data && data.message) ? data.message : 'Erreur lors de la création.';
+        els.errorBox.innerHTML = `<div class="alert alert-danger mb-0">${msg}</div>`;
+        return;
+      }
+
+      const id = data.id;
+      const text = data.name;
+
+      if (!id || !text) {
+        els.errorBox.innerHTML = `<div class="alert alert-danger mb-0">Réponse serveur invalide.</div>`;
+        return;
+      }
+
+      const targetSelect = this._pendingCreateFor || this.element;
+      const ts = targetSelect.tomselect;
+
+      if (ts) {
+        ts.addOption({ value: id, text });
+        ts.refreshOptions(false);
+        ts.addItem(String(id), true);
+        ts.close();
+      } else {
+        targetSelect.value = String(id);
+      }
+
+      try { this._bsModal?.hide(); } catch (e) {}
+
+      this._focusQuantityInputNear(targetSelect);
+    } catch (err) {
+      els.errorBox.innerHTML = `<div class="alert alert-danger mb-0">Erreur réseau.</div>`;
+    } finally {
+      els.submitBtn.disabled = false;
+    }
+  }
+
+  _focusQuantityInputNear(selectEl) {
+    const form = selectEl.closest('form');
+    if (!form) return;
+
+    const qtyInput =
+      form.querySelector('input[name$="[quantity]"]') ||
+      form.querySelector('input[name*="[quantity]"]');
+
+    if (qtyInput) {
+      setTimeout(() => {
+        qtyInput.focus();
+        qtyInput.select?.();
+      }, 50);
+    }
+  }
+}

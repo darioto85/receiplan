@@ -20,8 +20,20 @@ class StockUpsertType extends AbstractType
                 'class' => Ingredient::class,
                 'choice_label' => 'name',
                 'placeholder' => 'Rechercher un ingrédient…',
-                'autocomplete' => true,
                 'required' => true,
+
+                /**
+                 * TomSelect va transformer ce <select>.
+                 * On met un target Stimulus pour l’attraper facilement côté JS.
+                 *
+                 * IMPORTANT: on ne met pas "autocomplete => true" ici (Symfony UX),
+                 * car on veut TomSelect (et pas l’autocomplete Symfony).
+                 */
+                'attr' => [
+                    'data-stock-target' => 'ingredientSelect',
+                    'data-placeholder' => 'Rechercher un ingrédient…',
+                    'autocomplete' => 'off',
+                ],
             ])
             ->add('quantity', NumberType::class, [
                 'required' => true,
@@ -31,6 +43,8 @@ class StockUpsertType extends AbstractType
                     'min' => 0,
                     'step' => '0.01',
                     'placeholder' => '0.00',
+                    'autocomplete' => 'off',
+                    'inputmode' => 'decimal',
                 ],
             ])
             ->add('unit', ChoiceType::class, [
@@ -48,14 +62,16 @@ class StockUpsertType extends AbstractType
                     'tranche' => Unit::TRANCHE,
                     'paquet' => Unit::PAQUET,
                 ],
-                'data' => Unit::G, // défaut (si tu veux, on pourra le remplacer par l'unité de base de l'ingrédient côté JS plus tard)
+                'data' => Unit::G,
+                'attr' => [
+                    'autocomplete' => 'off',
+                ],
             ])
         ;
     }
 
     public function configureOptions(OptionsResolver $resolver): void
     {
-        // Form “non mappé” (on fait un upsert logique dans le controller)
         $resolver->setDefaults([
             'csrf_protection' => true,
         ]);

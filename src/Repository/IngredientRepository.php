@@ -67,27 +67,53 @@ class IngredientRepository extends ServiceEntityRepository
     }
 
     /**
-     * Autocomplete / recherche simple.
-     * (Tu peux brancher ça sur TomSelect)
+     * Autocomplete / recherche (TomSelect).
+     *
+     * Pertinence:
+     * - d'abord "commence par"
+     * - puis "contient"
+     * - globaux d'abord (optionnel)
+     * - tri alpha
+     *
+     * Remarque:
+     * - si tu passes aussi le nameKey normalisé (sans accents), on match dessus
+     *   pour être tolérant (ex: "creme" match "crème").
      *
      * @return Ingredient[]
      */
-    public function searchVisibleToUser(User $user, string $query, int $limit = 20): array
+    public function searchVisibleToUser(User $user, string $query, int $limit = 20, ?string $queryNameKey = null): array
     {
         $q = trim($query);
         if ($q === '') {
             return [];
         }
 
-        return $this->createVisibleToUserQueryBuilder($user, 'i')
-            ->andWhere('i.name LIKE :q')
+        $qb = $this->createVisibleToUserQueryBuilder($user, 'i');
+
+        // LIKE sensibles au collation / DB, mais on améliore déjà beaucoup via le ranking.
+        $qb->andWhere('(i.name LIKE :q OR i.nameKey LIKE :qKey)')
             ->setParameter('q', '%' . $q . '%')
-            // ✅ Globaux d'abord (optionnel, mais UX souvent meilleure)
-            ->addOrderBy('CASE WHEN i.user IS NULL THEN 0 ELSE 1 END', 'ASC')
+            ->setParameter('qKey', '%' . ($queryNameKey ?? Ingredient::normalizeName($q)) . '%');
+
+        // Ranking: begins-with avant contains
+        $qb->addSelect(
+            "CASE
+                WHEN i.name LIKE :qPrefix THEN 0
+                WHEN i.nameKey LIKE :qKeyPrefix THEN 1
+                ELSE 2
+            END AS HIDDEN rank_match"
+        )
+            ->setParameter('qPrefix', $q . '%')
+            ->setParameter('qKeyPrefix', ($queryNameKey ?? Ingredient::normalizeName($q)) . '%');
+
+        // ✅ Globaux d'abord (UX)
+        $qb->addSelect('CASE WHEN i.user IS NULL THEN 0 ELSE 1 END AS HIDDEN rank_scope')
+            ->addOrderBy('rank_match', 'ASC')
+            ->addOrderBy('rank_scope', 'ASC')
             ->addOrderBy('i.name', 'ASC')
-            ->setMaxResults($limit)
-            ->getQuery()
-            ->getResult();
+            ->setMaxResults($limit);
+
+        return $qb->getQuery()->getResult();
     }
 
     public function findOneNeedingImage(): ?Ingredient
