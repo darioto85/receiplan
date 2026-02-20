@@ -75,10 +75,49 @@ class StockController extends AbstractController
             return [
                 'value' => $ing->getId(),
                 'text' => $ing->getName(),
+
+                // ✅ important pour auto-unité (mais on ajoutera aussi un fallback "detail")
+                'unit' => $ing->getBaseUnitValue(),
             ];
         }, $items);
 
         return new JsonResponse($payload);
+    }
+
+    /**
+     * ✅ Endpoint JSON (fallback) : récupérer l'unité d'un ingrédient par ID
+     * GET /stock/ingredient/get?id=123
+     */
+    #[Route('/ingredient/get', name: 'ingredient_get', methods: ['GET'])]
+    public function ingredientGet(Request $request, IngredientRepository $ingredientRepository): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $id = (int) $request->query->get('id', 0);
+        if ($id <= 0) {
+            return new JsonResponse(['status' => 'error', 'message' => 'ID invalide.'], 422);
+        }
+
+        // ✅ sécurité : visible pour l'user (global ou privé user)
+        $ingredient = $ingredientRepository->createVisibleToUserQueryBuilder($user, 'i')
+            ->andWhere('i.id = :id')
+            ->setParameter('id', $id)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        if (!$ingredient instanceof Ingredient) {
+            return new JsonResponse(['status' => 'error', 'message' => 'Ingrédient introuvable.'], 404);
+        }
+
+        return new JsonResponse([
+            'status' => 'ok',
+            'id' => $ingredient->getId(),
+            'text' => $ingredient->getName(),
+            'unit' => $ingredient->getBaseUnitValue(),
+        ]);
     }
 
     /**
@@ -96,7 +135,6 @@ class StockController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        // On accepte aussi non-AJAX, mais on renvoie JSON quand même (simple)
         $name = trim((string) $request->request->get('name', ''));
         $unitRaw = (string) $request->request->get('unit', Unit::G->value);
 
@@ -126,7 +164,7 @@ class StockController extends AbstractController
         $ingredient = new Ingredient();
         $ingredient->setName($name);
         $ingredient->setNameKey($nameKey);
-        $ingredient->setUser($user); // privé user (comme tu veux)
+        $ingredient->setUser($user);
         $ingredient->setUnit($unit);
 
         $em->persist($ingredient);
@@ -202,14 +240,13 @@ class StockController extends AbstractController
             $existing->setUser($user);
             $existing->setIngredient($ingredient);
             $existing->setQuantity('0.00');
-            $existing->setUnit($unit); // ✅ unité initiale du stock
+            $existing->setUnit($unit);
             $em->persist($existing);
             $isNew = true;
         } else {
             // ✅ choix métier : on NE change PAS l’unité d’une ligne existante automatiquement
         }
 
-        // ✅ addition (et non overwrite)
         $current = (float) $existing->getQuantity();
         $newQty = $current + $quantityToAdd;
         $existing->setQuantity(number_format($newQty, 2, '.', ''));

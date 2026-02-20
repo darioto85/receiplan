@@ -20,20 +20,8 @@ class StockUpsertType extends AbstractType
                 'class' => Ingredient::class,
                 'choice_label' => 'name',
                 'placeholder' => 'Rechercher un ingrédient…',
+                'autocomplete' => true,
                 'required' => true,
-
-                /**
-                 * TomSelect va transformer ce <select>.
-                 * On met un target Stimulus pour l’attraper facilement côté JS.
-                 *
-                 * IMPORTANT: on ne met pas "autocomplete => true" ici (Symfony UX),
-                 * car on veut TomSelect (et pas l’autocomplete Symfony).
-                 */
-                'attr' => [
-                    'data-stock-target' => 'ingredientSelect',
-                    'data-placeholder' => 'Rechercher un ingrédient…',
-                    'autocomplete' => 'off',
-                ],
             ])
             ->add('quantity', NumberType::class, [
                 'required' => true,
@@ -43,13 +31,23 @@ class StockUpsertType extends AbstractType
                     'min' => 0,
                     'step' => '0.01',
                     'placeholder' => '0.00',
-                    'autocomplete' => 'off',
-                    'inputmode' => 'decimal',
                 ],
             ])
             ->add('unit', ChoiceType::class, [
                 'required' => true,
                 'placeholder' => false,
+
+                // ✅ important : labels affichés
+                'choice_label' => static function ($choice, $key, $value) {
+                    // $key = 'g', 'kg', etc. dans notre tableau
+                    return (string) $key;
+                },
+
+                // ✅ IMPORTANT : value HTML = backed enum value ("g", "kg", "piece"...)
+                'choice_value' => static function (?Unit $choice) {
+                    return $choice?->value;
+                },
+
                 'choices' => [
                     'g' => Unit::G,
                     'kg' => Unit::KG,
@@ -62,10 +60,9 @@ class StockUpsertType extends AbstractType
                     'tranche' => Unit::TRANCHE,
                     'paquet' => Unit::PAQUET,
                 ],
+
+                // ✅ valeur par défaut
                 'data' => Unit::G,
-                'attr' => [
-                    'autocomplete' => 'off',
-                ],
             ])
         ;
     }

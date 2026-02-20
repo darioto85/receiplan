@@ -69,6 +69,8 @@
                 placeholder: 'Ajouter rapidement',
                 'data-controller': 'ingredient-select',
                 'data-ingredient-select-url-value': path('stock_ingredient_search'),
+                'data-ingredient-select-detail-url-value': path('stock_ingredient_get'),
+                'data-ingredient-select-unit-selector-value': '#{{ form.unit.vars.id }}',
                 'data-ingredient-select-placeholder-value': 'Ajouter rapidement'
               }
             }) }}
@@ -87,7 +89,8 @@
                 attr: {
                   class: 'rp-quickadd__miniSelect',
                   'aria-label': 'Unité',
-                  title: 'Unité'
+                  title: 'Unité',
+                  'data-unit-select': '1'
                 }
               }) }}
             </div>

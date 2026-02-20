@@ -3,16 +3,19 @@ import TomSelect from 'tom-select';
 
 export default class extends Controller {
   static values = {
-    url: String, // endpoint de recherche JSON: ?q=
+    url: String,
+    detailUrl: String,
+    unitSelector: String,
+
     placeholder: { type: String, default: 'Rechercher…' },
     maxItems: { type: Number, default: 1 },
     minQuery: { type: Number, default: 1 },
     limit: { type: Number, default: 20 },
-    createUrl: String, // optionnel
+    createUrl: String,
+    clearOnFocus: { type: Boolean, default: true },
   };
 
   connect() {
-    // évite double init (Turbo cache / reconnection)
     if (this.element.tomselect) return;
 
     const url = this.urlValue || this.element.dataset.ingredientSelectUrlValue;
@@ -21,14 +24,13 @@ export default class extends Controller {
       return;
     }
 
-    // bind
     this._onDropdownPointer = this._onDropdownPointer.bind(this);
     this._onModalSubmit = this._onModalSubmit.bind(this);
     this._onModalKeydown = this._onModalKeydown.bind(this);
+    this._onFocus = this._onFocus.bind(this);
 
     const controller = this;
 
-    // IMPORTANT: on stocke l'instance dans une variable locale
     const ts = new TomSelect(this.element, {
       maxItems: this.maxItemsValue,
       create: false,
@@ -77,32 +79,87 @@ export default class extends Controller {
         },
       },
 
-      // ⚠️ PAS une arrow function : ici "this" = instance TomSelect
       onInitialize: function () {
-        // Fix placeholder "fantôme" (option vide Symfony sélectionnée)
         try {
-          const currentValue = this.getValue();
-          if (currentValue === '' || currentValue == null) {
-            this.clear(true);
-          }
           if (this.control_input) {
             this.control_input.setAttribute(
               'placeholder',
               controller.placeholderValue || controller.element.getAttribute('placeholder') || 'Rechercher…'
             );
+            this.control_input.addEventListener('focus', controller._onFocus);
+            this.control_input.addEventListener('click', controller._onFocus);
+          }
+
+          const currentValue = this.getValue();
+          if (currentValue === '' || currentValue == null) {
+            this.clear(true);
           }
         } catch (e) {}
 
         const dropdown = this.dropdown_content;
-        if (!dropdown) return;
+        if (dropdown) {
+          dropdown.addEventListener('mousedown', controller._onDropdownPointer);
+          dropdown.addEventListener('click', controller._onDropdownPointer);
+        }
 
-        // Écoute mousedown + click (TomSelect peut bouffer click)
-        dropdown.addEventListener('mousedown', controller._onDropdownPointer);
-        dropdown.addEventListener('click', controller._onDropdownPointer);
+        // ✅ sélection existante -> auto unité
+        this.on('item_add', async (value) => {
+            const key = String(value ?? '');
+            const opt = this.options?.[key] || this.options?.[value];
+
+            const focusQty = () => {
+                // TomSelect reprend souvent le focus juste après item_add
+                setTimeout(() => controller._focusQuantityInputNear(controller.element), 0);
+            };
+
+            const unit = opt?.unit;
+            if (unit) {
+                controller._setUnitInForm(unit);
+                focusQty();
+                return;
+            }
+
+            // fallback serveur si unit pas dans l'option
+            const detailUrl = controller.detailUrlValue || controller.element.dataset.ingredientSelectDetailUrlValue;
+            if (!detailUrl) {
+                focusQty();
+                return;
+            }
+
+            try {
+                const sep = detailUrl.includes('?') ? '&' : '?';
+                const res = await fetch(`${detailUrl}${sep}id=${encodeURIComponent(key)}`, {
+                headers: { Accept: 'application/json' },
+                });
+                const data = await res.json().catch(() => null);
+
+                if (!res.ok || !data || data.status !== 'ok') {
+                focusQty();
+                return;
+                }
+
+                const fetchedUnit = data.unit;
+                if (fetchedUnit) {
+                try {
+                    this.updateOption(key, {
+                    ...(opt || {}),
+                    value: key,
+                    text: data.text || (opt?.text ?? ''),
+                    unit: fetchedUnit,
+                    });
+                } catch (e) {}
+
+                controller._setUnitInForm(fetchedUnit);
+                }
+
+                focusQty();
+            } catch (e) {
+                focusQty();
+            }
+            });
       },
     });
 
-    // maintenant seulement, this.ts est défini
     this.ts = ts;
   }
 
@@ -116,6 +173,10 @@ export default class extends Controller {
           dropdown.removeEventListener('mousedown', this._onDropdownPointer);
           dropdown.removeEventListener('click', this._onDropdownPointer);
         }
+        if (this.ts.control_input) {
+          this.ts.control_input.removeEventListener('focus', this._onFocus);
+          this.ts.control_input.removeEventListener('click', this._onFocus);
+        }
       } catch (e) {}
 
       this.ts.destroy();
@@ -123,9 +184,56 @@ export default class extends Controller {
     }
   }
 
-  // -----------------------
-  // Dropdown add button
-  // -----------------------
+  _onFocus() {
+    if (!this.ts) return;
+
+    const v = this.ts.getValue();
+
+    if (this.clearOnFocusValue && v) {
+      this.ts.clear(true);
+      this.ts.open();
+      return;
+    }
+
+    if (!v) this.ts.open();
+  }
+
+  _setUnitInForm(unitValue) {
+    const form = this.element.closest('form');
+    if (!form) return;
+
+    // ✅ 1) le meilleur : un marker explicite dans Twig
+    let unitSelect = form.querySelector('select[data-unit-select="1"]');
+
+    // ✅ 2) fallback: selector explicite (si tu veux l’utiliser)
+    if (!unitSelect) {
+      const selector =
+        this.unitSelectorValue ||
+        this.element.dataset.ingredientSelectUnitSelectorValue ||
+        null;
+      if (selector) unitSelect = document.querySelector(selector);
+    }
+
+    // ✅ 3) fallback: ta classe UI
+    if (!unitSelect) {
+      unitSelect = form.querySelector('select.rp-quickadd__miniSelect');
+    }
+
+    if (!unitSelect) return;
+
+    const v = String(unitValue);
+    unitSelect.value = v;
+
+    // sécurité si mismatch
+    if (unitSelect.value !== v) {
+      // au lieu de vider, on garde l'existant (ou on force g si tu préfères)
+      // unitSelect.value = 'g';
+      return;
+    }
+
+    unitSelect.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
   _onDropdownPointer(e) {
     const btn = e.target.closest?.('[data-ts-add="1"]');
     if (!btn) return;
@@ -142,9 +250,7 @@ export default class extends Controller {
     try { this.ts.close(); } catch (err) {}
   }
 
-  // -----------------------
-  // Modal lookup
-  // -----------------------
+  // ---- Modal
   _findModalEls() {
     const modalEl = document.getElementById('ingredientCreateModal');
     if (!modalEl) return null;
@@ -174,7 +280,6 @@ export default class extends Controller {
 
     this._attachModalListeners();
 
-    // Bootstrap modal
     if (window.bootstrap?.Modal) {
       this._bsModal = this._bsModal || new window.bootstrap.Modal(els.modalEl, {
         focus: true,
@@ -183,7 +288,6 @@ export default class extends Controller {
       });
       this._bsModal.show();
     } else {
-      // Si bootstrap pas encore prêt, au moins une info claire
       alert('Bootstrap Modal non disponible (bootstrap.bundle pas chargé).');
       return false;
     }
@@ -233,9 +337,6 @@ export default class extends Controller {
     }
   }
 
-  // -----------------------
-  // Submit create
-  // -----------------------
   async _onModalSubmit() {
     const els = this._activeModalEls;
     if (!els) return;
@@ -275,10 +376,7 @@ export default class extends Controller {
 
       const res = await fetch(createUrl, {
         method: 'POST',
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest',
-          Accept: 'application/json',
-        },
+        headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
         body: form,
       });
 
@@ -292,6 +390,7 @@ export default class extends Controller {
 
       const id = data.id;
       const text = data.name;
+      const createdUnit = data.unit || unit;
 
       if (!id || !text) {
         els.errorBox.innerHTML = `<div class="alert alert-danger mb-0">Réponse serveur invalide.</div>`;
@@ -302,7 +401,7 @@ export default class extends Controller {
       const ts = targetSelect.tomselect;
 
       if (ts) {
-        ts.addOption({ value: id, text });
+        ts.addOption({ value: id, text, unit: createdUnit });
         ts.refreshOptions(false);
         ts.addItem(String(id), true);
         ts.close();
@@ -310,8 +409,9 @@ export default class extends Controller {
         targetSelect.value = String(id);
       }
 
-      try { this._bsModal?.hide(); } catch (e) {}
+      this._setUnitInForm(createdUnit);
 
+      try { this._bsModal?.hide(); } catch (e) {}
       this._focusQuantityInputNear(targetSelect);
     } catch (err) {
       els.errorBox.innerHTML = `<div class="alert alert-danger mb-0">Erreur réseau.</div>`;
