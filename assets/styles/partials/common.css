@@ -644,3 +644,5 @@ h2{
   .rp-recipe-grid{ margin: 0px -0.4rem; }
   .rp-recipe-main{ padding: 10px; }
 }
+
+.ts-no-results { padding: 10px; }

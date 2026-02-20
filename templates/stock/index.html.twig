@@ -63,7 +63,17 @@
 
         <div class="rp-quickadd__bar">
           <div class="rp-quickadd__field">
-            {{ form_widget(form.ingredient, { attr: { class: 'rp-quickadd__input', placeholder: 'Ajouter rapidement' } }) }}
+            {{ form_widget(form.ingredient, {
+              attr: {
+                class: 'rp-quickadd__input',
+                placeholder: 'Ajouter rapidement',
+                'data-controller': 'ingredient-select',
+                'data-ingredient-select-url-value': path('stock_ingredient_search'),
+                'data-ingredient-select-detail-url-value': path('stock_ingredient_get'),
+                'data-ingredient-select-unit-selector-value': '#{{ form.unit.vars.id }}',
+                'data-ingredient-select-placeholder-value': 'Ajouter rapidement'
+              }
+            }) }}
             {{ form_errors(form.ingredient) }}
           </div>
 
@@ -79,7 +89,8 @@
                 attr: {
                   class: 'rp-quickadd__miniSelect',
                   'aria-label': 'Unité',
-                  title: 'Unité'
+                  title: 'Unité',
+                  'data-unit-select': '1'
                 }
               }) }}
             </div>
@@ -200,6 +211,8 @@
         </div>
       </div>
     </div>
+
+{{ include('common/_modal-ingredient.html.twig') }}
 
   </div>
 {% endblock %}

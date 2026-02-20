@@ -1,0 +1,57 @@
+{# templates/common/_modal-ingredient.html.twig #}
+
+<div
+  class="modal fade"
+  id="ingredientCreateModal"
+  tabindex="-1"
+  aria-hidden="true"
+  data-ingredient-create-url="{{ path('stock_ingredient_create') }}"
+  data-ingredient-create-csrf="{{ csrf_token('ingredient_create') }}"
+>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rp-modal">
+
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title">Ajouter un ingrédient</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body pt-2">
+        <div class="mb-3">
+          <label class="form-label" for="ingredientCreateName">Nom</label>
+          <input
+            type="text"
+            class="form-control"
+            id="ingredientCreateName"
+            autocomplete="off"
+            placeholder="Ex : Tomates cerises"
+          >
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label" for="ingredientCreateUnit">Unité par défaut</label>
+          <select class="form-select" id="ingredientCreateUnit">
+            <option value="g">g</option>
+            <option value="kg">kg</option>
+            <option value="ml">ml</option>
+            <option value="l">L</option>
+            <option value="piece">pièce</option>
+            <option value="pot">pot</option>
+            <option value="boite">boîte</option>
+            <option value="sachet">sachet</option>
+            <option value="tranche">tranche</option>
+            <option value="paquet">paquet</option>
+          </select>
+        </div>
+
+        <div class="mt-3" id="ingredientCreateError"></div>
+      </div>
+
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-primary" id="ingredientCreateSubmit">Créer</button>
+      </div>
+
+    </div>
+  </div>
+</div>

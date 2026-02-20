@@ -36,6 +36,18 @@ class StockUpsertType extends AbstractType
             ->add('unit', ChoiceType::class, [
                 'required' => true,
                 'placeholder' => false,
+
+                // ✅ important : labels affichés
+                'choice_label' => static function ($choice, $key, $value) {
+                    // $key = 'g', 'kg', etc. dans notre tableau
+                    return (string) $key;
+                },
+
+                // ✅ IMPORTANT : value HTML = backed enum value ("g", "kg", "piece"...)
+                'choice_value' => static function (?Unit $choice) {
+                    return $choice?->value;
+                },
+
                 'choices' => [
                     'g' => Unit::G,
                     'kg' => Unit::KG,
@@ -48,14 +60,15 @@ class StockUpsertType extends AbstractType
                     'tranche' => Unit::TRANCHE,
                     'paquet' => Unit::PAQUET,
                 ],
-                'data' => Unit::G, // défaut (si tu veux, on pourra le remplacer par l'unité de base de l'ingrédient côté JS plus tard)
+
+                // ✅ valeur par défaut
+                'data' => Unit::G,
             ])
         ;
     }
 
     public function configureOptions(OptionsResolver $resolver): void
     {
-        // Form “non mappé” (on fait un upsert logique dans le controller)
         $resolver->setDefaults([
             'csrf_protection' => true,
         ]);

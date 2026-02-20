@@ -7,14 +7,15 @@ use App\Entity\User;
 use App\Entity\UserIngredient;
 use App\Enum\Unit;
 use App\Form\StockUpsertType;
+use App\Repository\IngredientRepository;
 use App\Repository\UserIngredientRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
-use Symfony\Component\HttpFoundation\JsonResponse;
 
 #[Route('/stock', name: 'stock_')]
 #[IsGranted('ROLE_USER')]
@@ -40,6 +41,141 @@ class StockController extends AbstractController
         return $this->render('stock/index.html.twig', [
             'items' => $items,
             'form' => $form->createView(),
+        ]);
+    }
+
+    /**
+     * ✅ Endpoint JSON pour TomSelect (recherche ingrédients)
+     * GET /stock/ingredient/search?q=...
+     */
+    #[Route('/ingredient/search', name: 'ingredient_search', methods: ['GET'])]
+    public function ingredientSearch(Request $request, IngredientRepository $ingredientRepository): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $q = (string) $request->query->get('q', '');
+        $q = trim($q);
+
+        if ($q === '') {
+            return new JsonResponse([]);
+        }
+
+        // petite limite côté API (TomSelect peut aussi limiter côté client)
+        $limit = (int) $request->query->get('limit', 20);
+        if ($limit <= 0 || $limit > 50) {
+            $limit = 20;
+        }
+
+        $items = $ingredientRepository->searchVisibleToUser($user, $q, $limit);
+
+        $payload = array_map(static function (Ingredient $ing): array {
+            return [
+                'value' => $ing->getId(),
+                'text' => $ing->getName(),
+
+                // ✅ important pour auto-unité (mais on ajoutera aussi un fallback "detail")
+                'unit' => $ing->getBaseUnitValue(),
+            ];
+        }, $items);
+
+        return new JsonResponse($payload);
+    }
+
+    /**
+     * ✅ Endpoint JSON (fallback) : récupérer l'unité d'un ingrédient par ID
+     * GET /stock/ingredient/get?id=123
+     */
+    #[Route('/ingredient/get', name: 'ingredient_get', methods: ['GET'])]
+    public function ingredientGet(Request $request, IngredientRepository $ingredientRepository): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $id = (int) $request->query->get('id', 0);
+        if ($id <= 0) {
+            return new JsonResponse(['status' => 'error', 'message' => 'ID invalide.'], 422);
+        }
+
+        // ✅ sécurité : visible pour l'user (global ou privé user)
+        $ingredient = $ingredientRepository->createVisibleToUserQueryBuilder($user, 'i')
+            ->andWhere('i.id = :id')
+            ->setParameter('id', $id)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        if (!$ingredient instanceof Ingredient) {
+            return new JsonResponse(['status' => 'error', 'message' => 'Ingrédient introuvable.'], 404);
+        }
+
+        return new JsonResponse([
+            'status' => 'ok',
+            'id' => $ingredient->getId(),
+            'text' => $ingredient->getName(),
+            'unit' => $ingredient->getBaseUnitValue(),
+        ]);
+    }
+
+    /**
+     * ✅ Création d'un ingrédient à la volée (modale)
+     * POST /stock/ingredient/create (AJAX)
+     */
+    #[Route('/ingredient/create', name: 'ingredient_create', methods: ['POST'])]
+    public function ingredientCreate(
+        Request $request,
+        IngredientRepository $ingredientRepository,
+        EntityManagerInterface $em
+    ): JsonResponse {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $name = trim((string) $request->request->get('name', ''));
+        $unitRaw = (string) $request->request->get('unit', Unit::G->value);
+
+        if ($name === '') {
+            return new JsonResponse([
+                'status' => 'error',
+                'message' => 'Nom requis.',
+            ], 422);
+        }
+
+        $nameKey = Ingredient::normalizeName($name);
+
+        // ✅ anti-doublon (global d'abord, puis user)
+        $existing = $ingredientRepository->findOneVisibleByNameKey($user, $nameKey);
+        if ($existing) {
+            return new JsonResponse([
+                'status' => 'ok',
+                'id' => $existing->getId(),
+                'name' => $existing->getName(),
+                'unit' => $existing->getUnitValue(),
+                'alreadyExists' => true,
+            ]);
+        }
+
+        $unit = Unit::tryFrom($unitRaw) ?? Unit::G;
+
+        $ingredient = new Ingredient();
+        $ingredient->setName($name);
+        $ingredient->setNameKey($nameKey);
+        $ingredient->setUser($user);
+        $ingredient->setUnit($unit);
+
+        $em->persist($ingredient);
+        $em->flush();
+
+        return new JsonResponse([
+            'status' => 'ok',
+            'id' => $ingredient->getId(),
+            'name' => $ingredient->getName(),
+            'unit' => $ingredient->getUnitValue(),
+            'alreadyExists' => false,
         ]);
     }
 
@@ -104,16 +240,13 @@ class StockController extends AbstractController
             $existing->setUser($user);
             $existing->setIngredient($ingredient);
             $existing->setQuantity('0.00');
-            $existing->setUnit($unit); // ✅ unité initiale du stock
+            $existing->setUnit($unit);
             $em->persist($existing);
             $isNew = true;
         } else {
             // ✅ choix métier : on NE change PAS l’unité d’une ligne existante automatiquement
-            // (sinon tu peux te retrouver avec "2 pots" + ajout "200 g" mélangés)
-            // Si tu veux quand même autoriser le switch : on le fera via une action dédiée "convertir / changer unité".
         }
 
-        // ✅ addition (et non overwrite)
         $current = (float) $existing->getQuantity();
         $newQty = $current + $quantityToAdd;
         $existing->setQuantity(number_format($newQty, 2, '.', ''));
