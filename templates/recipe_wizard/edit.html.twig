@@ -15,10 +15,8 @@
     data-recipe-wizard-save-draft-url-value="{{ path('recipe_wizard_save_draft') }}"
     data-recipe-wizard-recipe-id-value="{{ recipe.id }}"
     data-recipe-wizard-preview-url-value="{{ path('recipe_wizard_preview', { id: recipe.id }) }}"
-
     data-recipe-ingredients-upsert-url-value="{{ path('recipe_wizard_ingredient_upsert', { id: recipe.id }) }}"
     data-recipe-ingredients-preview-url-value="{{ path('recipe_wizard_preview', { id: recipe.id }) }}"
-
     data-recipe-steps-add-url-value="{{ path('recipe_wizard_step_add', { id: recipe.id }) }}"
   >
     <div class="card-body">
@@ -40,7 +38,6 @@
           </h1>
         </div>
 
-        {# ✅ Bouton contextuel : step1/2 => modifier nom ; step3 => retour ingrédients #}
         <div class="d-flex gap-2">
           <button
             type="button"
@@ -111,25 +108,47 @@
             'data-action': 'submit->recipe-ingredients#submitUpsert'
           }
         }) }}
+
           <div class="rp-quickadd__bar">
             <div class="rp-quickadd__field">
-              {{ form_widget(form.ingredient, { attr: { class: 'rp-quickadd__input', placeholder: 'Ajouter rapidement' } }) }}
+              {{ form_widget(form.ingredient, {
+                attr: {
+                  class: 'rp-quickadd__input',
+                  placeholder: 'Ajouter rapidement',
+
+                  'data-controller': 'ingredient-select',
+                  'data-ingredient-select-url-value': path('stock_ingredient_search'),
+                  'data-ingredient-select-detail-url-value': path('stock_ingredient_get'),
+                  'data-ingredient-select-create-url-value': path('stock_ingredient_create'),
+
+                  'data-ingredient-select-unit-selector-value': '#' ~ form.unit.vars.id,
+                  'data-ingredient-select-quantity-selector-value': '#' ~ form.quantity.vars.id,
+
+                  'data-ingredient-select-placeholder-value': 'Ajouter rapidement'
+                }
+              }) }}
               {{ form_errors(form.ingredient) }}
             </div>
 
             <div class="rp-quickadd__mini">
-              {{ form_widget(form.quantity, { attr: { class: 'rp-quickadd__miniInput', placeholder: 'Qté…', inputmode: 'decimal' } }) }}
+              {{ form_widget(form.quantity, {
+                attr: {
+                  class: 'rp-quickadd__miniInput',
+                  placeholder: 'Qté…',
+                  inputmode: 'decimal'
+                }
+              }) }}
               {{ form_errors(form.quantity) }}
             </div>
 
-            {# ✅ Unité : select intégré dans miniFake, comme sur Stock #}
             <div class="rp-quickadd__mini">
               <div class="rp-quickadd__miniFake">
                 {{ form_widget(form.unit, {
                   attr: {
                     class: 'rp-quickadd__miniSelect',
                     'aria-label': 'Unité',
-                    title: 'Unité'
+                    title: 'Unité',
+                    'data-unit-select': '1'
                   }
                 }) }}
               </div>
@@ -142,6 +161,7 @@
               <span class="rp-quickadd__btnChevron">›</span>
             </button>
           </div>
+
         {{ form_end(form) }}
 
         <div class="mt-3" data-recipe-ingredients-target="listing">
@@ -161,7 +181,7 @@
         </div>
       </section>
 
-      {# STEP 3 — STEPS (RecipeStep) #}
+      {# STEP 3 — STEPS #}
       <section class="rp-step is-hidden" data-recipe-wizard-target="step3">
 
         <div class="mb-2" data-recipe-steps-target="formError"></div>
@@ -194,7 +214,7 @@
         </div>
       </section>
 
-      {# ===== Delete Modal + Quantity Modal ingrédients (inchangés) ===== #}
+      {# ===== Modales ingrédients (inchangées) ===== #}
       <div
         class="modal fade"
         id="recipeIngredientDeleteModal"
@@ -287,6 +307,8 @@
           </div>
         </div>
       </div>
+
+      {{ include('common/_modal-ingredient.html.twig') }}
 
     </div>
   </div>

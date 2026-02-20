@@ -5,12 +5,15 @@ export default class extends Controller {
   static values = {
     url: String,
     detailUrl: String,
+
     unitSelector: String,
+    quantitySelector: String,
 
     placeholder: { type: String, default: 'Rechercher…' },
     maxItems: { type: Number, default: 1 },
     minQuery: { type: Number, default: 1 },
     limit: { type: Number, default: 20 },
+
     createUrl: String,
     clearOnFocus: { type: Boolean, default: true },
   };
@@ -91,9 +94,7 @@ export default class extends Controller {
           }
 
           const currentValue = this.getValue();
-          if (currentValue === '' || currentValue == null) {
-            this.clear(true);
-          }
+          if (currentValue === '' || currentValue == null) this.clear(true);
         } catch (e) {}
 
         const dropdown = this.dropdown_content;
@@ -102,61 +103,61 @@ export default class extends Controller {
           dropdown.addEventListener('click', controller._onDropdownPointer);
         }
 
-        // ✅ sélection existante -> auto unité
         this.on('item_add', async (value) => {
-            const key = String(value ?? '');
-            const opt = this.options?.[key] || this.options?.[value];
+          const key = String(value ?? '');
+          const opt = this.options?.[key] || this.options?.[value];
 
-            const focusQty = () => {
-                // TomSelect reprend souvent le focus juste après item_add
-                setTimeout(() => controller._focusQuantityInputNear(controller.element), 0);
-            };
+          const focusQty = () => {
+            setTimeout(() => controller._focusQuantityInputNear(controller.element), 80);
+          };
 
-            const unit = opt?.unit;
-            if (unit) {
-                controller._setUnitInForm(unit);
-                focusQty();
-                return;
-            }
+          const unit = opt?.unit;
+          if (unit) {
+            controller._setUnitInForm(unit);
+            focusQty();
+            return;
+          }
 
-            // fallback serveur si unit pas dans l'option
-            const detailUrl = controller.detailUrlValue || controller.element.dataset.ingredientSelectDetailUrlValue;
-            if (!detailUrl) {
-                focusQty();
-                return;
-            }
+          const detailUrl =
+            controller.detailUrlValue ||
+            controller.element.dataset.ingredientSelectDetailUrlValue;
 
-            try {
-                const sep = detailUrl.includes('?') ? '&' : '?';
-                const res = await fetch(`${detailUrl}${sep}id=${encodeURIComponent(key)}`, {
-                headers: { Accept: 'application/json' },
-                });
-                const data = await res.json().catch(() => null);
+          if (!detailUrl) {
+            focusQty();
+            return;
+          }
 
-                if (!res.ok || !data || data.status !== 'ok') {
-                focusQty();
-                return;
-                }
-
-                const fetchedUnit = data.unit;
-                if (fetchedUnit) {
-                try {
-                    this.updateOption(key, {
-                    ...(opt || {}),
-                    value: key,
-                    text: data.text || (opt?.text ?? ''),
-                    unit: fetchedUnit,
-                    });
-                } catch (e) {}
-
-                controller._setUnitInForm(fetchedUnit);
-                }
-
-                focusQty();
-            } catch (e) {
-                focusQty();
-            }
+          try {
+            const sep = detailUrl.includes('?') ? '&' : '?';
+            const res = await fetch(`${detailUrl}${sep}id=${encodeURIComponent(key)}`, {
+              headers: { Accept: 'application/json' },
             });
+            const data = await res.json().catch(() => null);
+
+            if (!res.ok || !data || data.status !== 'ok') {
+              focusQty();
+              return;
+            }
+
+            const fetchedUnit = data.unit;
+            if (fetchedUnit) {
+              try {
+                this.updateOption(key, {
+                  ...(opt || {}),
+                  value: key,
+                  text: data.text || (opt?.text ?? ''),
+                  unit: fetchedUnit,
+                });
+              } catch (e) {}
+
+              controller._setUnitInForm(fetchedUnit);
+            }
+
+            focusQty();
+          } catch (e) {
+            focusQty();
+          }
+        });
       },
     });
 
@@ -188,13 +189,11 @@ export default class extends Controller {
     if (!this.ts) return;
 
     const v = this.ts.getValue();
-
     if (this.clearOnFocusValue && v) {
       this.ts.clear(true);
       this.ts.open();
       return;
     }
-
     if (!v) this.ts.open();
   }
 
@@ -202,36 +201,59 @@ export default class extends Controller {
     const form = this.element.closest('form');
     if (!form) return;
 
-    // ✅ 1) le meilleur : un marker explicite dans Twig
     let unitSelect = form.querySelector('select[data-unit-select="1"]');
 
-    // ✅ 2) fallback: selector explicite (si tu veux l’utiliser)
     if (!unitSelect) {
       const selector =
         this.unitSelectorValue ||
         this.element.dataset.ingredientSelectUnitSelectorValue ||
         null;
-      if (selector) unitSelect = document.querySelector(selector);
+
+      if (selector) {
+        unitSelect = form.querySelector(selector) || document.querySelector(selector);
+      }
     }
 
-    // ✅ 3) fallback: ta classe UI
-    if (!unitSelect) {
-      unitSelect = form.querySelector('select.rp-quickadd__miniSelect');
-    }
-
+    if (!unitSelect) unitSelect = form.querySelector('select.rp-quickadd__miniSelect');
     if (!unitSelect) return;
 
     const v = String(unitValue);
     unitSelect.value = v;
 
-    // sécurité si mismatch
-    if (unitSelect.value !== v) {
-      // au lieu de vider, on garde l'existant (ou on force g si tu préfères)
-      // unitSelect.value = 'g';
-      return;
-    }
+    // si mismatch (valeur pas présente), on ne casse rien
+    if (unitSelect.value !== v) return;
 
     unitSelect.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  _getQuantityInput(selectEl) {
+    const form = selectEl.closest('form');
+    if (!form) return null;
+
+    const selector =
+      this.quantitySelectorValue ||
+      selectEl.dataset.ingredientSelectQuantitySelectorValue ||
+      null;
+
+    if (selector) {
+      return form.querySelector(selector) || document.querySelector(selector);
+    }
+
+    return (
+      form.querySelector('input[name$="[quantity]"]') ||
+      form.querySelector('input[name*="[quantity]"]') ||
+      null
+    );
+  }
+
+  _focusQuantityInputNear(selectEl) {
+    const qtyInput = this._getQuantityInput(selectEl);
+    if (!qtyInput) return;
+
+    setTimeout(() => {
+      qtyInput.focus();
+      qtyInput.select?.();
+    }, 80);
   }
 
   _onDropdownPointer(e) {
@@ -281,11 +303,13 @@ export default class extends Controller {
     this._attachModalListeners();
 
     if (window.bootstrap?.Modal) {
-      this._bsModal = this._bsModal || new window.bootstrap.Modal(els.modalEl, {
-        focus: true,
-        backdrop: true,
-        keyboard: true,
-      });
+      this._bsModal =
+        this._bsModal ||
+        new window.bootstrap.Modal(els.modalEl, {
+          focus: true,
+          backdrop: true,
+          keyboard: true,
+        });
       this._bsModal.show();
     } else {
       alert('Bootstrap Modal non disponible (bootstrap.bundle pas chargé).');
@@ -323,7 +347,6 @@ export default class extends Controller {
 
   _detachModalListeners() {
     if (!this._activeModalEls || !this._modalListenersAttached) return;
-
     this._modalListenersAttached = false;
 
     this._activeModalEls.submitBtn.removeEventListener('click', this._onModalSubmit);
@@ -352,14 +375,8 @@ export default class extends Controller {
       return;
     }
 
-    const createUrl =
-      this.createUrlValue ||
-      els.modalEl.dataset.ingredientCreateUrl ||
-      '';
-
-    const csrf =
-      els.modalEl.dataset.ingredientCreateCsrf ||
-      '';
+    const createUrl = this.createUrlValue || els.modalEl.dataset.ingredientCreateUrl || '';
+    const csrf = els.modalEl.dataset.ingredientCreateCsrf || '';
 
     if (!createUrl) {
       els.errorBox.innerHTML = `<div class="alert alert-danger mb-0">URL de création manquante.</div>`;
@@ -383,7 +400,7 @@ export default class extends Controller {
       const data = await res.json().catch(() => null);
 
       if (!res.ok || !data || data.status !== 'ok') {
-        const msg = (data && data.message) ? data.message : 'Erreur lors de la création.';
+        const msg = data && data.message ? data.message : 'Erreur lors de la création.';
         els.errorBox.innerHTML = `<div class="alert alert-danger mb-0">${msg}</div>`;
         return;
       }
@@ -412,27 +429,12 @@ export default class extends Controller {
       this._setUnitInForm(createdUnit);
 
       try { this._bsModal?.hide(); } catch (e) {}
+
       this._focusQuantityInputNear(targetSelect);
     } catch (err) {
       els.errorBox.innerHTML = `<div class="alert alert-danger mb-0">Erreur réseau.</div>`;
     } finally {
       els.submitBtn.disabled = false;
-    }
-  }
-
-  _focusQuantityInputNear(selectEl) {
-    const form = selectEl.closest('form');
-    if (!form) return;
-
-    const qtyInput =
-      form.querySelector('input[name$="[quantity]"]') ||
-      form.querySelector('input[name*="[quantity]"]');
-
-    if (qtyInput) {
-      setTimeout(() => {
-        qtyInput.focus();
-        qtyInput.select?.();
-      }, 50);
     }
   }
 }

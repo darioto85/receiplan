@@ -39,6 +39,18 @@ final class RecipeIngredientUpsertType extends AbstractType
             ->add('unit', ChoiceType::class, [
                 'required' => true,
                 'placeholder' => false,
+
+                // ✅ important : labels affichés
+                'choice_label' => static function ($choice, $key, $value) {
+                    // $key = 'g', 'kg', etc. dans notre tableau
+                    return (string) $key;
+                },
+
+                // ✅ IMPORTANT : value HTML = backed enum value ("g", "kg", "piece"...)
+                'choice_value' => static function (?Unit $choice) {
+                    return $choice?->value;
+                },
+
                 'choices' => [
                     'g' => Unit::G,
                     'kg' => Unit::KG,
@@ -51,10 +63,9 @@ final class RecipeIngredientUpsertType extends AbstractType
                     'tranche' => Unit::TRANCHE,
                     'paquet' => Unit::PAQUET,
                 ],
+
+                // ✅ valeur par défaut
                 'data' => Unit::G,
-                'constraints' => [
-                    new NotBlank(message: 'Choisis une unité.'),
-                ],
             ])
         ;
     }
