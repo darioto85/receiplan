@@ -30,7 +30,6 @@
           <span class="d-inline d-sm-none">Ajout</span>
         </button>
 
-        {# ✅ ouvre la modale de génération #}
         <button
           type="button"
           class="btn btn-outline-primary d-flex align-items-center gap-2"
@@ -58,51 +57,17 @@
       </div>
     </div>
 
-    {# ===== Quick Add Bar (comme Stock) ===== #}
+    {# ===== Quick Add Bar (factorisé, même HTML que Stock) ===== #}
     <div id="shoppingUpsertForm" class="collapse mb-4">
       <div class="mb-2" data-shopping-target="formErrors"></div>
 
-      {{ form_start(form, {
+      {{ include('common/_ingredient_quickadd_form.html.twig', {
+        form: form,
         action: path('shopping_upsert'),
-        method: 'POST',
-        attr: {
-          class: 'rp-quickadd',
-          'data-action': 'submit->shopping#submitUpsert'
-        }
+        submit_action: 'submit->shopping#submitUpsert',
+        search_url: path('stock_ingredient_search'),
+        detail_url: path('stock_ingredient_get')
       }) }}
-
-        <div class="rp-quickadd__bar">
-          <div class="rp-quickadd__field">
-            {{ form_widget(form.ingredient, { attr: { class: 'rp-quickadd__input', placeholder: 'Ajouter rapidement' } }) }}
-            {{ form_errors(form.ingredient) }}
-          </div>
-
-          <div class="rp-quickadd__mini">
-            {{ form_widget(form.quantity, { attr: { class: 'rp-quickadd__miniInput', placeholder: 'Qté…', inputmode: 'decimal' } }) }}
-            {{ form_errors(form.quantity) }}
-          </div>
-
-          {# ✅ Unit : intégré dans la "case design" rp-quickadd__miniFake #}
-          <div class="rp-quickadd__mini">
-            <div class="rp-quickadd__miniFake rp-quickadd__miniSelectWrap">
-              {{ form_widget(form.unit, {
-                attr: {
-                  class: 'rp-quickadd__miniSelect',
-                  'aria-label': 'Unité'
-                }
-              }) }}
-            </div>
-            {{ form_errors(form.unit) }}
-          </div>
-
-          <button type="submit" class="rp-quickadd__btn">
-            <span class="rp-quickadd__btnIcon">+</span>
-            <span>Ajouter</span>
-            <span class="rp-quickadd__btnChevron">›</span>
-          </button>
-        </div>
-
-      {{ form_end(form) }}
     </div>
 
     <div data-shopping-target="listing">
@@ -183,6 +148,9 @@
         </div>
       </div>
     </div>
+
+    {# ✅ MODALE: création ingrédient (réutilise stock_ingredient_create) #}
+    {{ include('common/_modal-ingredient.html.twig') }}
 
   </div>
 {% endblock %}

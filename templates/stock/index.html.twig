@@ -78,7 +78,13 @@
           </div>
 
           <div class="rp-quickadd__mini">
-            {{ form_widget(form.quantity, { attr: { class: 'rp-quickadd__miniInput', placeholder: 'Qté…', inputmode: 'decimal' } }) }}
+            {{ form_widget(form.quantity, {
+              attr: {
+                class: 'rp-quickadd__miniInput',
+                placeholder: 'Qté…',
+                inputmode: 'decimal'
+              }
+            }) }}
             {{ form_errors(form.quantity) }}
           </div>
 
@@ -108,7 +114,6 @@
     </div>
 
     {# ===== Liste du stock ===== #}
-
     <div data-stock-target="listing">
       {{ include('stock/_listing.html.twig', { items: items }) }}
     </div>
@@ -212,7 +217,7 @@
       </div>
     </div>
 
-{{ include('common/_modal-ingredient.html.twig') }}
+    {{ include('common/_modal-ingredient.html.twig') }}
 
   </div>
 {% endblock %}

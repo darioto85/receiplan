@@ -1,0 +1,74 @@
+{# templates/common/_ingredient_quickadd_form.html.twig #}
+
+{# Variables attendues :
+   - form (FormView)
+   - action (string) : URL d’action du form
+   - submit_action (string) : ex "submit->stock#submitUpsert" ou "submit->shopping#submitUpsert"
+   - search_url (string) : endpoint TomSelect search (ex stock_ingredient_search)
+   - detail_url (string) : endpoint detail (ex stock_ingredient_get)
+#}
+
+<div class="mb-2">
+  <div class="mb-2">
+    {# container erreurs (le controller Stimulus parent gère le target) #}
+    {# IMPORTANT : on ne met pas de target ici pour rester agnostique #}
+  </div>
+
+  {{ form_start(form, {
+    action: action,
+    method: 'POST',
+    attr: {
+      class: 'rp-quickadd',
+      'data-action': submit_action
+    }
+  }) }}
+
+    <div class="rp-quickadd__bar">
+      <div class="rp-quickadd__field">
+        {{ form_widget(form.ingredient, {
+          attr: {
+            class: 'rp-quickadd__input',
+            placeholder: 'Ajouter rapidement',
+            'data-controller': 'ingredient-select',
+            'data-ingredient-select-url-value': search_url,
+            'data-ingredient-select-detail-url-value': detail_url,
+            'data-ingredient-select-placeholder-value': 'Ajouter rapidement'
+          }
+        }) }}
+        {{ form_errors(form.ingredient) }}
+      </div>
+
+      <div class="rp-quickadd__mini">
+        {{ form_widget(form.quantity, {
+          attr: {
+            class: 'rp-quickadd__miniInput',
+            placeholder: 'Qté…',
+            inputmode: 'decimal'
+          }
+        }) }}
+        {{ form_errors(form.quantity) }}
+      </div>
+
+      <div class="rp-quickadd__mini">
+        <div class="rp-quickadd__miniFake rp-quickadd__miniSelectWrap">
+          {{ form_widget(form.unit, {
+            attr: {
+              class: 'rp-quickadd__miniSelect',
+              'aria-label': 'Unité',
+              title: 'Unité',
+              'data-unit-select': '1'
+            }
+          }) }}
+        </div>
+        {{ form_errors(form.unit) }}
+      </div>
+
+      <button type="submit" class="rp-quickadd__btn">
+        <span class="rp-quickadd__btnIcon">+</span>
+        <span>Ajouter</span>
+        <span class="rp-quickadd__btnChevron">›</span>
+      </button>
+    </div>
+
+  {{ form_end(form) }}
+</div>
