@@ -326,6 +326,15 @@ class Ingredient
             }
         }
 
+        // ✅ apostrophes -> tiret
+        $name = str_replace(["'", "’"], '-', $name);
+
+        // ✅ espaces autour des tirets => tiret simple
+        $name = preg_replace('/\s*-\s*/u', '-', $name) ?? $name;
+
+        // ✅ évite les tirets multiples
+        $name = preg_replace('/-+/u', '-', $name) ?? $name;
+
         return $name;
     }
 

@@ -2,8 +2,11 @@ import { Controller } from '@hotwired/stimulus';
 
 export default class extends Controller {
   static targets = [
+    // listing
     'mobileList',
+    'desktopTable',
     'desktopTbody',
+    'empty',
     'count',
     'formErrors',
 
@@ -39,6 +42,9 @@ export default class extends Controller {
         this.qtyModalInputTarget.dataset.prefillValue = '';
       });
     }
+
+    // état initial cohérent
+    this._syncEmptyState();
   }
 
   // =========================
@@ -54,7 +60,7 @@ export default class extends Controller {
       method: 'POST',
       headers: {
         'X-Requested-With': 'XMLHttpRequest',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
       body: new FormData(form),
     });
@@ -62,8 +68,8 @@ export default class extends Controller {
     const data = await res.json().catch(() => null);
 
     if (!res.ok || !data || data.status !== 'ok') {
-      const msg = (data && data.message) ? data.message : 'Erreur lors de l’ajout.';
-      const errorsHtml = (data && data.errors) ? data.errors : null;
+      const msg = data && data.message ? data.message : 'Erreur lors de l’ajout.';
+      const errorsHtml = data && data.errors ? data.errors : null;
       this._showFormErrors(msg, errorsHtml);
       return;
     }
@@ -72,17 +78,29 @@ export default class extends Controller {
       this.countTarget.textContent = String(data.count);
     }
 
+    // ✅ Desktop: insert/replace row
     if (this.hasDesktopTbodyTarget && data.htmlDesktop) {
-      const existing = this.desktopTbodyTarget.querySelector(`[data-stock-item-id="${data.id}"]`);
+      const existing = this.desktopTbodyTarget.querySelector(
+        `[data-stock-item-id="${data.id}"]`
+      );
       if (existing) existing.outerHTML = data.htmlDesktop;
       else this.desktopTbodyTarget.insertAdjacentHTML('afterbegin', data.htmlDesktop);
     }
 
+    // ✅ Mobile: insert/replace item
     if (this.hasMobileListTarget && data.htmlMobile) {
-      const existing = this.mobileListTarget.querySelector(`[data-stock-item-id="${data.id}"]`);
+      const existing = this.mobileListTarget.querySelector(
+        `[data-stock-item-id="${data.id}"]`
+      );
       if (existing) existing.outerHTML = data.htmlMobile;
       else this.mobileListTarget.insertAdjacentHTML('afterbegin', data.htmlMobile);
     }
+
+    // ✅ IMPORTANT: supprimer/cacher tous les "empty" (mobile + desktop)
+    this._removeAllEmptyPlaceholders();
+
+    // ✅ et s'assurer que les conteneurs sont affichés
+    this._syncEmptyState(true);
 
     form.reset();
 
@@ -138,7 +156,7 @@ export default class extends Controller {
       method: 'POST',
       headers: {
         'X-Requested-With': 'XMLHttpRequest',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
       body: new FormData(form),
     });
@@ -146,7 +164,7 @@ export default class extends Controller {
     const data = await res.json().catch(() => null);
 
     if (!res.ok || !data || data.status !== 'ok') {
-      const msg = (data && data.message) ? data.message : 'Erreur lors de la suppression.';
+      const msg = data && data.message ? data.message : 'Erreur lors de la suppression.';
       if (this.hasDeleteErrorTarget) {
         this.deleteErrorTarget.innerHTML = `<div class="alert alert-danger mb-0">${msg}</div>`;
       }
@@ -160,6 +178,9 @@ export default class extends Controller {
 
     const selector = `[data-stock-item-id="${data.id}"]`;
     this.element.querySelectorAll(selector).forEach((el) => el.remove());
+
+    // ✅ si on devient vide, on doit afficher l'état vide (si présent)
+    this._syncEmptyState();
 
     if (this.bsDeleteModal) this.bsDeleteModal.hide();
     this.pendingDeleteForm = null;
@@ -250,7 +271,7 @@ export default class extends Controller {
   }
 
   // =========================
-  // MOBILE qty modal (single input + unit suffix)
+  // MOBILE qty modal
   // =========================
   openQuantityModal(event) {
     const btn = event.currentTarget;
@@ -266,8 +287,6 @@ export default class extends Controller {
     if (this.hasQtyModalInputTarget) {
       const prefill = btn.dataset.stockQtyValue || '0.00';
       this.qtyModalInputTarget.value = prefill;
-
-      // ✅ reset à chaque ouverture
       this.qtyModalInputTarget.dataset.clearedOnce = '0';
       this.qtyModalInputTarget.dataset.prefillValue = prefill;
     }
@@ -283,14 +302,11 @@ export default class extends Controller {
 
   clearQtyOnFocus(event) {
     const input = event.currentTarget;
-
-    // Ne vider qu'une fois par ouverture
     if (input.dataset.clearedOnce === '1') return;
 
     const current = String(input.value ?? '').trim();
     const prefill = String(input.dataset.prefillValue ?? '').trim();
 
-    // ✅ vide seulement si c'est encore la valeur préremplie
     if (current === prefill) {
       input.value = '';
     } else if (current !== '') {
@@ -330,9 +346,6 @@ export default class extends Controller {
     return match[0];
   }
 
-  // =========================
-  // Shared AJAX: update quantity
-  // =========================
   async _sendQuantityUpdate({ id, url, token, quantity, onError }) {
     if (quantity === '') {
       if (onError) onError('Quantité invalide.');
@@ -347,7 +360,7 @@ export default class extends Controller {
       method: 'POST',
       headers: {
         'X-Requested-With': 'XMLHttpRequest',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
       body: form,
     });
@@ -355,7 +368,7 @@ export default class extends Controller {
     const data = await res.json().catch(() => null);
 
     if (!res.ok || !data || data.status !== 'ok') {
-      const msg = (data && data.message) ? data.message : 'Erreur lors de la mise à jour.';
+      const msg = data && data.message ? data.message : 'Erreur lors de la mise à jour.';
       if (onError) onError(msg);
       return;
     }
@@ -378,5 +391,44 @@ export default class extends Controller {
         const input = el.querySelector?.('.rp-qty-input');
         if (input) input.value = quantity;
       });
+  }
+
+  // =========================
+  // Empty state handling (mobile + desktop)
+  // =========================
+  _removeAllEmptyPlaceholders() {
+    if (!this.hasEmptyTarget) return;
+
+    // Stimulus: emptyTargets = tous les éléments ayant data-stock-target="empty"
+    const empties = this.emptyTargets || [];
+    empties.forEach((el) => {
+      const tag = (el.tagName || '').toLowerCase();
+      if (tag === 'tr') {
+        el.remove(); // desktop empty row
+      } else {
+        el.classList.add('d-none'); // mobile empty div
+      }
+    });
+  }
+
+  _syncEmptyState(forceNonEmpty = false) {
+    let hasAny = forceNonEmpty;
+
+    if (!hasAny) {
+      if (this.hasMobileListTarget && this.mobileListTarget.querySelector('[data-stock-item-id]')) {
+        hasAny = true;
+      }
+      if (!hasAny && this.hasDesktopTbodyTarget && this.desktopTbodyTarget.querySelector('[data-stock-item-id]')) {
+        hasAny = true;
+      }
+    }
+
+    if (hasAny) {
+      this._removeAllEmptyPlaceholders();
+    } else {
+      // si on est vide, on ré-affiche les placeholders existants (si présents)
+      const empties = this.emptyTargets || [];
+      empties.forEach((el) => el.classList.remove('d-none'));
+    }
   }
 }

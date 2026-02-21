@@ -1,6 +1,11 @@
 {# templates/stock/_stock_item.html.twig #}
 
-{% set ing = ui.ingredient %}
+{% set ing = ui.ingredient ?? null %}
+{% set ingName = ing ? ing.name : 'Ingrédient supprimé' %}
+
+{# Si tu as un placeholder local #}
+{% set ingImg = ing ? ingredient_image(ing) : asset('img/ingredient/placeholder.png') %}
+
 {% set unitValue = ui.unitValue|default('') %}
 {% set unitLabel = ui.unitLabel|default(unitValue) %}
 {% set updateUrl = path('stock_update_quantity', { id: ui.id }) %}
@@ -11,7 +16,7 @@
   <div
     class="swipe-item {% if first|default(false) %}swipe-hint{% endif %}"
     data-stock-item-id="{{ ui.id }}"
-    data-stock-item-name="{{ ing.name }}"
+    data-stock-item-name="{{ ingName }}"
     data-controller="swipe-reveal"
     data-swipe-reveal-open-class-value="is-revealed"
   >
@@ -35,8 +40,8 @@
         {# ===== LEFT: image + name ===== #}
         <div class="d-flex align-items-center gap-2 flex-grow-1" style="min-width:0;">
           <img
-            src="{{ ingredient_image(ing) }}"
-            alt="{{ ing.name }}"
+            src="{{ ingImg }}"
+            alt="{{ ingName }}"
             width="50"
             height="50"
             loading="lazy"
@@ -44,7 +49,10 @@
             style="object-fit: contain; border-radius: 8px; flex: 0 0 auto;"
           >
           <div class="text-truncate">
-            <span class="fw-semibold">{{ ing.name|capitalize }}</span>
+            <span class="fw-semibold">{{ ingName|capitalize }}</span>
+            {% if not ing %}
+              <span class="badge text-bg-warning ms-2">supprimé</span>
+            {% endif %}
           </div>
         </div>
 
@@ -55,7 +63,7 @@
             class="rp-qty-btn p-0 border-0 bg-transparent w-100"
             data-action="click->stock#openQuantityModal"
             data-stock-qty-id="{{ ui.id }}"
-            data-stock-qty-name="{{ ing.name }}"
+            data-stock-qty-name="{{ ingName }}"
             data-stock-qty-value="{{ ui.quantity }}"
             data-stock-qty-unit="{{ unitLabel ?: 'unité' }}"
             data-stock-qty-url="{{ updateUrl }}"
@@ -79,18 +87,21 @@
 
 {% else %}
 
-  <tr data-stock-item-id="{{ ui.id }}" data-stock-item-name="{{ ing.name }}">
+  <tr data-stock-item-id="{{ ui.id }}" data-stock-item-name="{{ ingName }}">
     <td>
       <div class="d-flex align-items-center gap-2">
         <img
-          src="{{ ingredient_image(ing) }}"
-          alt="{{ ing.name }}"
+          src="{{ ingImg }}"
+          alt="{{ ingName }}"
           width="50"
           height="50"
           loading="lazy"
           style="object-fit: contain; border-radius: 6px;"
         >
-        <span>{{ ing.name|capitalize }}</span>
+        <span>{{ ingName|capitalize }}</span>
+        {% if not ing %}
+          <span class="badge text-bg-warning ms-2">supprimé</span>
+        {% endif %}
       </div>
     </td>
 

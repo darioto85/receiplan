@@ -63,6 +63,7 @@ enum CategoryEnum: string
     case PLAT_PREPARE = 'plat_prepare';
     case AIDE_CULINAIRE = 'aide_culinaire'; // levure, gélatine, bouillon…
     case AUTRE = 'autre';
+    case FRUIT_SEC = 'fruit_sec';
 
     public function label(): string
     {
@@ -107,6 +108,7 @@ enum CategoryEnum: string
             self::PLAT_PREPARE => 'Plats préparés',
             self::AIDE_CULINAIRE => 'Aides culinaires',
             self::AUTRE => 'Autres',
+            self::FRUIT_SEC => 'Fruits secs',
         };
     }
 

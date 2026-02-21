@@ -1,32 +1,51 @@
 {# templates/stock/_listing.html.twig #}
 
-{% if items is empty %}
-  <div class="text-muted">Aucun ingrédient en stock.</div>
-{% else %}
-
-  <div class="d-grid gap-2 d-md-none" data-stock-target="mobileList">
+{# ===== Mobile list ===== #}
+<div
+  class="d-grid gap-2 d-md-none"
+  data-stock-target="mobileList"
+>
+  {% if items is empty %}
+    <div
+      class="text-muted text-center py-4"
+      data-stock-target="empty"
+    >
+      Aucun ingrédient en stock.
+    </div>
+  {% else %}
     {% for ui in items %}
       {{ include('stock/_stock_item.html.twig', { ui: ui, variant: 'mobile', first: loop.first }) }}
     {% endfor %}
-  </div>
+  {% endif %}
+</div>
 
-  <div class="table-responsive d-none d-md-block" data-stock-target="desktopTable">
-    <table class="table align-middle mb-0">
-      <thead>
-        <tr>
-          <th>Ingrédient</th>
-          <th class="text-end">Quantité</th>
-          <th class="text-end">Unité</th>
-          <th class="text-end">Actions</th>
+{# ===== Desktop table ===== #}
+<div
+  class="table-responsive d-none d-md-block"
+  data-stock-target="desktopTable"
+>
+  <table class="table align-middle mb-0">
+    <thead>
+      <tr>
+        <th>Ingrédient</th>
+        <th class="text-end">Quantité</th>
+        <th class="text-end">Unité</th>
+        <th class="text-end">Actions</th>
+      </tr>
+    </thead>
+
+    <tbody data-stock-target="desktopTbody">
+      {% if items is empty %}
+        <tr data-stock-target="empty">
+          <td colspan="4" class="text-center text-muted py-4">
+            Aucun ingrédient en stock.
+          </td>
         </tr>
-      </thead>
-
-      <tbody data-stock-target="desktopTbody">
+      {% else %}
         {% for ui in items %}
           {{ include('stock/_stock_item.html.twig', { ui: ui, variant: 'desktop' }) }}
         {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-{% endif %}
+      {% endif %}
+    </tbody>
+  </table>
+</div>
