@@ -2,7 +2,22 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8">
-    <title>{% block title %}KuKo{% endblock %}</title>
+    <title>{% block title %}Kuko — Idées de repas simples avec ce que tu as déjà{% endblock %}</title>
+
+    <meta name="description" content="Kuko t’aide à décider quoi cuisiner avec ce que tu as déjà. Une idée claire par jour pour réduire la charge mentale des repas. Simple, rapide, sans pression.">
+
+    <meta name="keywords" content="idée repas, quoi cuisiner, charge mentale repas, planification repas simple, repas du soir, gestion stock cuisine">
+
+    <meta property="og:title" content="Kuko — Libère ta charge mentale des repas">
+    <meta property="og:description" content="Une idée claire par jour à partir de ce que tu as déjà. Décide plus vite. Respire.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://www.hellokuko.io">
+    <meta property="og:image" content="{{ asset('img/home/logo.png') }}">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Kuko — Libère ta charge mentale des repas">
+    <meta name="twitter:description" content="Une idée claire par jour à partir de ce que tu as déjà.">
+    <meta name="twitter:image" content="{{ asset('img/home/logo.png') }}">
 
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -85,6 +100,30 @@
       </div>
     </main>
 
+    <div class="visually-hidden">
+      <h2>Idée de repas simple et planification facile</h2>
+      <p>
+        Kuko est une application web pensée pour aider à trouver une idée de repas simple à partir des ingrédients disponibles. 
+        Elle permet aussi de planifier les repas de la semaine sans complexité, afin de réduire la charge mentale liée à l’organisation des repas du soir.
+      </p>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Kuko",
+    "applicationCategory": "ProductivityApplication",
+    "operatingSystem": "Web",
+    "description": "Application web pour réduire la charge mentale des repas en proposant une idée claire à partir de ce que l’on a déjà.",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "EUR"
+    }
+  }
+  </script>
   </body>
 </html>
