@@ -8,16 +8,14 @@
     <div class="rp-landing-hero-card">
       <div class="row align-items-center g-4 g-lg-5">
 
-         <div class="col-12 col-lg-7">
-        <h1 class="rp-landing-title mb-3">
-          Le repas du soir,<br class="d-none d-md-inline">
-          en plus simple.
+        <div class="col-12 col-lg-7">
+        <h1 class="rp-landing-title">
+          Libère ta charge mentale<br class="d-none d-md-inline">
+          des repas.
         </h1>
 
-        <p class="rp-landing-lead fs-5 mb-2">
+        <p class="rp-landing-lead fs-5 mt-3 mb-4">
           Chaque jour, Kuko te propose <strong>une idée claire</strong> à partir de ce que tu as déjà.
-        </p>
-        <p class="rp-landing-lead fs-5 mb-4">
           Tu peux l’accepter, demander une alternative, ou passer — <strong>sans pression</strong>.
         </p>
 
@@ -28,7 +26,7 @@
         </ul>
 
         <div class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
-          <a href="#" class="btn btn-primary">Rejoindre la liste privée</a>
+          <a href="#preinscription" class="btn btn-primary">Rejoindre la liste privée</a>
         </div>
 
         <p class="text-muted small mt-2 mb-0">
@@ -132,13 +130,16 @@
       </div>
 
     </div>
+    {# Flèches #}
+    <button class="carousel-control-prev" type="button" data-bs-target="#stepsCarousel" data-bs-slide="prev">
+      <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+      <span class="visually-hidden">Précédent</span>
+    </button>
 
-    {# Indicateurs #}
-    <div class="carousel-indicators position-static mt-3">
-      <button type="button" data-bs-target="#stepsCarousel" data-bs-slide-to="0" class="active"></button>
-      <button type="button" data-bs-target="#stepsCarousel" data-bs-slide-to="1"></button>
-      <button type="button" data-bs-target="#stepsCarousel" data-bs-slide-to="2"></button>
-    </div>
+    <button class="carousel-control-next" type="button" data-bs-target="#stepsCarousel" data-bs-slide="next">
+      <span class="carousel-control-next-icon" aria-hidden="true"></span>
+      <span class="visually-hidden">Suivant</span>
+    </button>
   </div>
 
 </section>
@@ -443,28 +444,21 @@
     {# 1 #}
     <div class="accordion-item rp-faq-item">
       <h3 class="accordion-header" id="faq-h-1">
-        <button
-          class="accordion-button collapsed rp-faq-btn"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#faq-c-1"
-          aria-expanded="false"
-          aria-controls="faq-c-1"
-        >
+        <button class="accordion-button collapsed rp-faq-btn" type="button"
+          data-bs-toggle="collapse" data-bs-target="#faq-c-1"
+          aria-expanded="false" aria-controls="faq-c-1">
           <span class="rp-faq-q">Est-ce que je dois tout entrer à la main ?</span>
           <span class="rp-faq-plus" aria-hidden="true"></span>
         </button>
       </h3>
-      <div
-        id="faq-c-1"
-        class="accordion-collapse collapse"
-        aria-labelledby="faq-h-1"
-        data-bs-parent="#faqAccordion"
-      >
+      <div id="faq-c-1" class="accordion-collapse collapse"
+        aria-labelledby="faq-h-1" data-bs-parent="#faqAccordion">
         <div class="accordion-body">
           <p class="mb-2">Non.</p>
           <p class="mb-0">
-            Tu peux commencer petit, ajouter ton stock au fil de l’eau, ou utiliser l’assistant.<br>
+            Tu peux commencer avec quelques produits seulement.<br>
+            Ajouter ton stock progressivement.<br>
+            Ou utiliser l’assistant si tu veux aller plus vite.<br>
             Kuko s’adapte à ton rythme.
           </p>
         </div>
@@ -474,29 +468,21 @@
     {# 2 #}
     <div class="accordion-item rp-faq-item">
       <h3 class="accordion-header" id="faq-h-2">
-        <button
-          class="accordion-button collapsed rp-faq-btn"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#faq-c-2"
-          aria-expanded="false"
-          aria-controls="faq-c-2"
-        >
+        <button class="accordion-button collapsed rp-faq-btn" type="button"
+          data-bs-toggle="collapse" data-bs-target="#faq-c-2"
+          aria-expanded="false" aria-controls="faq-c-2">
           <span class="rp-faq-q">Est-ce que Kuko décide à ma place ?</span>
           <span class="rp-faq-plus" aria-hidden="true"></span>
         </button>
       </h3>
-      <div
-        id="faq-c-2"
-        class="accordion-collapse collapse"
-        aria-labelledby="faq-h-2"
-        data-bs-parent="#faqAccordion"
-      >
+      <div id="faq-c-2" class="accordion-collapse collapse"
+        aria-labelledby="faq-h-2" data-bs-parent="#faqAccordion">
         <div class="accordion-body">
           <p class="mb-2">Non.</p>
           <p class="mb-0">
             Kuko propose une idée claire.<br>
-            Tu peux l’accepter, demander une alternative ou passer. Tu gardes toujours le contrôle.
+            Tu peux l’accepter, demander une alternative ou passer.<br>
+            Tu gardes toujours le contrôle.
           </p>
         </div>
       </div>
@@ -505,29 +491,20 @@
     {# 3 #}
     <div class="accordion-item rp-faq-item">
       <h3 class="accordion-header" id="faq-h-3">
-        <button
-          class="accordion-button collapsed rp-faq-btn"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#faq-c-3"
-          aria-expanded="false"
-          aria-controls="faq-c-3"
-        >
+        <button class="accordion-button collapsed rp-faq-btn" type="button"
+          data-bs-toggle="collapse" data-bs-target="#faq-c-3"
+          aria-expanded="false" aria-controls="faq-c-3">
           <span class="rp-faq-q">Est-ce que je dois planifier toute la semaine ?</span>
           <span class="rp-faq-plus" aria-hidden="true"></span>
         </button>
       </h3>
-      <div
-        id="faq-c-3"
-        class="accordion-collapse collapse"
-        aria-labelledby="faq-h-3"
-        data-bs-parent="#faqAccordion"
-      >
+      <div id="faq-c-3" class="accordion-collapse collapse"
+        aria-labelledby="faq-h-3" data-bs-parent="#faqAccordion">
         <div class="accordion-body">
           <p class="mb-2">Pas du tout.</p>
           <p class="mb-0">
-            Tu peux utiliser Kuko au jour le jour.<br>
-            La planification est là si tu veux anticiper — pas si tu n’en as pas envie.
+            Tu peux utiliser Kuko uniquement au jour le jour.<br>
+            La planification est là si tu veux anticiper — jamais obligatoire.
           </p>
         </div>
       </div>
@@ -536,29 +513,20 @@
     {# 4 #}
     <div class="accordion-item rp-faq-item">
       <h3 class="accordion-header" id="faq-h-4">
-        <button
-          class="accordion-button collapsed rp-faq-btn"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#faq-c-4"
-          aria-expanded="false"
-          aria-controls="faq-c-4"
-        >
+        <button class="accordion-button collapsed rp-faq-btn" type="button"
+          data-bs-toggle="collapse" data-bs-target="#faq-c-4"
+          aria-expanded="false" aria-controls="faq-c-4">
           <span class="rp-faq-q">Est-ce que je dois scanner mes courses ?</span>
           <span class="rp-faq-plus" aria-hidden="true"></span>
         </button>
       </h3>
-      <div
-        id="faq-c-4"
-        class="accordion-collapse collapse"
-        aria-labelledby="faq-h-4"
-        data-bs-parent="#faqAccordion"
-      >
+      <div id="faq-c-4" class="accordion-collapse collapse"
+        aria-labelledby="faq-h-4" data-bs-parent="#faqAccordion">
         <div class="accordion-body">
           <p class="mb-2">Non.</p>
           <p class="mb-0">
-            Ta liste de courses te guide et une fois en caisse tu valide ton panier et c'est ajouté !
-            Et l’assistant peut aussi t’aider si tu veux aller plus vite.
+            Tu peux simplement ajouter ce que tu as acheté en quelques secondes.<br>
+            Et si tu préfères, l’assistant peut aussi t’aider.
           </p>
         </div>
       </div>
@@ -567,29 +535,20 @@
     {# 5 #}
     <div class="accordion-item rp-faq-item">
       <h3 class="accordion-header" id="faq-h-5">
-        <button
-          class="accordion-button collapsed rp-faq-btn"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#faq-c-5"
-          aria-expanded="false"
-          aria-controls="faq-c-5"
-        >
+        <button class="accordion-button collapsed rp-faq-btn" type="button"
+          data-bs-toggle="collapse" data-bs-target="#faq-c-5"
+          aria-expanded="false" aria-controls="faq-c-5">
           <span class="rp-faq-q">Et si je veux tester de nouvelles recettes ?</span>
           <span class="rp-faq-plus" aria-hidden="true"></span>
         </button>
       </h3>
-      <div
-        id="faq-c-5"
-        class="accordion-collapse collapse"
-        aria-labelledby="faq-h-5"
-        data-bs-parent="#faqAccordion"
-      >
+      <div id="faq-c-5" class="accordion-collapse collapse"
+        aria-labelledby="faq-h-5" data-bs-parent="#faqAccordion">
         <div class="accordion-body">
           <p class="mb-0">
             Bien sûr.<br>
             Kuko respecte d’abord tes habitudes.<br>
-            Et la nouveauté arrive seulement si tu la demandes.
+            La nouveauté arrive seulement si tu la demandes.
           </p>
         </div>
       </div>
@@ -598,29 +557,21 @@
     {# 6 #}
     <div class="accordion-item rp-faq-item">
       <h3 class="accordion-header" id="faq-h-6">
-        <button
-          class="accordion-button collapsed rp-faq-btn"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#faq-c-6"
-          aria-expanded="false"
-          aria-controls="faq-c-6"
-        >
+        <button class="accordion-button collapsed rp-faq-btn" type="button"
+          data-bs-toggle="collapse" data-bs-target="#faq-c-6"
+          aria-expanded="false" aria-controls="faq-c-6">
           <span class="rp-faq-q">Est-ce que c’est compliqué à utiliser ?</span>
           <span class="rp-faq-plus" aria-hidden="true"></span>
         </button>
       </h3>
-      <div
-        id="faq-c-6"
-        class="accordion-collapse collapse"
-        aria-labelledby="faq-h-6"
-        data-bs-parent="#faqAccordion"
-      >
+      <div id="faq-c-6" class="accordion-collapse collapse"
+        aria-labelledby="faq-h-6" data-bs-parent="#faqAccordion">
         <div class="accordion-body">
           <p class="mb-2">Non.</p>
           <p class="mb-0">
             Kuko est pensé pour être utilisé en 30 secondes par jour.<br>
-            Pas de réglages complexes. Pas d’organisation rigide.
+            Tu peux commencer petit.<br>
+            Rien d’obligatoire, rien de rigide.
           </p>
         </div>
       </div>
@@ -629,29 +580,67 @@
     {# 7 #}
     <div class="accordion-item rp-faq-item">
       <h3 class="accordion-header" id="faq-h-7">
-        <button
-          class="accordion-button collapsed rp-faq-btn"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#faq-c-7"
-          aria-expanded="false"
-          aria-controls="faq-c-7"
-        >
+        <button class="accordion-button collapsed rp-faq-btn" type="button"
+          data-bs-toggle="collapse" data-bs-target="#faq-c-7"
+          aria-expanded="false" aria-controls="faq-c-7">
           <span class="rp-faq-q">Est-ce que mes données sont en sécurité ?</span>
           <span class="rp-faq-plus" aria-hidden="true"></span>
         </button>
       </h3>
-      <div
-        id="faq-c-7"
-        class="accordion-collapse collapse"
-        aria-labelledby="faq-h-7"
-        data-bs-parent="#faqAccordion"
-      >
+      <div id="faq-c-7" class="accordion-collapse collapse"
+        aria-labelledby="faq-h-7" data-bs-parent="#faqAccordion">
         <div class="accordion-body">
           <p class="mb-2">Oui.</p>
           <p class="mb-0">
             Tes informations restent privées et liées à ton compte.<br>
-            Tu gardes le contrôle sur ton stock et tes recettes.
+            Elles ne sont ni revendues ni partagées.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {# 8 — Différenciation #}
+    <div class="accordion-item rp-faq-item">
+      <h3 class="accordion-header" id="faq-h-8">
+        <button class="accordion-button collapsed rp-faq-btn" type="button"
+          data-bs-toggle="collapse" data-bs-target="#faq-c-8"
+          aria-expanded="false" aria-controls="faq-c-8">
+          <span class="rp-faq-q">Pourquoi Kuko est différent des autres applications de recettes ?</span>
+          <span class="rp-faq-plus" aria-hidden="true"></span>
+        </button>
+      </h3>
+      <div id="faq-c-8" class="accordion-collapse collapse"
+        aria-labelledby="faq-h-8" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">
+          <p class="mb-2">
+            Kuko ne te propose pas 200 idées.
+          </p>
+          <p class="mb-0">
+            Il te propose une idée claire, faisable avec ce que tu as déjà.<br>
+            L’objectif n’est pas de chercher longtemps.<br>
+            L’objectif est de décider plus vite.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {# 9 — Pré-lancement #}
+    <div class="accordion-item rp-faq-item">
+      <h3 class="accordion-header" id="faq-h-9">
+        <button class="accordion-button collapsed rp-faq-btn" type="button"
+          data-bs-toggle="collapse" data-bs-target="#faq-c-9"
+          aria-expanded="false" aria-controls="faq-c-9">
+          <span class="rp-faq-q">Quand est-ce que Kuko sera disponible ?</span>
+          <span class="rp-faq-plus" aria-hidden="true"></span>
+        </button>
+      </h3>
+      <div id="faq-c-9" class="accordion-collapse collapse"
+        aria-labelledby="faq-h-9" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">
+          <p class="mb-0">
+            Kuko est en phase de lancement privé.<br>
+            Les personnes inscrites sur la liste privée seront invitées en priorité.<br>
+            Tu recevras un email dès que l’accès testeur ouvrira.
           </p>
         </div>
       </div>
@@ -660,6 +649,70 @@
   </div>
 </section>
 
+{# ===== SECTION — Préinscription (conversion finale) ===== #}
+<section class="rp-landing-preinscription mt-5" id="preinscription">
 
+  <div class="rp-landing-hero-card">
+    <div class="text-center px-3 px-md-5 py-4 py-md-5">
+
+      <h2 class="mb-3">Prêt à rendre le repas du soir plus simple ?</h2>
+
+      <p class="text-muted fs-5 mb-4">
+        Rejoins la liste privée et fais partie des premiers à tester Kuko.<br class="d-none d-md-inline">
+        Un seul email quand c’est prêt. Pas de spam.
+      </p>
+
+      <div class="mx-auto" style="max-width: 520px;"
+           data-controller="preinscription"
+      >
+        {# Zone message (succès/erreur) #}
+        <div data-preinscription-target="alert" class="alert d-none mb-3" role="alert"></div>
+
+        {{ form_start(preinscriptionForm, {
+          attr: {
+            class: 'rp-preinscription-form',
+            'data-preinscription-target': 'form',
+            'data-action': 'submit->preinscription#submit'
+          }
+        }) }}
+
+          <div class="d-flex flex-column flex-sm-row gap-2">
+            {{ form_widget(preinscriptionForm.email, {
+              attr: {
+                class: 'form-control form-control-lg',
+                placeholder: 'Ton email',
+                autocomplete: 'email',
+                inputmode: 'email',
+                'data-preinscription-target': 'email'
+              }
+            }) }}
+
+            <button type="submit"
+                    class="btn btn-primary btn-lg"
+                    data-preinscription-target="submitBtn">
+              🌿 Rejoindre la liste privée
+            </button>
+          </div>
+
+          {# erreurs (on garde le SSR si jamais JS off, mais en AJAX on écrira ici aussi) #}
+          <div class="mt-2 text-start">
+            <div data-preinscription-target="emailError" class="invalid-feedback d-none"></div>
+
+            {# fallback serveur (si JS désactivé, ou si tu fais un submit normal) #}
+            {{ form_errors(preinscriptionForm.email) }}
+            {{ form_errors(preinscriptionForm) }}
+          </div>
+
+        {{ form_end(preinscriptionForm) }}
+      </div>
+
+      <p class="text-muted small mt-3 mb-0">
+        Accès limité aux premiers testeurs (pour garder un lancement tranquille).
+      </p>
+
+    </div>
+  </div>
+
+</section>
 
 {% endblock %}

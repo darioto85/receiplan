@@ -23,6 +23,7 @@ import RecipeStepController from './controllers/recipe_steps_controller.js';
 import RecipeFavoriteController from './controllers/recipe_favorite_controller.js';
 import RecipePickerController from './controllers/recipe_picker_controller.js';
 import IngredientSelectController from './controllers/ingredient_select_controller.js';
+import PreinscriptionController from './controllers/preinscription_controller.js';
 
 const app = startStimulusApp();
 app.register('collection', CollectionController);
@@ -49,3 +50,4 @@ app.register('recipe-step', RecipeStepController);
 app.register('recipe-favorite', RecipeFavoriteController);
 app.register('recipe-picker', RecipePickerController);
 app.register('ingredient-select', IngredientSelectController);
+app.register('preinscription', PreinscriptionController);
