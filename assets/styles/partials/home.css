@@ -1,0 +1,180 @@
+/* Landing bullets minimal version */
+
+.rp-landing-bullets{
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.rp-landing-bullets li{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.rp-bullet-icon{
+  width: 35px;
+  height: 35px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+/* ==============================================
+   SECTION STEPS
+   ============================================== */
+
+.rp-steps{
+  padding-top: 80px;
+}
+.rp-step-card{
+  padding: 2rem 1.5rem;
+  border-radius: var(--rp-radius-lg);
+  background: rgba(255,255,255,.75);
+  border: 1px solid rgba(120,150,120,.15);
+  box-shadow: var(--rp-shadow-soft);
+  backdrop-filter: blur(6px);
+}
+
+.rp-step-illustration{
+  width: 100%;
+  margin-top: -120px;
+  height: auto;
+}
+
+/* Mobile adjustments */
+@media (max-width: 991.98px){
+
+  .rp-step-card{
+    padding: 1.8rem 1.2rem;
+  }
+
+  .rp-step-illustration{
+    width: 140px;
+  }
+
+  .carousel-indicators button{
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: rgba(120,150,120,.5);
+  }
+
+  .carousel-indicators .active{
+    background-color: var(--rp-green);
+  }
+}
+
+.rp-landing-rhythm .rp-landing-rhythm_illustration{
+  width: 100%;
+}
+
+
+/* ==============================================
+   FEATURES (même logique que steps)
+   ============================================== */
+
+.rp-feature-wrapper{
+  position: relative;
+  padding-top: 100px;
+}
+
+.rp-feature-card{
+  padding: 2.5rem 1.5rem 2rem;
+  border-radius: var(--rp-radius-lg);
+  background: rgba(255,255,255,.75);
+  border: 1px solid rgba(120,150,120,.15);
+  box-shadow: var(--rp-shadow-soft);
+  backdrop-filter: blur(6px);
+}
+
+.rp-feature-illustration{
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  transform: translateY(-40%);
+  pointer-events: none;
+}
+
+/* Responsive */
+@media (min-width: 992px){
+  .rp-feature-wrapper{
+    padding-top: 120px;
+  }
+}
+
+
+/* ===== FAQ (Bootstrap accordion custom + "+" indicator) ===== */
+
+.rp-faq .accordion-item{
+  border: 0;
+  background: transparent;
+  margin-bottom: 12px;
+}
+
+.rp-faq .accordion-button{
+  border-radius: 18px !important;
+  background: rgba(255,255,255,.75);
+  border: 1px solid rgba(120,150,120,.18);
+  box-shadow: var(--rp-shadow-soft);
+  font-weight: 800;
+  color: var(--rp-text);
+  padding: 1rem 1.1rem;
+}
+
+.rp-faq .accordion-button::after{
+  display: none; /* hide Bootstrap chevron */
+}
+
+.rp-faq-q{
+  flex: 1 1 auto;
+  padding-right: 10px;
+}
+
+/* "+" indicator */
+.rp-faq-plus{
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(120,150,120,.25);
+  background: linear-gradient(180deg, var(--rp-soft-start), var(--rp-soft-end));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.85);
+  position: relative;
+  flex: 0 0 auto;
+}
+
+/* draw plus */
+.rp-faq-plus::before,
+.rp-faq-plus::after{
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 2px;
+  background: rgba(80,110,70,.85);
+  transform: translate(-50%, -50%);
+  border-radius: 2px;
+}
+.rp-faq-plus::after{
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+
+/* opened = turn into "-" */
+.rp-faq .accordion-button:not(.collapsed) .rp-faq-plus::after{
+  opacity: 0;
+}
+
+/* body */
+.rp-faq .accordion-collapse .accordion-body{
+  margin-top: 10px;
+  border-radius: 18px;
+  background: rgba(255,255,255,.65);
+  border: 1px solid rgba(120,150,120,.14);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.85);
+  color: rgba(47,58,47,.78);
+  font-weight: 600;
+}

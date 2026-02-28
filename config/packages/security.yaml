@@ -61,7 +61,7 @@ security:
     - { path: ^/push, roles: ROLE_USER }
 
     # Tout le reste nécessite un user connecté
-    - { path: ^/, roles: ROLE_USER }
+    - { path: ^/, roles: PUBLIC_ACCESS }
 
 when@test:
   security:

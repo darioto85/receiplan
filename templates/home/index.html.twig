@@ -1,0 +1,665 @@
+{% extends 'base_front.html.twig' %}
+
+{% block title %}Kuko{% endblock %}
+
+{% block body %}
+  {# ===== HERO (Section 1) ===== #}
+  <section class="rp-landing-hero">
+    <div class="rp-landing-hero-card">
+      <div class="row align-items-center g-4 g-lg-5">
+
+         <div class="col-12 col-lg-7">
+        <h1 class="rp-landing-title mb-3">
+          Le repas du soir,<br class="d-none d-md-inline">
+          en plus simple.
+        </h1>
+
+        <p class="rp-landing-lead fs-5 mb-2">
+          Chaque jour, Kuko te propose <strong>une idée claire</strong> à partir de ce que tu as déjà.
+        </p>
+        <p class="rp-landing-lead fs-5 mb-4">
+          Tu peux l’accepter, demander une alternative, ou passer — <strong>sans pression</strong>.
+        </p>
+
+        <ul class="rp-landing-bullets mb-4">
+          <li><img src="{{ asset('img/actions/coche.png') }}" alt="" class="rp-bullet-icon"><span><strong>30 secondes par jour</strong></span></li>
+          <li><img src="{{ asset('img/actions/coche.png') }}" alt="" class="rp-bullet-icon"><span><strong>Avec ce que tu as déjà</strong></span></li>
+          <li><img src="{{ asset('img/actions/coche.png') }}" alt="" class="rp-bullet-icon"><span><strong>Toujours toi qui décides</strong></span></li>
+        </ul>
+
+        <div class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
+          <a href="#" class="btn btn-primary">Rejoindre la liste privée</a>
+        </div>
+
+        <p class="text-muted small mt-2 mb-0">
+          Accès privé aux premiers testeurs — 1 email quand c’est prêt.
+        </p>
+      </div>
+
+      {# Right: illustration #}
+      <div class="col-12 col-lg-5">
+        <div class="rp-landing-visual">
+          <img
+            src="{{ asset('img/home/fini_la_charge_mentale.jpg') }}"
+            alt="Illustration de la charge mentale des repas"
+            class="rp-landing-visual-img"
+            loading="eager"
+          >
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+{# ===== SECTION 2 — Comment ça marche ===== #}
+<section class="rp-landing-steps mt-5" id="how">
+
+  <div class="text-center mb-5">
+    <h2 class="mb-3">Ça marche en 3 étapes.</h2>
+    <p class="text-muted fs-5">
+      Tu notes vite, Kuko propose, tu choisis. Et tu souffles.
+    </p>
+  </div>
+
+  {# ===== DESKTOP (>= lg) ===== #}
+  <div class="rp-steps row g-4 d-none d-lg-flex">
+
+    <div class="col-lg-4">
+      <div class="rp-step-card text-center h-100">
+        <img src="{{ asset('img/home/step1.jpg') }}" class="rp-step-illustration mb-3" alt="">
+        <h5 class="mb-2">Tu ajoutes ton stock</h5>
+        <p class="text-muted mb-0">
+          En quelques secondes,<br> au fil de l’eau.
+        </p>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="rp-step-card text-center h-100">
+        <img src="{{ asset('img/home/step3.jpg') }}" class="rp-step-illustration mb-3" alt="">
+        <h5 class="mb-2">Kuko te propose une idée</h5>
+        <p class="text-muted mb-0">
+          Un repas faisable,<br> clair, sans recherche.
+        </p>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="rp-step-card text-center h-100">
+        <img src="{{ asset('img/home/step2.jpg') }}" class="rp-step-illustration mb-3" alt="">
+        <h5 class="mb-2">Tu cuisines ou tu planifies</h5>
+        <p class="text-muted mb-0">
+          Au jour le jour<br> ou pour la semaine.
+        </p>
+      </div>
+    </div>
+
+  </div>
+
+  {# ===== MOBILE SLIDER (< lg) ===== #}
+  <div id="stepsCarousel" class="carousel slide d-lg-none" data-bs-ride="false">
+    <div class="carousel-inner">
+
+      <div class="carousel-item active">
+        <div class="rp-step-card text-center">
+          <img src="{{ asset('img/home/step1.jpg') }}" class="rp-step-illustration mb-3" alt="">
+          <h5 class="mb-2">Tu ajoutes ton stock</h5>
+          <p class="text-muted mb-0">
+            En quelques secondes,<br> au fil de l’eau.
+          </p>
+        </div>
+      </div>
+
+      <div class="carousel-item">
+        <div class="rp-step-card text-center">
+          <img src="{{ asset('img/home/step3.jpg') }}" class="rp-step-illustration mb-3" alt="">
+          <h5 class="mb-2">Kuko te propose une idée</h5>
+          <p class="text-muted mb-0">
+            Un repas faisable,<br> clair, sans recherche.
+          </p>
+        </div>
+      </div>
+
+      <div class="carousel-item">
+        <div class="rp-step-card text-center">
+          <img src="{{ asset('img/home/step2.jpg') }}" class="rp-step-illustration mb-3" alt="">
+          <h5 class="mb-2">Tu cuisines ou tu planifies</h5>
+          <p class="text-muted mb-0">
+            Au jour le jour<br> ou pour la semaine.
+          </p>
+        </div>
+      </div>
+
+    </div>
+
+    {# Indicateurs #}
+    <div class="carousel-indicators position-static mt-3">
+      <button type="button" data-bs-target="#stepsCarousel" data-bs-slide-to="0" class="active"></button>
+      <button type="button" data-bs-target="#stepsCarousel" data-bs-slide-to="1"></button>
+      <button type="button" data-bs-target="#stepsCarousel" data-bs-slide-to="2"></button>
+    </div>
+  </div>
+
+</section>
+
+{# ===== SECTION 3 — Tes habitudes respectées ===== #}
+<section class="rp-landing-habits mt-5">
+
+  <div class="row align-items-center g-4 g-lg-5">
+
+    {# Left: text + CTA #}
+    <div class="col-12 col-lg-6">
+      <h2 class="mb-3">Tes habitudes respectées</h2>
+
+      <p class="text-muted fs-5 mb-4">
+        Tu n’as pas besoin de révolutionner ta cuisine.<br>
+        Kuko s’appuie sur <strong>tes repas du quotidien</strong> : simples, efficaces, rassurants.
+      </p>
+
+      <p class="text-muted fs-5 mb-4">
+        Tes plats reviennent naturellement — comme dans la vraie vie.<br>
+        Et si tu veux changer un peu, tu peux demander <strong>une nouveauté</strong>… seulement quand tu en as envie.
+      </p>
+
+      <a href="#preinscription" class="btn btn-outline-primary">
+        <span class="me-2" aria-hidden="true">🌿</span>
+        Découvrir Kuko
+      </a>
+
+      <p class="text-muted small mt-3 mb-0">
+        Parce que parfois, une seule bonne idée vaut mieux que 100 options.
+      </p>
+    </div>
+
+    {# Right: image #}
+    <div class="col-12 col-lg-6">
+      <img
+        src="{{ asset('img/home/recipes.jpg') }}"
+        alt="Exemples de repas du quotidien"
+        class="img-fluid"
+        loading="lazy"
+      >
+    </div>
+
+  </div>
+
+</section>
+
+{# ===== SECTION 4 — Au jour le jour… ou toute la semaine ===== #}
+<section class="rp-landing-rhythm mt-5">
+
+  <div class="text-center mb-5">
+    <h2 class="mb-3">Au jour le jour… ou toute la semaine.</h2>
+    <p class="text-muted fs-5 mb-0">
+      Tu choisis ton rythme. Kuko s’adapte à ton énergie du moment.
+    </p>
+  </div>
+
+  <div class="row g-4">
+
+    {# ===== CARD 1 — Aujourd’hui ===== #}
+    <div class="col-12 col-lg-6">
+      <div class="rp-step-wrapper h-100">
+        <div class="rp-step-card text-center h-100">
+          <h5 class="mb-4">Aujourd’hui</h5>
+
+          <ul class="rp-landing-bullets">
+            <li>
+              <img src="{{ asset('img/actions/coche.png') }}" alt="" class="rp-bullet-icon">
+              <span><strong>Une idée claire, maintenant</strong></span>
+            </li>
+            <li>
+              <img src="{{ asset('img/actions/coche.png') }}" alt="" class="rp-bullet-icon">
+              <span>Parfait quand tu n’as pas le temps — et c’est OK.</span>
+            </li>
+          </ul>
+
+          <img
+            src="{{ asset('img/home/aujourdhui.jpg') }}"
+            class="rp-landing-rhythm_illustration"
+            alt="Mode aujourd’hui"
+          >
+        </div>
+      </div>
+    </div>
+
+    {# ===== CARD 2 — Semaine ===== #}
+    <div class="col-12 col-lg-6">
+      <div class="rp-step-wrapper h-100">
+        <div class="rp-step-card text-center h-100">
+          <h5 class="mb-4">Semaine</h5>
+
+          <ul class="rp-landing-bullets">
+            <li>
+              <img src="{{ asset('img/actions/coche.png') }}" alt="" class="rp-bullet-icon">
+              <span><strong>Tu poses ton planning en 2 minutes</strong></span>
+            </li>
+            <li>
+              <img src="{{ asset('img/actions/coche.png') }}" alt="" class="rp-bullet-icon">
+              <span>Et ta semaine devient plus fluide.</span>
+            </li>
+          </ul>
+
+          <img
+            src="{{ asset('img/home/semainier.jpg') }}"
+            class="rp-landing-rhythm_illustration"
+            alt="Mode semaine"
+          >
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</section>
+
+{# ===== SECTION 5 — Sur ton téléphone. Et sur ton ordinateur. ===== #}
+<section class="rp-landing-device mt-5">
+
+  <div class="row align-items-center g-4 g-lg-5">
+
+    {# Left: text #}
+    <div class="col-12 col-lg-6">
+      <h2 class="mb-3">
+        Sur ton téléphone.<br>
+        Et sur ton ordinateur.
+      </h2>
+
+      <p class="text-muted fs-5 mb-4">
+        Kuko s’ouvre simplement, où que tu sois.
+      </p>
+
+      <p class="text-muted fs-5 mb-4">
+        Tu peux préparer ta semaine tranquillement sur ton ordinateur,<br>
+        puis retrouver ta liste de courses sur ton téléphone — déjà prête.
+      </p>
+
+      <p class="text-muted fs-5 mb-0">
+        Tout est synchronisé. Rien à refaire. Rien à re-noter.
+      </p>
+
+      <div class="mt-4">
+        <a href="#preinscription" class="btn btn-outline-primary">
+          🌿 Découvrir Kuko
+        </a>
+      </div>
+    </div>
+
+    {# Right: image #}
+    <div class="col-12 col-lg-6">
+      <img
+        src="{{ asset('img/home/devices.jpg') }}"
+        alt="Kuko sur smartphone et ordinateur"
+        class="img-fluid"
+        loading="lazy"
+      >
+    </div>
+
+  </div>
+
+</section>
+
+{# ===== SECTION — Assistant (optionnel) ===== #}
+<section class="rp-landing-assistant mt-5">
+
+  <div class="row align-items-center g-4 g-lg-5">
+
+    {# Left: big image (assistant chat) #}
+    <div class="col-12 col-lg-6">
+      <img
+        src="{{ asset('img/home/assistant-chat.jpg') }}"
+        alt="Aperçu de l’assistant Kuko"
+        class="img-fluid"
+        loading="lazy"
+      >
+    </div>
+
+    {# Right: title + text + bullets #}
+    <div class="col-12 col-lg-6">
+      <h2 class="mb-3">Un assistant,<br>si tu veux aller plus vite</h2>
+
+      <p class="text-muted fs-5 mb-4">
+        Pas envie de tout saisir ? Tu peux simplement demander.<br>
+        Kuko t’aide… et <strong>tu valides toujours</strong> ce qui te convient.
+      </p>
+
+      <ul class="rp-landing-bullets mb-4">
+        <li>
+          <img src="{{ asset('img/actions/coche.png') }}" alt="" class="rp-bullet-icon">
+          <span><strong>Tu gagnes du temps</strong> (sans tout remplir)</span>
+        </li>
+        <li>
+          <img src="{{ asset('img/actions/coche.png') }}" alt="" class="rp-bullet-icon">
+          <span><strong>Tu gardes le contrôle</strong> : rien n’est fait sans toi</span>
+        </li>
+        <li>
+          <img src="{{ asset('img/actions/coche.png') }}" alt="" class="rp-bullet-icon">
+          <span><strong>Tu peux demander une alternative</strong>… si tu veux</span>
+        </li>
+      </ul>
+
+      <p class="text-muted small mt-1 mb-20">
+        L’assistant est optionnel. Tu peux aussi tout faire “à la main”, tranquillement.
+      </p>
+
+      <a href="#preinscription" class="btn btn-outline-primary">
+        🌿 Découvrir Kuko
+      </a>
+    </div>
+
+  </div>
+
+</section>
+
+{# ===== SECTION — Simplicité ===== #}
+<section class="rp-landing-features mt-5">
+
+  <div class="text-center mb-5">
+    <h2 class="mb-3">Simple. Vraiment simple.</h2>
+    <p class="text-muted fs-5 mb-0">
+      Pas de méthode compliquée. Pas de discipline impossible à tenir.
+    </p>
+  </div>
+
+  <div class="row g-4">
+
+    {# Card 1 #}
+    <div class="col-12 col-lg-4">
+      <div class="h-100">
+        <div class="rp-feature-card text-center h-100">
+          <img 
+            src="{{ asset('img/home/simple1.jpg') }}" 
+            class="img-fluid" 
+            alt="30 secondes par jour"
+          >
+          <h5 class="mb-3">30 secondes<br>par jour</h5>
+          <p class="text-muted mb-0">
+            Tu ouvres Kuko.<br>
+            Tu as une idée.<br>
+            C’est réglé.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {# Card 2 #}
+    <div class="col-12 col-lg-4">
+      <div class="h-100">
+        <div class="rp-feature-card text-center h-100">
+          <img 
+            src="{{ asset('img/home/simple2.jpg') }}" 
+            class="img-fluid" 
+            alt="Pas besoin de tout organiser"
+          >
+          <h5 class="mb-3">Pas besoin<br>d’être organisé</h5>
+          <p class="text-muted mb-0">
+            Tu ajoutes ton stock<br>
+            progressivement.<br>
+            À ton rythme.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {# Card 3 #}
+    <div class="col-12 col-lg-4">
+      <div class="h-100">
+        <div class="rp-feature-card text-center h-100">
+          <img 
+            src="{{ asset('img/home/simple3.jpg') }}" 
+            class="img-fluid" 
+            alt="Aucune pression"
+          >
+          <h5 class="mb-3">Aucune pression</h5>
+          <p class="text-muted mb-0">
+            Pas d’obligation.<br>
+            Pas de planning forcé.<br>
+            Juste une aide quand tu en as besoin.
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="text-center mt-5">
+    <a href="#preinscription" class="btn btn-primary">
+      🌿 Rejoindre la liste privée
+    </a>
+  </div>
+
+</section>
+
+{# ===== SECTION — FAQ ===== #}
+<section class="rp-landing-faq mt-5" id="faq">
+
+  <div class="text-center mb-5">
+    <h2 class="mb-0">❓ FAQ</h2>
+  </div>
+
+  <div class="accordion rp-faq" id="faqAccordion">
+
+    {# 1 #}
+    <div class="accordion-item rp-faq-item">
+      <h3 class="accordion-header" id="faq-h-1">
+        <button
+          class="accordion-button collapsed rp-faq-btn"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#faq-c-1"
+          aria-expanded="false"
+          aria-controls="faq-c-1"
+        >
+          <span class="rp-faq-q">Est-ce que je dois tout entrer à la main ?</span>
+          <span class="rp-faq-plus" aria-hidden="true"></span>
+        </button>
+      </h3>
+      <div
+        id="faq-c-1"
+        class="accordion-collapse collapse"
+        aria-labelledby="faq-h-1"
+        data-bs-parent="#faqAccordion"
+      >
+        <div class="accordion-body">
+          <p class="mb-2">Non.</p>
+          <p class="mb-0">
+            Tu peux commencer petit, ajouter ton stock au fil de l’eau, ou utiliser l’assistant.<br>
+            Kuko s’adapte à ton rythme.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {# 2 #}
+    <div class="accordion-item rp-faq-item">
+      <h3 class="accordion-header" id="faq-h-2">
+        <button
+          class="accordion-button collapsed rp-faq-btn"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#faq-c-2"
+          aria-expanded="false"
+          aria-controls="faq-c-2"
+        >
+          <span class="rp-faq-q">Est-ce que Kuko décide à ma place ?</span>
+          <span class="rp-faq-plus" aria-hidden="true"></span>
+        </button>
+      </h3>
+      <div
+        id="faq-c-2"
+        class="accordion-collapse collapse"
+        aria-labelledby="faq-h-2"
+        data-bs-parent="#faqAccordion"
+      >
+        <div class="accordion-body">
+          <p class="mb-2">Non.</p>
+          <p class="mb-0">
+            Kuko propose une idée claire.<br>
+            Tu peux l’accepter, demander une alternative ou passer. Tu gardes toujours le contrôle.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {# 3 #}
+    <div class="accordion-item rp-faq-item">
+      <h3 class="accordion-header" id="faq-h-3">
+        <button
+          class="accordion-button collapsed rp-faq-btn"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#faq-c-3"
+          aria-expanded="false"
+          aria-controls="faq-c-3"
+        >
+          <span class="rp-faq-q">Est-ce que je dois planifier toute la semaine ?</span>
+          <span class="rp-faq-plus" aria-hidden="true"></span>
+        </button>
+      </h3>
+      <div
+        id="faq-c-3"
+        class="accordion-collapse collapse"
+        aria-labelledby="faq-h-3"
+        data-bs-parent="#faqAccordion"
+      >
+        <div class="accordion-body">
+          <p class="mb-2">Pas du tout.</p>
+          <p class="mb-0">
+            Tu peux utiliser Kuko au jour le jour.<br>
+            La planification est là si tu veux anticiper — pas si tu n’en as pas envie.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {# 4 #}
+    <div class="accordion-item rp-faq-item">
+      <h3 class="accordion-header" id="faq-h-4">
+        <button
+          class="accordion-button collapsed rp-faq-btn"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#faq-c-4"
+          aria-expanded="false"
+          aria-controls="faq-c-4"
+        >
+          <span class="rp-faq-q">Est-ce que je dois scanner mes courses ?</span>
+          <span class="rp-faq-plus" aria-hidden="true"></span>
+        </button>
+      </h3>
+      <div
+        id="faq-c-4"
+        class="accordion-collapse collapse"
+        aria-labelledby="faq-h-4"
+        data-bs-parent="#faqAccordion"
+      >
+        <div class="accordion-body">
+          <p class="mb-2">Non.</p>
+          <p class="mb-0">
+            Ta liste de courses te guide et une fois en caisse tu valide ton panier et c'est ajouté !
+            Et l’assistant peut aussi t’aider si tu veux aller plus vite.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {# 5 #}
+    <div class="accordion-item rp-faq-item">
+      <h3 class="accordion-header" id="faq-h-5">
+        <button
+          class="accordion-button collapsed rp-faq-btn"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#faq-c-5"
+          aria-expanded="false"
+          aria-controls="faq-c-5"
+        >
+          <span class="rp-faq-q">Et si je veux tester de nouvelles recettes ?</span>
+          <span class="rp-faq-plus" aria-hidden="true"></span>
+        </button>
+      </h3>
+      <div
+        id="faq-c-5"
+        class="accordion-collapse collapse"
+        aria-labelledby="faq-h-5"
+        data-bs-parent="#faqAccordion"
+      >
+        <div class="accordion-body">
+          <p class="mb-0">
+            Bien sûr.<br>
+            Kuko respecte d’abord tes habitudes.<br>
+            Et la nouveauté arrive seulement si tu la demandes.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {# 6 #}
+    <div class="accordion-item rp-faq-item">
+      <h3 class="accordion-header" id="faq-h-6">
+        <button
+          class="accordion-button collapsed rp-faq-btn"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#faq-c-6"
+          aria-expanded="false"
+          aria-controls="faq-c-6"
+        >
+          <span class="rp-faq-q">Est-ce que c’est compliqué à utiliser ?</span>
+          <span class="rp-faq-plus" aria-hidden="true"></span>
+        </button>
+      </h3>
+      <div
+        id="faq-c-6"
+        class="accordion-collapse collapse"
+        aria-labelledby="faq-h-6"
+        data-bs-parent="#faqAccordion"
+      >
+        <div class="accordion-body">
+          <p class="mb-2">Non.</p>
+          <p class="mb-0">
+            Kuko est pensé pour être utilisé en 30 secondes par jour.<br>
+            Pas de réglages complexes. Pas d’organisation rigide.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {# 7 #}
+    <div class="accordion-item rp-faq-item">
+      <h3 class="accordion-header" id="faq-h-7">
+        <button
+          class="accordion-button collapsed rp-faq-btn"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#faq-c-7"
+          aria-expanded="false"
+          aria-controls="faq-c-7"
+        >
+          <span class="rp-faq-q">Est-ce que mes données sont en sécurité ?</span>
+          <span class="rp-faq-plus" aria-hidden="true"></span>
+        </button>
+      </h3>
+      <div
+        id="faq-c-7"
+        class="accordion-collapse collapse"
+        aria-labelledby="faq-h-7"
+        data-bs-parent="#faqAccordion"
+      >
+        <div class="accordion-body">
+          <p class="mb-2">Oui.</p>
+          <p class="mb-0">
+            Tes informations restent privées et liées à ton compte.<br>
+            Tu gardes le contrôle sur ton stock et tes recettes.
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+
+{% endblock %}
