@@ -5,6 +5,7 @@ namespace App\Entity;
 use App\Enum\Unit;
 use App\Repository\UserIngredientRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Doctrine\DBAL\Types\Types;
 
 #[ORM\Entity(repositoryClass: UserIngredientRepository::class)]
 #[ORM\UniqueConstraint(name: 'uniq_user_ingredient', columns: ['user_id', 'ingredient_id'])]
@@ -15,8 +16,7 @@ class UserIngredient
     #[ORM\Column]
     private ?int $id = null;
 
-    // Decimal stocké en string (standard Doctrine) + valeur par défaut
-    #[ORM\Column(type: 'decimal', precision: 10, scale: 2, options: ['default' => 0])]
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
     private string $quantity = '0.00';
 
     /**
