@@ -7,7 +7,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libzip-dev \
         libonig-dev \
         libxml2-dev \
-        libpq-dev \
         libpng-dev \
         libjpeg-dev \
         libfreetype6-dev \
@@ -18,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         intl \
         zip \
         opcache \
-        pdo_pgsql \
+        pdo_mysql \
         gd \
         gmp \
         bcmath \
