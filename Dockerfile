@@ -10,9 +10,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libpng-dev \
         libjpeg-dev \
         libfreetype6-dev \
+        libwebp-dev \
         libgmp-dev \
         libcurl4-openssl-dev \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install \
         intl \
         zip \
