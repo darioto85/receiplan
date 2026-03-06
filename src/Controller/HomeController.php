@@ -11,6 +11,8 @@ use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mime\Email;
 use Symfony\Component\Routing\Attribute\Route;
 
 final class HomeController extends AbstractController
@@ -73,6 +75,45 @@ final class HomeController extends AbstractController
         ]);
     }
 
+    /**
+     * Route de test d'envoi email (Mailjet / SMTP Symfony).
+     * Exemple :
+     *   /_test-mail?to=tonmail@gmail.com
+     *
+     * En prod : protège cette route (firewall, IP whitelist, ou supprime après test).
+     */
+    #[Route('/_test-mail', name: 'app_test_mail', methods: ['GET'])]
+    public function testMail(
+        Request $request,
+        MailerInterface $mailer,
+    ): Response {
+        $to = (string) $request->query->get('to', '');
+
+        if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
+            return new Response(
+                'Paramètre "to" invalide. Exemple: /_test-mail?to=tonmail@gmail.com',
+                400
+            );
+        }
+
+        // ✅ Mets ici ton sender Mailjet validé
+        $from = 'contact@hellokuko.fr';
+
+        $email = (new Email())
+            ->from($from)
+            ->to($to)
+            ->subject('✅ Test Mailjet - Kuko')
+            ->text("Si tu lis ce mail, Symfony -> Mailjet fonctionne.\n\nEnvoyé depuis: " . $from);
+
+        try {
+            $mailer->send($email);
+        } catch (\Throwable $e) {
+            return new Response('Erreur envoi mail: ' . $e->getMessage(), 500);
+        }
+
+        return new Response('OK — Mail envoyé à ' . $to);
+    }
+
     private function getFormErrors($form): array
     {
         $errors = [];
@@ -81,6 +122,7 @@ final class HomeController extends AbstractController
             $name = $origin?->getName() ?? '_global';
             $errors[$name][] = $error->getMessage();
         }
+
         return $errors;
     }
 }

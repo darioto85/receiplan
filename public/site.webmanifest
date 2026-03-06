@@ -1,13 +1,31 @@
 {
   "name": "Kuko",
   "short_name": "Kuko",
-  "start_url": "/",
+  "description": "Kuko t'aide à trouver quoi manger et planifier tes repas avec les ingrédients que tu as déjà.",
+  "start_url": "/meal-plan",
   "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#deeed9",
   "theme_color": "#deeed9",
   "icons": [
-    { "src": "/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png" }
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }
