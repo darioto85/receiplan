@@ -59,6 +59,10 @@ security:
 
     # Push réservé users (tu peux garder comme ça pour l'instant)
     - { path: ^/push, roles: ROLE_USER }
+    - { path: ^/meal-plan, roles: ROLE_USER }
+    - { path: ^/stock, roles: ROLE_USER }
+    - { path: ^/recipe, roles: ROLE_USER }
+    - { path: ^/assistant, roles: ROLE_USER }
 
     # Tout le reste nécessite un user connecté
     - { path: ^/, roles: PUBLIC_ACCESS }
