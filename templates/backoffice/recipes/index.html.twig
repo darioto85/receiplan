@@ -1,0 +1,76 @@
+{% extends 'backoffice/base_backoffice.html.twig' %}
+
+{% block backoffice_search %}
+    <div class="bo-search-card">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-6 col-lg-5">
+                <label for="q" class="form-label">Recherche</label>
+                <input
+                    type="text"
+                    id="q"
+                    name="q"
+                    value="{{ q }}"
+                    class="form-control"
+                    placeholder="Nom de recette..."
+                >
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-success">Rechercher</button>
+            </div>
+            <div class="col-auto">
+                <a href="{{ path('backoffice_recipes') }}" class="btn btn-outline-secondary">Réinitialiser</a>
+            </div>
+        </form>
+    </div>
+{% endblock %}
+
+{% block backoffice_content %}
+    <div class="bo-table-card">
+        {% if recipes is empty %}
+            <div class="bo-empty">Aucune recette trouvée.</div>
+        {% else %}
+            <div class="table-responsive">
+                <table class="table bo-table">
+                    <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Nom</th>
+                        <th>Utilisateur</th>
+                        <th>Source</th>
+                        <th>Date</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for recipe in recipes %}
+                        <tr>
+                            <td>{{ recipe.id }}</td>
+                            <td>{{ attribute(recipe, 'name') is defined ? recipe.name : '' }}</td>
+                            <td>
+                                {% if attribute(recipe, 'user') is defined and recipe.user %}
+                                    {{ recipe.user.email ?? ('#' ~ recipe.user.id) }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if attribute(recipe, 'source') is defined %}
+                                    {{ recipe.source ?: '—' }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if attribute(recipe, 'createdAt') is defined and recipe.createdAt %}
+                                    {{ recipe.createdAt|date('d/m/Y H:i') }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

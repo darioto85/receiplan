@@ -44,14 +44,19 @@ class UserAuthenticator extends AbstractLoginFormAuthenticator
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response
     {
-        if ($request->hasSession()) {
-            if ($targetPath = $this->getTargetPath($request->getSession(), $firewallName)) {
-                return new RedirectResponse($targetPath);
-            }
+        $user = $token->getUser();
+
+        // si admin -> backoffice
+        if (in_array('ROLE_USER_ADMIN', $user->getRoles(), true)) {
+            return new RedirectResponse(
+                $this->urlGenerator->generate('backoffice_dashboard')
+            );
         }
 
-        // Redirection par défaut : liste des recettes
-        return new RedirectResponse($this->urlGenerator->generate('app_recipe_index'));
+        // sinon app normale
+        return new RedirectResponse(
+            $this->urlGenerator->generate('app_meal_plan')
+        );
     }
 
     protected function getLoginUrl(Request $request): string

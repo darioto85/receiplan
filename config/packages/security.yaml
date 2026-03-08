@@ -64,6 +64,8 @@ security:
     - { path: ^/recipe, roles: ROLE_USER }
     - { path: ^/assistant, roles: ROLE_USER }
 
+    - { path: ^/godmode, roles: ROLE_USER_ADMIN }
+    
     # Tout le reste nécessite un user connecté
     - { path: ^/, roles: PUBLIC_ACCESS }
 

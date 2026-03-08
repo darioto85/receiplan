@@ -17,6 +17,7 @@ import './styles/partials/recipe.css';
 import './styles/partials/shopping.css';
 import './styles/partials/stock.css';
 import './styles/partials/home.css';
+import './styles/partials/backoffice.css';
 
 // ✅ Tom Select CSS (utilisé par notre TomSelect custom)
 import 'tom-select/dist/css/tom-select.default.min.css';

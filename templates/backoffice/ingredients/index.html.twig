@@ -1,0 +1,192 @@
+{% extends 'backoffice/base_backoffice.html.twig' %}
+
+{% block backoffice_search %}
+    <div class="bo-search-card">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-6 col-lg-5">
+                <label for="q" class="form-label">Recherche</label>
+                <input
+                    type="text"
+                    id="q"
+                    name="q"
+                    value="{{ q }}"
+                    class="form-control"
+                    placeholder="Nom d'ingrédient..."
+                >
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-success">Rechercher</button>
+            </div>
+            <div class="col-auto">
+                <a href="{{ path('backoffice_ingredients') }}" class="btn btn-outline-secondary">Réinitialiser</a>
+            </div>
+        </form>
+    </div>
+{% endblock %}
+
+{% block backoffice_content %}
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div class="text-muted small">
+            {{ total }} ingrédient{{ total > 1 ? 's' : '' }}
+            {% if total > 0 %}
+                • page {{ page }}/{{ total_pages }}
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="bo-table-card">
+        {% if ingredients is empty %}
+            <div class="bo-empty">Aucun ingrédient trouvé.</div>
+        {% else %}
+            <div class="table-responsive">
+                <table class="table bo-table">
+                    <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Ingrédient</th>
+                        <th>Catégorie</th>
+                        <th>Unité</th>
+                        <th>Portée</th>
+                        <th>Image IA</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for ingredient in ingredients %}
+                        {% set ingImg = ingredient_image(ingredient) %}
+
+                        <tr>
+                            <td>{{ ingredient.id }}</td>
+
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <img
+                                        src="{{ ingImg }}"
+                                        alt="{{ ingredient.name }}"
+                                        width="50"
+                                        height="50"
+                                        loading="lazy"
+                                        decoding="async"
+                                        style="object-fit: contain; border-radius: 8px; flex: 0 0 auto;"
+                                    >
+                                    <div class="d-flex flex-column">
+                                        <span class="fw-semibold">{{ ingredient.name|capitalize }}</span>
+                                        <small class="text-muted">{{ ingredient.nameKey }}</small>
+                                    </div>
+                                </div>
+                            </td>
+
+                            <td>
+                                {% if ingredient.category %}
+                                    {{ ingredient.category.label }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+
+                            <td>{{ ingredient.unitLabel }}</td>
+
+                            <td>
+                                {% if ingredient.user %}
+                                    <span class="badge bo-badge">Utilisateur #{{ ingredient.user.id }}</span>
+                                {% else %}
+                                    <span class="badge text-bg-secondary">Global</span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if ingredient.imgGenerated %}
+                                    <span class="badge text-bg-success">Oui</span>
+                                    {% if ingredient.imgGeneratedAt %}
+                                        <div class="small text-muted mt-1">
+                                            {{ ingredient.imgGeneratedAt|date('d/m/Y H:i') }}
+                                        </div>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge text-bg-light">Non</span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                <form
+                                    method="post"
+                                    action="{{ path('backoffice_ingredients_regenerate_image', {id: ingredient.id, q: q, page: page}) }}"
+                                    class="d-inline"
+                                    onsubmit="return confirm('Demander une nouvelle génération d’image pour cet ingrédient ?');"
+                                >
+                                    <input
+                                        type="hidden"
+                                        name="_token"
+                                        value="{{ csrf_token('regenerate_ingredient_image_' ~ ingredient.id) }}"
+                                    >
+
+                                    <button type="submit" class="btn btn-sm btn-outline-primary">
+                                        Régénérer l’image
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+
+    {% if total_pages > 1 %}
+        <nav class="mt-4" aria-label="Pagination ingrédients">
+            <ul class="pagination justify-content-center flex-wrap">
+
+                <li class="page-item {{ page <= 1 ? 'disabled' : '' }}">
+                    <a
+                        class="page-link"
+                        href="{{ page > 1 ? path('backoffice_ingredients', {q: q, page: page - 1}) : '#' }}"
+                    >
+                        Précédent
+                    </a>
+                </li>
+
+                {% set start = page - 2 > 1 ? page - 2 : 1 %}
+                {% set end = page + 2 < total_pages ? page + 2 : total_pages %}
+
+                {% if start > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ path('backoffice_ingredients', {q: q, page: 1}) }}">1</a>
+                    </li>
+                    {% if start > 2 %}
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                    {% endif %}
+                {% endif %}
+
+                {% for p in start..end %}
+                    <li class="page-item {{ p == page ? 'active' : '' }}">
+                        <a class="page-link" href="{{ path('backoffice_ingredients', {q: q, page: p}) }}">
+                            {{ p }}
+                        </a>
+                    </li>
+                {% endfor %}
+
+                {% if end < total_pages %}
+                    {% if end < total_pages - 1 %}
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                    {% endif %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ path('backoffice_ingredients', {q: q, page: total_pages}) }}">
+                            {{ total_pages }}
+                        </a>
+                    </li>
+                {% endif %}
+
+                <li class="page-item {{ page >= total_pages ? 'disabled' : '' }}">
+                    <a
+                        class="page-link"
+                        href="{{ page < total_pages ? path('backoffice_ingredients', {q: q, page: page + 1}) : '#' }}"
+                    >
+                        Suivant
+                    </a>
+                </li>
+
+            </ul>
+        </nav>
+    {% endif %}
+{% endblock %}

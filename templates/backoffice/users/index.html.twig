@@ -1,0 +1,62 @@
+{% extends 'backoffice/base_backoffice.html.twig' %}
+
+{% block backoffice_search %}
+    <div class="bo-search-card">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-6 col-lg-5">
+                <label for="q" class="form-label">Recherche</label>
+                <input
+                    type="text"
+                    id="q"
+                    name="q"
+                    value="{{ q }}"
+                    class="form-control"
+                    placeholder="Email, prénom, nom..."
+                >
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-success">Rechercher</button>
+            </div>
+            <div class="col-auto">
+                <a href="{{ path('backoffice_users') }}" class="btn btn-outline-secondary">Réinitialiser</a>
+            </div>
+        </form>
+    </div>
+{% endblock %}
+
+{% block backoffice_content %}
+    <div class="bo-table-card">
+        {% if users is empty %}
+            <div class="bo-empty">Aucun utilisateur trouvé.</div>
+        {% else %}
+            <div class="table-responsive">
+                <table class="table bo-table">
+                    <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Email</th>
+                        <th>Prénom</th>
+                        <th>Nom</th>
+                        <th>Rôles</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for user in users %}
+                        <tr>
+                            <td>{{ user.id }}</td>
+                            <td>{{ attribute(user, 'email') is defined ? user.email : '' }}</td>
+                            <td>{{ attribute(user, 'firstname') is defined ? user.firstname : '' }}</td>
+                            <td>{{ attribute(user, 'lastname') is defined ? user.lastname : '' }}</td>
+                            <td>
+                                {% for role in user.roles %}
+                                    <span class="badge bo-badge me-1">{{ role }}</span>
+                                {% endfor %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

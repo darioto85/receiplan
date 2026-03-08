@@ -1,0 +1,45 @@
+{% extends 'backoffice/base_backoffice.html.twig' %}
+
+{% block backoffice_content %}
+    <div class="bo-stats-grid">
+        <div class="bo-stat-card">
+            <div class="bo-stat-label">Utilisateurs</div>
+            <div class="bo-stat-value">{{ stats.users }}</div>
+        </div>
+
+        <div class="bo-stat-card">
+            <div class="bo-stat-label">Préinscriptions</div>
+            <div class="bo-stat-value">{{ stats.preinscriptions }}</div>
+        </div>
+
+        <div class="bo-stat-card">
+            <div class="bo-stat-label">Recettes</div>
+            <div class="bo-stat-value">{{ stats.recipes }}</div>
+        </div>
+
+        <div class="bo-stat-card">
+            <div class="bo-stat-label">Ingrédients</div>
+            <div class="bo-stat-value">{{ stats.ingredients }}</div>
+        </div>
+
+        <div class="bo-stat-card">
+            <div class="bo-stat-label">Conversations</div>
+            <div class="bo-stat-value">{{ stats.conversations }}</div>
+        </div>
+    </div>
+
+    <div class="bo-card mt-4">
+        <div class="bo-card-header">
+            <strong>Accès rapide</strong>
+        </div>
+        <div class="bo-card-body">
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{{ path('backoffice_users') }}" class="btn btn-outline-secondary">Voir les utilisateurs</a>
+                <a href="{{ path('backoffice_preinscriptions') }}" class="btn btn-outline-secondary">Voir les préinscriptions</a>
+                <a href="{{ path('backoffice_recipes') }}" class="btn btn-outline-secondary">Voir les recettes</a>
+                <a href="{{ path('backoffice_ingredients') }}" class="btn btn-outline-secondary">Voir les ingrédients</a>
+                <a href="{{ path('backoffice_assistant_conversations') }}" class="btn btn-outline-secondary">Voir les conversations</a>
+            </div>
+        </div>
+    </div>
+{% endblock %}

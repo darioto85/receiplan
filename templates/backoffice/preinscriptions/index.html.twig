@@ -1,0 +1,60 @@
+{% extends 'backoffice/base_backoffice.html.twig' %}
+
+{% block backoffice_search %}
+    <div class="bo-search-card">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-6 col-lg-5">
+                <label for="q" class="form-label">Recherche</label>
+                <input
+                    type="text"
+                    id="q"
+                    name="q"
+                    value="{{ q }}"
+                    class="form-control"
+                    placeholder="Email..."
+                >
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-success">Rechercher</button>
+            </div>
+            <div class="col-auto">
+                <a href="{{ path('backoffice_preinscriptions') }}" class="btn btn-outline-secondary">Réinitialiser</a>
+            </div>
+        </form>
+    </div>
+{% endblock %}
+
+{% block backoffice_content %}
+    <div class="bo-table-card">
+        {% if preinscriptions is empty %}
+            <div class="bo-empty">Aucune préinscription trouvée.</div>
+        {% else %}
+            <div class="table-responsive">
+                <table class="table bo-table">
+                    <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Email</th>
+                        <th>Date</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for preinscription in preinscriptions %}
+                        <tr>
+                            <td>{{ preinscription.id }}</td>
+                            <td>{{ preinscription.email }}</td>
+                            <td>
+                                {% if attribute(preinscription, 'createdAt') is defined and preinscription.createdAt %}
+                                    {{ preinscription.createdAt|date('d/m/Y H:i') }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

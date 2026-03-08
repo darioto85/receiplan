@@ -1,0 +1,272 @@
+:root {
+  --bo-bg: #f6faf4;
+  --bo-sidebar-bg: #e8f3e2;
+  --bo-card-bg: #ffffff;
+  --bo-border: #d7e6d2;
+  --bo-text: #314131;
+  --bo-muted: #708070;
+  --bo-primary: #86c28b;
+  --bo-primary-dark: #5e9c63;
+  --bo-primary-soft: #dcefd7;
+  --bo-shadow: 0 10px 30px rgba(76, 102, 76, 0.08);
+  --bo-radius: 18px;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body.bo-body {
+  margin: 0;
+  background: var(--bo-bg);
+}
+
+.bo-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.bo-sidebar {
+  width: 290px;
+  background: var(--bo-sidebar-bg);
+  border-right: 1px solid var(--bo-border);
+  flex-shrink: 0;
+}
+
+.bo-sidebar-inner {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem;
+  position: sticky;
+  top: 0;
+}
+
+.bo-brand {
+  margin-bottom: 1.5rem;
+}
+
+.bo-brand-link {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  color: var(--bo-text);
+}
+
+.bo-brand-logo {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid var(--bo-border);
+  padding: 0.35rem;
+  box-shadow: var(--bo-shadow);
+}
+
+.bo-brand-title {
+  font-size: 1.2rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.bo-brand-subtitle {
+  font-size: 0.92rem;
+  color: var(--bo-muted);
+}
+
+.bo-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.bo-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 14px;
+  text-decoration: none;
+  color: var(--bo-text);
+  font-weight: 600;
+  transition: 0.15s ease;
+}
+
+.bo-nav-link:hover {
+  background: #eef7eb;
+  color: var(--bo-text);
+}
+
+.bo-nav-link.is-active {
+  background: var(--bo-primary-soft);
+  color: var(--bo-primary-dark);
+}
+
+.bo-nav-icon {
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.bo-sidebar-bottom {
+  margin-top: auto;
+  padding-top: 1rem;
+}
+
+.bo-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.bo-main-inner {
+  padding: 1.5rem;
+}
+
+.bo-page-header {
+  margin-bottom: 1.25rem;
+}
+
+.bo-page-title {
+  margin: 0 0 0.25rem;
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--bo-text);
+}
+
+.bo-page-subtitle {
+  color: var(--bo-muted);
+}
+
+.bo-search-card,
+.bo-table-card,
+.bo-card,
+.bo-stat-card {
+  background: var(--bo-card-bg);
+  border: 1px solid var(--bo-border);
+  border-radius: var(--bo-radius);
+  box-shadow: var(--bo-shadow);
+}
+
+.bo-search-card {
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.bo-table-card {
+  overflow: hidden;
+}
+
+.bo-card-header {
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid var(--bo-border);
+}
+
+.bo-card-body {
+  padding: 1.2rem;
+}
+
+.bo-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.bo-stat-card {
+  padding: 1rem 1.1rem;
+}
+
+.bo-stat-label {
+  color: var(--bo-muted);
+  font-size: 0.92rem;
+  margin-bottom: 0.35rem;
+}
+
+.bo-stat-value {
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: var(--bo-text);
+  line-height: 1.1;
+}
+
+.table.bo-table {
+  margin-bottom: 0;
+  vertical-align: middle;
+}
+
+.table.bo-table thead th {
+  background: #f3f8f1;
+  color: var(--bo-text);
+  border-bottom: 1px solid var(--bo-border);
+  white-space: nowrap;
+  font-size: 0.92rem;
+}
+
+.table.bo-table td {
+  border-color: #edf4ea;
+}
+
+.bo-empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--bo-muted);
+}
+
+.badge.bo-badge {
+  background: #eef7eb;
+  color: var(--bo-primary-dark);
+  border: 1px solid #d7ebd2;
+  font-weight: 700;
+}
+
+@media (max-width: 1199.98px) {
+  .bo-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 991.98px) {
+  .bo-layout {
+    flex-direction: column;
+  }
+
+  .bo-sidebar {
+    width: 100%;
+    border-right: 0;
+    border-bottom: 1px solid var(--bo-border);
+  }
+
+  .bo-sidebar-inner {
+    min-height: auto;
+    position: static;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .bo-main-inner {
+    padding: 1rem;
+  }
+
+  .bo-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bo-page-title {
+    font-size: 1.6rem;
+  }
+}
+
+.pagination .page-link {
+  color: var(--bo-primary-dark);
+}
+
+.pagination .page-item.active .page-link {
+  background-color: var(--bo-primary);
+  border-color: var(--bo-primary);
+  color: #fff;
+}
+
+.pagination .page-item.disabled .page-link {
+  opacity: 0.6;
+}

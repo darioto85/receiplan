@@ -39,7 +39,7 @@ final class IngredientImageTarget implements ImageTargetInterface
 
         // Prompt plus concis, mêmes contraintes clés
         return
-            "Illustration stylisée semi-réaliste d'un(e) {$name}, " .
+            "Illustration stylisée semi-réaliste d'un(e) {$name} (dans le context d'un ingrédient de cuisine)," .
             "style kawaii doux et moderne, SANS visage (pas d'yeux, pas de bouche). " .
             "Rendu avec volume et relief visibles, dégradés doux, reflets subtils, " .
             "matière lisse et légèrement brillante, détails simples mais lisibles. " .

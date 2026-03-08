@@ -1,0 +1,74 @@
+{% extends 'backoffice/base_backoffice.html.twig' %}
+
+{% block backoffice_search %}
+    <div class="bo-search-card">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-6 col-lg-5">
+                <label for="q" class="form-label">Recherche</label>
+                <input
+                    type="text"
+                    id="q"
+                    name="q"
+                    value="{{ q }}"
+                    class="form-control"
+                    placeholder="Email utilisateur..."
+                >
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-success">Rechercher</button>
+            </div>
+            <div class="col-auto">
+                <a href="{{ path('backoffice_assistant_conversations') }}" class="btn btn-outline-secondary">Réinitialiser</a>
+            </div>
+        </form>
+    </div>
+{% endblock %}
+
+{% block backoffice_content %}
+    <div class="bo-table-card">
+        {% if conversations is empty %}
+            <div class="bo-empty">Aucune conversation trouvée.</div>
+        {% else %}
+            <div class="table-responsive">
+                <table class="table bo-table">
+                    <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Utilisateur</th>
+                        <th>Titre</th>
+                        <th>Date</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for conversation in conversations %}
+                        <tr>
+                            <td>{{ conversation.id }}</td>
+                            <td>
+                                {% if attribute(conversation, 'user') is defined and conversation.user %}
+                                    {{ conversation.user.email ?? ('#' ~ conversation.user.id) }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if attribute(conversation, 'title') is defined and conversation.title %}
+                                    {{ conversation.title }}
+                                {% else %}
+                                    Conversation #{{ conversation.id }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if attribute(conversation, 'createdAt') is defined and conversation.createdAt %}
+                                    {{ conversation.createdAt|date('d/m/Y H:i') }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
