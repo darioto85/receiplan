@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Entity\Ingredient;
 use App\Entity\Shopping;
 use App\Entity\User;
+use App\Enum\Unit;
 use App\Repository\ShoppingRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -36,7 +37,6 @@ final class ShoppingListService
         foreach ($views as $view) {
             $recipe = $view['recipe'] ?? null;
 
-            // On filtre uniquement si on a bien la méthode (chez toi c’est le cas)
             if ($recipe && method_exists($recipe, 'isFavorite') && $recipe->isFavorite()) {
                 $filtered[] = $view;
             }
@@ -59,7 +59,7 @@ final class ShoppingListService
             $user,
             $from,
             $to,
-            true // uniquement non validés
+            true
         );
 
         $this->syncAutoMissingFromViews($user, $views);
@@ -86,7 +86,13 @@ final class ShoppingListService
      */
     private function syncAutoMissingFromViews(User $user, iterable $views): void
     {
-        /** @var array<int, array{ingredient: Ingredient, qty: float}> $missingByIngredientId */
+        /**
+         * @var array<int, array{
+         *     ingredient: Ingredient,
+         *     qty: float,
+         *     unit: Unit
+         * }> $missingByIngredientId
+         */
         $missingByIngredientId = [];
 
         // 1) Agréger missing par ingrédient
@@ -111,13 +117,23 @@ final class ShoppingListService
                     continue;
                 }
 
+                $unit = $item['unit'] ?? null;
+                if (!$unit instanceof Unit) {
+                    $unit = $ingredient->getUnit();
+                }
+
                 if (!isset($missingByIngredientId[$iid])) {
                     $missingByIngredientId[$iid] = [
                         'ingredient' => $ingredient,
                         'qty' => 0.0,
+                        'unit' => $unit,
                     ];
                 }
 
+                // ⚠️ Si jamais le même ingrédient remonte avec plusieurs unités différentes,
+                // ton modèle actuel Shopping (unique user + ingredient) ne permet pas
+                // de stocker plusieurs lignes séparées pour le même ingrédient.
+                // Donc ici on garde l’unité de la première occurrence.
                 $missingByIngredientId[$iid]['qty'] += $missing;
             }
         }
@@ -139,15 +155,16 @@ final class ShoppingListService
         foreach ($missingByIngredientId as $iid => $row) {
             $missingQty = round((float) $row['qty'], 2);
             $ingredient = $row['ingredient'];
+            $unit = $row['unit'];
 
             $line = $existingByIngredientId[$iid] ?? null;
 
             if ($line === null) {
-                // Rien n'existe -> créer une ligne AUTO
                 $line = (new Shopping())
                     ->setUser($user)
                     ->setIngredient($ingredient)
                     ->setSource('auto')
+                    ->setUnit($unit)
                     ->setQuantity($missingQty);
 
                 $this->em->persist($line);
@@ -156,17 +173,17 @@ final class ShoppingListService
 
             $currentQty = round((float) $line->getQuantity(), 2);
 
+            // ✅ on synchronise aussi l’unité de la ligne shopping
+            $line->setUnit($unit);
+
             if ($line->isAuto()) {
-                // ✅ AUTO: ne jamais diminuer automatiquement
                 $line->setQuantity(max($currentQty, $missingQty));
             } else {
-                // ✅ MANUAL: ne jamais diminuer non plus, juste max(manual, missing)
                 $line->setQuantity(max($currentQty, $missingQty));
             }
         }
 
         // ✅ 4) IMPORTANT: on ne supprime plus les AUTO absents du missing
-        // (compromis pour permettre favorites puis week sans perdre des items auto)
 
         $this->em->flush();
     }

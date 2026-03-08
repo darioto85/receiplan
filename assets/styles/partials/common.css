@@ -640,7 +640,7 @@ h2{
   .rp-page .table-responsive{ border-radius: 18px !important; }
 
   .swipe-content{ padding: 1px; }
-  .rp-accordion{ margin: 0 -1.1rem; }
+  .rp-accordion{ margin: 0 -11px; }
   .rp-recipe-grid{ margin: 0px -0.4rem; }
   .rp-recipe-main{ padding: 10px; }
 }
