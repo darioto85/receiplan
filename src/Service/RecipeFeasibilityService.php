@@ -6,6 +6,7 @@ use App\Entity\MealPlan;
 use App\Entity\Recipe;
 use App\Entity\User;
 use App\Entity\UserIngredient;
+use App\Enum\Unit;
 use App\Repository\MealPlanRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -63,7 +64,6 @@ final class RecipeFeasibilityService
     ): array {
         $plans = $this->mealPlanRepository->findBetween($user, $from, $to);
 
-        // Filtrer validés si demandé
         if ($onlyUnvalidated) {
             $plans = array_values(array_filter(
                 $plans,
@@ -71,7 +71,6 @@ final class RecipeFeasibilityService
             ));
         }
 
-        // Extraire les recettes uniques (évite doublons)
         /** @var array<int, Recipe> $recipesById */
         $recipesById = [];
 
@@ -80,6 +79,7 @@ final class RecipeFeasibilityService
             if (!$recipe instanceof Recipe) {
                 continue;
             }
+
             $rid = $recipe->getId();
             if ($rid) {
                 $recipesById[$rid] = $recipe;
@@ -90,7 +90,6 @@ final class RecipeFeasibilityService
             return [];
         }
 
-        // Charger ces recettes avec leurs ingrédients en une requête (évite N+1)
         $recipeIds = array_keys($recipesById);
 
         /** @var Recipe[] $recipes */
@@ -109,7 +108,6 @@ final class RecipeFeasibilityService
 
         $views = $this->buildViewsForRecipes($user, $recipes);
 
-        // Ne retourner que les insuffisantes
         return array_values(array_filter($views, static fn(array $v) => $v['is_feasible'] === false));
     }
 
@@ -135,19 +133,36 @@ final class RecipeFeasibilityService
                 $ing = $ri->getIngredient();
                 $neededRaw = $ri->getQuantity();
                 $needed = $neededRaw === null ? null : (float) $neededRaw;
+                $recipeUnit = $ri->getUnit();
 
                 if (!$ing || $needed === null || $needed <= 0) {
                     continue;
                 }
 
-                $stock = (float) ($stockByIngredientId[$ing->getId()] ?? 0.0);
-                if ($stock < $needed) {
+                $stockQty = 0.0;
+                $stockUnit = null;
+
+                $ingId = $ing->getId();
+                if ($ingId && isset($stockByIngredientId[$ingId])) {
+                    $stockQty = $stockByIngredientId[$ingId]['qty'];
+                    $stockUnit = $stockByIngredientId[$ingId]['unit'];
+                }
+
+                $comparableStock = $this->convertQuantity($stockQty, $stockUnit, $recipeUnit);
+                if ($comparableStock === null) {
+                    $comparableStock = 0.0;
+                }
+
+                if ($comparableStock < $needed) {
                     $ok = false;
                     break;
                 }
             }
 
-            $map[$recipe->getId()] = $ok;
+            $recipeId = $recipe->getId();
+            if ($recipeId !== null) {
+                $map[$recipeId] = $ok;
+            }
         }
 
         return $map;
@@ -219,15 +234,22 @@ final class RecipeFeasibilityService
                 $needed = $neededRaw === null ? null : (float) $neededRaw;
 
                 $stock = 0.0;
-                $unit = null;
+                $unit = $ri->getUnit();
 
                 if ($ing) {
-                    $stock = (float) ($stockByIngredientId[$ing->getId()] ?? 0.0);
-                    $unit = $ing->getUnit();
+                    $ingId = $ing->getId();
+
+                    if ($ingId && isset($stockByIngredientId[$ingId])) {
+                        $stockQty = $stockByIngredientId[$ingId]['qty'];
+                        $stockUnit = $stockByIngredientId[$ingId]['unit'];
+
+                        $convertedStock = $this->convertQuantity($stockQty, $stockUnit, $unit);
+                        $stock = $convertedStock ?? 0.0;
+                    }
                 }
 
                 $isMissing = ($needed !== null && $needed > 0 && $stock < $needed);
-                $missingAmount = $isMissing ? ($needed - $stock) : null;
+                $missingAmount = $isMissing ? round($needed - $stock, 2) : null;
 
                 if ($isMissing) {
                     $missingCount++;
@@ -237,7 +259,7 @@ final class RecipeFeasibilityService
                     'recipeIngredient' => $ri,
                     'ingredient' => $ing,
                     'needed' => $needed,
-                    'stock' => $stock,
+                    'stock' => round($stock, 2),
                     'unit' => $unit,
                     'is_missing' => $isMissing,
                     'missing_amount' => $missingAmount,
@@ -256,7 +278,7 @@ final class RecipeFeasibilityService
     }
 
     /**
-     * @return array<int, float> ingredientId => quantity
+     * @return array<int, array{qty: float, unit: Unit}> ingredientId => ['qty' => ..., 'unit' => ...]
      */
     private function buildStockMap(User $user): array
     {
@@ -278,10 +300,67 @@ final class RecipeFeasibilityService
             }
 
             $id = $ing->getId();
-            $qty = (float) ($ui->getQuantity() ?? 0);
-            $stockByIngredientId[$id] = ($stockByIngredientId[$id] ?? 0) + $qty;
+            if (!$id) {
+                continue;
+            }
+
+            $stockByIngredientId[$id] = [
+                'qty' => (float) ($ui->getQuantity() ?? 0),
+                'unit' => $ui->getUnit(),
+            ];
         }
 
         return $stockByIngredientId;
+    }
+
+    private function convertQuantity(float $quantity, ?Unit $from, ?Unit $to): ?float
+    {
+        if ($from === null || $to === null) {
+            return null;
+        }
+
+        if ($from === $to) {
+            return $quantity;
+        }
+
+        $fromMeta = $this->getUnitMeta($from);
+        $toMeta = $this->getUnitMeta($to);
+
+        if ($fromMeta === null || $toMeta === null) {
+            return null;
+        }
+
+        if ($fromMeta['family'] !== $toMeta['family']) {
+            return null;
+        }
+
+        $baseQuantity = $quantity * $fromMeta['factor'];
+        return $baseQuantity / $toMeta['factor'];
+    }
+
+    /**
+     * factor = multiplicateur vers l'unité canonique de la famille
+     * - poids    : base = g
+     * - volume   : base = ml
+     * - unités   : base = unité elle-même
+     *
+     * @return array{family: string, factor: float}|null
+     */
+    private function getUnitMeta(Unit $unit): ?array
+    {
+        return match ($unit) {
+            Unit::G => ['family' => 'weight', 'factor' => 1.0],
+            Unit::KG => ['family' => 'weight', 'factor' => 1000.0],
+
+            Unit::ML => ['family' => 'volume', 'factor' => 1.0],
+            Unit::L => ['family' => 'volume', 'factor' => 1000.0],
+
+            Unit::PIECE => ['family' => 'piece', 'factor' => 1.0],
+            Unit::POT => ['family' => 'pot', 'factor' => 1.0],
+            Unit::BOITE => ['family' => 'boite', 'factor' => 1.0],
+            Unit::SACHET => ['family' => 'sachet', 'factor' => 1.0],
+            Unit::TRANCHE => ['family' => 'tranche', 'factor' => 1.0],
+            Unit::PAQUET => ['family' => 'paquet', 'factor' => 1.0],
+        };
     }
 }
