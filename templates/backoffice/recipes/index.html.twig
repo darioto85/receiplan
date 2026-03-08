@@ -25,6 +25,15 @@
 {% endblock %}
 
 {% block backoffice_content %}
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div class="text-muted small">
+            {{ total }} recette{{ total > 1 ? 's' : '' }}
+            {% if total > 0 %}
+                • page {{ page }}/{{ total_pages }}
+            {% endif %}
+        </div>
+    </div>
+
     <div class="bo-table-card">
         {% if recipes is empty %}
             <div class="bo-empty">Aucune recette trouvée.</div>
@@ -34,37 +43,79 @@
                     <thead>
                     <tr>
                         <th>#</th>
-                        <th>Nom</th>
+                        <th>Recette</th>
                         <th>Utilisateur</th>
-                        <th>Source</th>
-                        <th>Date</th>
+                        <th>Image IA</th>
+                        <th>Actions</th>
                     </tr>
                     </thead>
                     <tbody>
                     {% for recipe in recipes %}
+                        {% set recipeImg = recipe_image(recipe) %}
+
                         <tr>
                             <td>{{ recipe.id }}</td>
-                            <td>{{ attribute(recipe, 'name') is defined ? recipe.name : '' }}</td>
+
                             <td>
-                                {% if attribute(recipe, 'user') is defined and recipe.user %}
-                                    {{ recipe.user.email ?? ('#' ~ recipe.user.id) }}
+                                <div class="d-flex align-items-center gap-2">
+                                    <img
+                                        src="{{ recipeImg }}"
+                                        alt="{{ recipe.name }}"
+                                        width="56"
+                                        height="56"
+                                        loading="lazy"
+                                        decoding="async"
+                                        style="object-fit: cover; border-radius: 10px; flex: 0 0 auto;"
+                                    >
+                                    <div class="d-flex flex-column">
+                                        <span class="fw-semibold">{{ recipe.name }}</span>
+                                        {% if recipe.user %}
+                                            <small class="text-muted">user #{{ recipe.user.id }}</small>
+                                        {% else %}
+                                            <small class="text-muted">globale</small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+
+                            <td>
+                                {% if recipe.user %}
+                                    <span class="badge bo-badge">Utilisateur #{{ recipe.user.id }}</span>
                                 {% else %}
-                                    —
+                                    <span class="badge text-bg-secondary">Globale</span>
                                 {% endif %}
                             </td>
+
                             <td>
-                                {% if attribute(recipe, 'source') is defined %}
-                                    {{ recipe.source ?: '—' }}
+                                {% if recipe.imgGenerated %}
+                                    <span class="badge text-bg-success">Oui</span>
+                                    {% if recipe.imgGeneratedAt %}
+                                        <div class="small text-muted mt-1">
+                                            {{ recipe.imgGeneratedAt|date('d/m/Y H:i') }}
+                                        </div>
+                                    {% endif %}
                                 {% else %}
-                                    —
+                                    <span class="badge text-bg-light">Non</span>
                                 {% endif %}
                             </td>
+
                             <td>
-                                {% if attribute(recipe, 'createdAt') is defined and recipe.createdAt %}
-                                    {{ recipe.createdAt|date('d/m/Y H:i') }}
-                                {% else %}
-                                    —
-                                {% endif %}
+                                <form
+                                    method="post"
+                                    action="{{ path('backoffice_recipes_regenerate_image', {id: recipe.id, q: q, page: page}) }}"
+                                    class="d-inline"
+                                    onsubmit="return confirm('Demander une nouvelle génération d’image pour cette recette ?');"
+                                >
+                                    <input
+                                        type="hidden"
+                                        name="_token"
+                                        value="{{ csrf_token('regenerate_recipe_image_' ~ recipe.id) }}"
+                                    >
+
+                                    <button type="submit" class="btn btn-sm btn-outline-primary">
+                                        {{ recipe.imgGenerated ? 'Régénérer l’image' : 'Lancer la génération' }}
+                                    </button>
+                                </form>
                             </td>
                         </tr>
                     {% endfor %}
@@ -73,4 +124,61 @@
             </div>
         {% endif %}
     </div>
+
+    {% if total_pages > 1 %}
+        <nav class="mt-4" aria-label="Pagination recettes">
+            <ul class="pagination justify-content-center flex-wrap">
+
+                <li class="page-item {{ page <= 1 ? 'disabled' : '' }}">
+                    <a
+                        class="page-link"
+                        href="{{ page > 1 ? path('backoffice_recipes', {q: q, page: page - 1}) : '#' }}"
+                    >
+                        Précédent
+                    </a>
+                </li>
+
+                {% set start = page - 2 > 1 ? page - 2 : 1 %}
+                {% set end = page + 2 < total_pages ? page + 2 : total_pages %}
+
+                {% if start > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ path('backoffice_recipes', {q: q, page: 1}) }}">1</a>
+                    </li>
+                    {% if start > 2 %}
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                    {% endif %}
+                {% endif %}
+
+                {% for p in start..end %}
+                    <li class="page-item {{ p == page ? 'active' : '' }}">
+                        <a class="page-link" href="{{ path('backoffice_recipes', {q: q, page: p}) }}">
+                            {{ p }}
+                        </a>
+                    </li>
+                {% endfor %}
+
+                {% if end < total_pages %}
+                    {% if end < total_pages - 1 %}
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                    {% endif %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ path('backoffice_recipes', {q: q, page: total_pages}) }}">
+                            {{ total_pages }}
+                        </a>
+                    </li>
+                {% endif %}
+
+                <li class="page-item {{ page >= total_pages ? 'disabled' : '' }}">
+                    <a
+                        class="page-link"
+                        href="{{ page < total_pages ? path('backoffice_recipes', {q: q, page: page + 1}) : '#' }}"
+                    >
+                        Suivant
+                    </a>
+                </li>
+
+            </ul>
+        </nav>
+    {% endif %}
 {% endblock %}

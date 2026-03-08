@@ -55,7 +55,7 @@ class UserAuthenticator extends AbstractLoginFormAuthenticator
 
         // sinon app normale
         return new RedirectResponse(
-            $this->urlGenerator->generate('app_meal_plan')
+            $this->urlGenerator->generate('meal_plan_index')
         );
     }
 

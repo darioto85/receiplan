@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Ingredient;
+use App\Entity\Recipe;
 use App\Repository\AssistantConversationRepository;
 use App\Repository\IngredientRepository;
 use App\Repository\PreinscriptionRepository;
@@ -16,6 +17,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use App\Service\Image\Storage\ImageStorageInterface;
 use App\Service\IngredientImageResolver;
+use App\Service\RecipeImageResolver;
 
 #[Route('/godmode', name: 'backoffice_')]
 final class BackofficeController extends AbstractController
@@ -24,6 +26,7 @@ final class BackofficeController extends AbstractController
         private readonly EntityManagerInterface $entityManager,
         private readonly ImageStorageInterface $imageStorage,
         private readonly IngredientImageResolver $ingredientImageResolver,
+        private readonly RecipeImageResolver $recipeImageResolver,
     ) {
     }
 
@@ -121,27 +124,90 @@ final class BackofficeController extends AbstractController
         $this->denyUnlessAdmin();
 
         $q = trim((string) $request->query->get('q', ''));
+        $page = max(1, $request->query->getInt('page', 1));
+        $perPage = 100;
+
+        $qb = $recipeRepository->createQueryBuilder('r')
+            ->leftJoin('r.user', 'u')
+            ->addSelect('u')
+            ->orderBy('r.id', 'DESC');
 
         if ($q !== '') {
-            $qb = $recipeRepository->createQueryBuilder('r')
-                ->orderBy('r.id', 'DESC')
-                ->setMaxResults(100);
-
-            if ($this->entityHasField($recipeRepository->getClassName(), 'name')) {
-                $qb->andWhere('r.name LIKE :q')
-                    ->setParameter('q', '%' . $q . '%');
-            }
-
-            $recipes = $qb->getQuery()->getResult();
-        } else {
-            $recipes = $recipeRepository->findBy([], ['id' => 'DESC'], 100);
+            $qb->andWhere('r.name LIKE :q')
+                ->setParameter('q', '%' . $q . '%');
         }
+
+        $countQb = clone $qb;
+        $total = (int) $countQb
+            ->select('COUNT(r.id)')
+            ->resetDQLPart('orderBy')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        $totalPages = max(1, (int) ceil($total / $perPage));
+        $page = min($page, $totalPages);
+        $offset = ($page - 1) * $perPage;
+
+        $recipes = $qb
+            ->setFirstResult($offset)
+            ->setMaxResults($perPage)
+            ->getQuery()
+            ->getResult();
 
         return $this->render('backoffice/recipes/index.html.twig', [
             'page_title' => 'Recettes',
             'current_menu' => 'recipes',
             'q' => $q,
+            'page' => $page,
+            'per_page' => $perPage,
+            'total' => $total,
+            'total_pages' => $totalPages,
             'recipes' => $recipes,
+        ]);
+    }
+
+    #[Route('/recipes/{id}/regenerate-image', name: 'recipes_regenerate_image', methods: ['POST'])]
+    public function regenerateRecipeImage(
+        Request $request,
+        Recipe $recipe,
+    ): RedirectResponse {
+        $this->denyUnlessAdmin();
+
+        if (!$this->isCsrfTokenValid(
+            'regenerate_recipe_image_' . $recipe->getId(),
+            (string) $request->request->get('_token')
+        )) {
+            $this->addFlash('danger', 'Token CSRF invalide.');
+
+            return $this->redirectToRoute('backoffice_recipes', [
+                'q' => $request->query->get('q', ''),
+                'page' => $request->query->getInt('page', 1),
+            ]);
+        }
+
+        try {
+            $imageKey = $this->recipeImageResolver->getStorageKey($recipe);
+            $this->imageStorage->delete($imageKey);
+
+            $recipe->setImgGenerated(false);
+            $recipe->setImgGeneratedAt(null);
+
+            $this->entityManager->flush();
+
+            $this->addFlash('success', sprintf(
+                'L’image de la recette "%s" a été supprimée et sera régénérée.',
+                $recipe->getName() ?? 'cette recette'
+            ));
+        } catch (\Throwable $e) {
+            $this->addFlash('danger', sprintf(
+                'Impossible de réinitialiser l’image de la recette "%s".',
+                $recipe->getName() ?? 'cette recette'
+            ));
+        }
+
+        return $this->redirectToRoute('backoffice_recipes', [
+            'q' => $request->query->get('q', ''),
+            'page' => $request->query->getInt('page', 1),
         ]);
     }
 
