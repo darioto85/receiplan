@@ -1,0 +1,85 @@
+{% extends 'backoffice/base_backoffice.html.twig' %}
+
+{% block backoffice_header_subtitle %}
+    <p class="bo-page-subtitle mb-0">
+        {{ conversation.user.email }} • {{ conversation.day|date('d/m/Y') }}
+    </p>
+{% endblock %}
+
+{% block backoffice_content %}
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div class="text-muted small">
+            Conversation #{{ conversation.id }} • créée le {{ conversation.createdAt|date('d/m/Y à H:i') }}
+        </div>
+
+        <a href="{{ path('backoffice_assistant_conversations') }}" class="btn btn-outline-secondary">
+            Retour à la liste
+        </a>
+    </div>
+
+    <div class="bo-card mb-4">
+        <div class="bo-card-header">
+            <strong>Informations</strong>
+        </div>
+        <div class="bo-card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="text-muted small">ID conversation</div>
+                    <div class="fw-semibold">{{ conversation.id }}</div>
+                </div>
+                <div class="col-md-4">
+                    <div class="text-muted small">Utilisateur</div>
+                    <div class="fw-semibold">{{ conversation.user.email }}</div>
+                </div>
+                <div class="col-md-4">
+                    <div class="text-muted small">Jour</div>
+                    <div class="fw-semibold">{{ conversation.day|date('d/m/Y') }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if messages is empty %}
+        <div class="bo-card">
+            <div class="bo-empty">Aucun message dans cette conversation.</div>
+        </div>
+    {% else %}
+        <div class="d-flex flex-column gap-3">
+            {% for message in messages %}
+                <div class="bo-card">
+                    <div class="bo-card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            {% if message.role == 'user' %}
+                                <span class="badge text-bg-primary">User</span>
+                            {% elseif message.role == 'assistant' %}
+                                <span class="badge text-bg-success">Assistant</span>
+                            {% else %}
+                                <span class="badge text-bg-secondary">System</span>
+                            {% endif %}
+
+                            <span class="text-muted small">Message #{{ message.id }}</span>
+                        </div>
+
+                        <div class="text-muted small">
+                            {{ message.createdAt|date('d/m/Y H:i:s') }}
+                        </div>
+                    </div>
+
+                    <div class="bo-card-body">
+                        <div class="mb-3">
+                            <div class="text-muted small mb-1">Contenu</div>
+                            <div class="bo-message-content">{{ message.content|nl2br }}</div>
+                        </div>
+
+                        {% if message.payload is not empty %}
+                            <div>
+                                <div class="text-muted small mb-1">Payload</div>
+                                <pre class="bo-json-box">{{ message.payload|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_UNICODE')) }}</pre>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endblock %}

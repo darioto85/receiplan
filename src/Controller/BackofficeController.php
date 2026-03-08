@@ -4,6 +4,8 @@ namespace App\Controller;
 
 use App\Entity\Ingredient;
 use App\Entity\Recipe;
+use App\Entity\AssistantConversation;
+use App\Repository\AssistantMessageRepository;
 use App\Repository\AssistantConversationRepository;
 use App\Repository\IngredientRepository;
 use App\Repository\PreinscriptionRepository;
@@ -315,25 +317,67 @@ final class BackofficeController extends AbstractController
         $this->denyUnlessAdmin();
 
         $q = trim((string) $request->query->get('q', ''));
+        $page = max(1, $request->query->getInt('page', 1));
+        $perPage = 100;
 
         $qb = $assistantConversationRepository->createQueryBuilder('c')
             ->leftJoin('c.user', 'u')
             ->addSelect('u')
-            ->orderBy('c.id', 'DESC')
-            ->setMaxResults(100);
+            ->orderBy('c.id', 'DESC');
 
         if ($q !== '') {
             $qb->andWhere('u.email LIKE :q')
                 ->setParameter('q', '%' . $q . '%');
         }
 
-        $conversations = $qb->getQuery()->getResult();
+        $countQb = clone $qb;
+        $total = (int) $countQb
+            ->select('COUNT(c.id)')
+            ->resetDQLPart('orderBy')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        $totalPages = max(1, (int) ceil($total / $perPage));
+        $page = min($page, $totalPages);
+        $offset = ($page - 1) * $perPage;
+
+        $conversations = $qb
+            ->setFirstResult($offset)
+            ->setMaxResults($perPage)
+            ->getQuery()
+            ->getResult();
 
         return $this->render('backoffice/assistant_conversations/index.html.twig', [
             'page_title' => 'Conversations assistant',
             'current_menu' => 'assistant_conversations',
             'q' => $q,
+            'page' => $page,
+            'per_page' => $perPage,
+            'total' => $total,
+            'total_pages' => $totalPages,
             'conversations' => $conversations,
+        ]);
+    }
+
+    #[Route('/assistant-conversations/{id}', name: 'assistant_conversations_show', methods: ['GET'])]
+    public function assistantConversationShow(
+        AssistantConversation $conversation,
+        AssistantMessageRepository $assistantMessageRepository,
+    ): Response {
+        $this->denyUnlessAdmin();
+
+        $messages = $assistantMessageRepository->createQueryBuilder('m')
+            ->andWhere('m.conversation = :conversation')
+            ->setParameter('conversation', $conversation)
+            ->orderBy('m.createdAt', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $this->render('backoffice/assistant_conversations/show.html.twig', [
+            'page_title' => 'Conversation assistant #' . $conversation->getId(),
+            'current_menu' => 'assistant_conversations',
+            'conversation' => $conversation,
+            'messages' => $messages,
         ]);
     }
 

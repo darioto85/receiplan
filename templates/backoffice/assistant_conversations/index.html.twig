@@ -25,6 +25,15 @@
 {% endblock %}
 
 {% block backoffice_content %}
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div class="text-muted small">
+            {{ total }} conversation{{ total > 1 ? 's' : '' }}
+            {% if total > 0 %}
+                • page {{ page }}/{{ total_pages }}
+            {% endif %}
+        </div>
+    </div>
+
     <div class="bo-table-card">
         {% if conversations is empty %}
             <div class="bo-empty">Aucune conversation trouvée.</div>
@@ -35,34 +44,25 @@
                     <tr>
                         <th>#</th>
                         <th>Utilisateur</th>
-                        <th>Titre</th>
-                        <th>Date</th>
+                        <th>Jour</th>
+                        <th>Créée le</th>
+                        <th>Actions</th>
                     </tr>
                     </thead>
                     <tbody>
                     {% for conversation in conversations %}
                         <tr>
                             <td>{{ conversation.id }}</td>
+                            <td>{{ conversation.user.email }}</td>
+                            <td>{{ conversation.day|date('d/m/Y') }}</td>
+                            <td>{{ conversation.createdAt|date('d/m/Y H:i') }}</td>
                             <td>
-                                {% if attribute(conversation, 'user') is defined and conversation.user %}
-                                    {{ conversation.user.email ?? ('#' ~ conversation.user.id) }}
-                                {% else %}
-                                    —
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if attribute(conversation, 'title') is defined and conversation.title %}
-                                    {{ conversation.title }}
-                                {% else %}
-                                    Conversation #{{ conversation.id }}
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if attribute(conversation, 'createdAt') is defined and conversation.createdAt %}
-                                    {{ conversation.createdAt|date('d/m/Y H:i') }}
-                                {% else %}
-                                    —
-                                {% endif %}
+                                <a
+                                    href="{{ path('backoffice_assistant_conversations_show', {id: conversation.id}) }}"
+                                    class="btn btn-sm btn-outline-primary"
+                                >
+                                    Voir
+                                </a>
                             </td>
                         </tr>
                     {% endfor %}
@@ -71,4 +71,61 @@
             </div>
         {% endif %}
     </div>
+
+    {% if total_pages > 1 %}
+        <nav class="mt-4" aria-label="Pagination conversations assistant">
+            <ul class="pagination justify-content-center flex-wrap">
+
+                <li class="page-item {{ page <= 1 ? 'disabled' : '' }}">
+                    <a
+                        class="page-link"
+                        href="{{ page > 1 ? path('backoffice_assistant_conversations', {q: q, page: page - 1}) : '#' }}"
+                    >
+                        Précédent
+                    </a>
+                </li>
+
+                {% set start = page - 2 > 1 ? page - 2 : 1 %}
+                {% set end = page + 2 < total_pages ? page + 2 : total_pages %}
+
+                {% if start > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ path('backoffice_assistant_conversations', {q: q, page: 1}) }}">1</a>
+                    </li>
+                    {% if start > 2 %}
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                    {% endif %}
+                {% endif %}
+
+                {% for p in start..end %}
+                    <li class="page-item {{ p == page ? 'active' : '' }}">
+                        <a class="page-link" href="{{ path('backoffice_assistant_conversations', {q: q, page: p}) }}">
+                            {{ p }}
+                        </a>
+                    </li>
+                {% endfor %}
+
+                {% if end < total_pages %}
+                    {% if end < total_pages - 1 %}
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                    {% endif %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ path('backoffice_assistant_conversations', {q: q, page: total_pages}) }}">
+                            {{ total_pages }}
+                        </a>
+                    </li>
+                {% endif %}
+
+                <li class="page-item {{ page >= total_pages ? 'disabled' : '' }}">
+                    <a
+                        class="page-link"
+                        href="{{ page < total_pages ? path('backoffice_assistant_conversations', {q: q, page: page + 1}) : '#' }}"
+                    >
+                        Suivant
+                    </a>
+                </li>
+
+            </ul>
+        </nav>
+    {% endif %}
 {% endblock %}
