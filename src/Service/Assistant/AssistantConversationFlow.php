@@ -1,0 +1,132 @@
+<?php
+
+namespace App\Service\Assistant;
+
+use App\Entity\User;
+use App\Enum\AssistantConversationStatus;
+use Doctrine\ORM\EntityManagerInterface;
+
+class AssistantConversationFlow
+{
+    public function __construct(
+        private readonly AssistantConversationManager $conversationManager,
+        private readonly AssistantMessageManager $messageManager,
+        private readonly AssistantRunContextBuilder $contextBuilder,
+        private readonly AssistantPromptBuilder $promptBuilder,
+        private readonly AssistantLlmService $llmService,
+        private readonly AssistantRunActionManager $runActionManager,
+        private readonly AssistantActionExecutor $actionExecutor,
+        private readonly EntityManagerInterface $em,
+    ) {}
+
+    /**
+     * Traite un message utilisateur et renvoie la réponse assistant
+     *
+     * @return array{
+     *     assistant_message: \App\Entity\AssistantMessage,
+     *     actions: array<int, array<string, mixed>>,
+     *     status: string,
+     *     execution?: array{
+     *         success: bool,
+     *         results: array<int, array<string, mixed>>,
+     *         errors: array<int, array<string, mixed>>
+     *     }
+     * }
+     */
+    public function handleUserMessage(User $user, string $text): array
+    {
+        $conversation = $this->conversationManager->getOrCreateConversation($user);
+        $run = $this->conversationManager->getOrCreateActiveRun($conversation);
+
+        $this->messageManager->addUserMessage($conversation, $run, $text);
+        $this->em->flush();
+
+        $context = $this->contextBuilder->buildLlmInput($run);
+
+        $systemPrompt = $this->promptBuilder->buildSystemPrompt();
+        $schema = $this->promptBuilder->buildJsonSchema();
+
+        $result = $this->llmService->complete(
+            $systemPrompt,
+            $context,
+            $schema
+        );
+
+        $actions = [];
+        if (isset($result['actions']) && is_array($result['actions'])) {
+            $actions = $result['actions'];
+            $this->runActionManager->syncActions($run, $actions);
+        }
+
+        $assistantText = trim((string) ($result['assistant_message'] ?? ''));
+        if ($assistantText === '') {
+            $assistantText = 'Je n’ai pas su formuler de réponse.';
+        }
+
+        $status = (string) ($result['conversation_status'] ?? AssistantConversationStatus::CONTINUE->value);
+        $execution = null;
+
+        if ($status === AssistantConversationStatus::READY->value) {
+            $execution = $this->actionExecutor->executeRun($user, $run);
+
+            if (($execution['success'] ?? false) === true) {
+                $assistantText = "✅ C’est fait.";
+            } else {
+                $assistantText = "⚠️ J’ai bien compris ta demande, mais je n’ai pas réussi à tout appliquer.";
+            }
+
+            $assistantMessage = $this->messageManager->addAssistantMessage(
+                $conversation,
+                $run,
+                $assistantText,
+                [
+                    'llm_result' => $result,
+                    'execution' => $execution,
+                ]
+            );
+
+            $this->conversationManager->closeRun($run, AssistantConversationStatus::READY);
+            $this->em->flush();
+
+            return [
+                'assistant_message' => $assistantMessage,
+                'actions' => $actions,
+                'status' => $status,
+                'execution' => $execution,
+            ];
+        }
+
+        if ($status === AssistantConversationStatus::OUT_OF_SCOPE->value) {
+            $assistantMessage = $this->messageManager->addAssistantMessage(
+                $conversation,
+                $run,
+                $assistantText,
+                $result
+            );
+
+            $this->conversationManager->closeRun($run, AssistantConversationStatus::OUT_OF_SCOPE);
+            $this->em->flush();
+
+            return [
+                'assistant_message' => $assistantMessage,
+                'actions' => $actions,
+                'status' => $status,
+            ];
+        }
+
+        $assistantMessage = $this->messageManager->addAssistantMessage(
+            $conversation,
+            $run,
+            $assistantText,
+            $result
+        );
+
+        $this->em->flush();
+
+        return [
+            'assistant_message' => $assistantMessage,
+            'actions' => $actions,
+            'status' => $status,
+        ];
+    }
+}
