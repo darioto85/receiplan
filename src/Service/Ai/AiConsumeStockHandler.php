@@ -33,6 +33,7 @@ final class AiConsumeStockHandler
      *
      * @return array{
      *   updated:int,
+     *   deleted:int,
      *   not_found:int,
      *   warnings:array<int,array{index:int,warnings:string[]}>
      * }
@@ -45,6 +46,7 @@ final class AiConsumeStockHandler
         }
 
         $updated = 0;
+        $deleted = 0;
         $notFound = 0;
         $warnings = [];
 
@@ -52,27 +54,27 @@ final class AiConsumeStockHandler
         $uiRepo = $this->em->getRepository(UserIngredient::class);
 
         foreach ($items as $idx => $it) {
-            if (!is_array($it)) continue;
+            if (!is_array($it)) {
+                continue;
+            }
 
-            // quantity obligatoire pour consume
             $qty = $it['quantity'] ?? null;
             if ($qty === null || $qty === '' || !is_numeric($qty)) {
-                $warnings[] = ['index' => (int)$idx, 'warnings' => ['missing_quantity']];
+                $warnings[] = ['index' => (int) $idx, 'warnings' => ['missing_quantity']];
                 continue;
             }
 
             $qty = (float) $qty;
             if ($qty <= 0) {
-                $warnings[] = ['index' => (int)$idx, 'warnings' => ['non_positive_quantity']];
+                $warnings[] = ['index' => (int) $idx, 'warnings' => ['non_positive_quantity']];
                 continue;
             }
 
-            // Résolution ingrédient: ingredient_id > name
             $ingredient = null;
 
             $iid = $it['ingredient_id'] ?? null;
             if (is_numeric($iid)) {
-                $found = $ingredientRepo->find((int)$iid);
+                $found = $ingredientRepo->find((int) $iid);
                 if ($found instanceof Ingredient) {
                     $owner = $found->getUser();
                     if ($owner === null || $owner->getId() === $user->getId()) {
@@ -82,9 +84,9 @@ final class AiConsumeStockHandler
             }
 
             if (!$ingredient instanceof Ingredient) {
-                $name = trim((string)($it['name'] ?? $it['name_raw'] ?? ''));
+                $name = trim((string) ($it['name'] ?? $it['name_raw'] ?? ''));
                 if ($name === '') {
-                    $warnings[] = ['index' => (int)$idx, 'warnings' => ['empty_name']];
+                    $warnings[] = ['index' => (int) $idx, 'warnings' => ['empty_name']];
                     continue;
                 }
 
@@ -98,7 +100,7 @@ final class AiConsumeStockHandler
             }
 
             if (!$ingredient instanceof Ingredient) {
-                $warnings[] = ['index' => (int)$idx, 'warnings' => ['ingredient_not_resolved']];
+                $warnings[] = ['index' => (int) $idx, 'warnings' => ['ingredient_not_resolved']];
                 continue;
             }
 
@@ -115,6 +117,13 @@ final class AiConsumeStockHandler
 
             $current = $ui->getQuantityFloat();
             $new = max(0.0, $current - $qty);
+
+            if ($new <= 0.0) {
+                $this->em->remove($ui);
+                $deleted++;
+                continue;
+            }
+
             $ui->setQuantityFloat($new);
             $updated++;
         }
@@ -123,6 +132,7 @@ final class AiConsumeStockHandler
 
         return [
             'updated' => $updated,
+            'deleted' => $deleted,
             'not_found' => $notFound,
             'warnings' => $warnings,
         ];

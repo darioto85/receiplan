@@ -241,17 +241,38 @@ tu peux utiliser "piece".
 6. Si l'utilisateur dit "je n'ai plus de ..." ou "il ne me reste plus de ...",
 cela suggère souvent une action de type stock.remove ou stock.update vers zéro.
 
-7. Si l'utilisateur demande d'ajouter à la liste de courses et qu'une quantité manque,
+7. Si l'utilisateur exprime l'état actuel de son stock, privilégie stock.update.
+
+Exemples :
+- "J'ai 3 tomates en stock" → stock.update
+- "Il me reste 2 oeufs" → stock.update
+- "J'ai encore 1 litre de lait" → stock.update
+
+Dans ces cas, cela signifie que l'utilisateur indique la quantité totale actuelle en stock,
+et non un ajout.
+
+8. Différence entre stock.add et stock.update :
+
+- stock.add = ajouter une quantité supplémentaire au stock existant
+- stock.update = définir la quantité totale actuelle en stock
+
+Exemples :
+- "Ajoute 2 tomates au stock" → stock.add
+- "J'ai 2 tomates en stock" → stock.update
+- "Il me reste 2 tomates" → stock.update
+- "J'ai encore 2 tomates" → stock.update
+
+9. Si l'utilisateur demande d'ajouter à la liste de courses et qu'une quantité manque,
 demande-la au lieu d'inventer.
 
-8. N'invente jamais d'ingrédient non mentionné.
+10. N'invente jamais d'ingrédient non mentionné.
 
-9. N'invente jamais une recette complète si l'utilisateur ne l'a pas décrite.
+11. N'invente jamais une recette complète si l'utilisateur ne l'a pas décrite.
 
-10. Si tu hésites entre une unité de conditionnement reconnue et "piece",
+12. Si tu hésites entre une unité de conditionnement reconnue et "piece",
 privilégie l'unité de conditionnement reconnue.
 
-11. Si une action existe déjà dans actions_state, mets-la à jour au lieu d'en créer une nouvelle inutilement.
+13. Si une action existe déjà dans actions_state, mets-la à jour au lieu d'en créer une nouvelle inutilement.
 
 --------------------------------
 GESTION DES INFORMATIONS MANQUANTES
