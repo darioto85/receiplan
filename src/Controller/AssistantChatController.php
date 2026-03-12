@@ -12,6 +12,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 final class AssistantChatController extends AbstractController
@@ -21,6 +22,7 @@ final class AssistantChatController extends AbstractController
         private readonly AssistantMessageManager $messageManager,
         private readonly AssistantConversationRepository $conversationRepository,
         private readonly AssistantMessageRepository $messageRepository,
+        private readonly KernelInterface $kernel,
     ) {}
 
     #[Route('/assistant/chat', name: 'assistant_chat', methods: ['GET'])]
@@ -119,12 +121,21 @@ final class AssistantChatController extends AbstractController
 
             return $this->json($response);
         } catch (\Throwable $e) {
+            $debug = $this->kernel->isDebug();
+
             return $this->json([
                 'messages' => [[
                     'id' => null,
                     'role' => 'assistant',
                     'content' => '⚠️ Désolé, je n’ai pas réussi à traiter ta demande. Réessaie.',
-                    'payload' => null,
+                    'payload' => $debug ? [
+                        'error' => [
+                            'type' => $e::class,
+                            'message' => $e->getMessage(),
+                            'file' => $e->getFile(),
+                            'line' => $e->getLine(),
+                        ],
+                    ] : null,
                     'created_at' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
                 ]],
                 'actions' => [],

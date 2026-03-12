@@ -20,8 +20,6 @@ class AssistantConversationFlow
     ) {}
 
     /**
-     * Traite un message utilisateur et renvoie la réponse assistant
-     *
      * @return array{
      *     assistant_message: \App\Entity\AssistantMessage,
      *     actions: array<int, array<string, mixed>>,
@@ -56,6 +54,10 @@ class AssistantConversationFlow
         if (isset($result['actions']) && is_array($result['actions'])) {
             $actions = $result['actions'];
             $this->runActionManager->syncActions($run, $actions);
+
+            // Important : les actions doivent être flushées avant exécution,
+            // sinon le repository ne les voit pas encore.
+            $this->em->flush();
         }
 
         $assistantText = trim((string) ($result['assistant_message'] ?? ''));

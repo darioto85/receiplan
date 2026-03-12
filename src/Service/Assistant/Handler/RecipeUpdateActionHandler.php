@@ -4,42 +4,33 @@ namespace App\Service\Assistant\Handler;
 
 use App\Entity\User;
 use App\Enum\AssistantActionType;
-use App\Service\Ai\AiAddRecipeHandler;
+use App\Service\Ai\AiUpdateRecipeHandler;
 
-class RecipeAddActionHandler implements AssistantActionHandlerInterface
+class RecipeUpdateActionHandler implements AssistantActionHandlerInterface
 {
     public function __construct(
-        private readonly AiAddRecipeHandler $handler,
+        private readonly AiUpdateRecipeHandler $handler,
     ) {}
 
     public function type(): AssistantActionType
     {
-        return AssistantActionType::RECIPE_ADD;
+        return AssistantActionType::RECIPE_UPDATE;
     }
 
-    /**
-     * @param array<string, mixed> $data
-     *
-     * @return array<string, mixed>
-     */
     public function execute(User $user, array $data): array
     {
         $recipe = $data['recipe'] ?? null;
 
         if (!is_array($recipe)) {
-            throw new \RuntimeException('recipe.add: recipe manquant.');
+            throw new \RuntimeException('recipe.update: recipe manquant.');
         }
 
         $name = trim((string) ($recipe['name'] ?? ''));
         if ($name === '') {
-            throw new \RuntimeException('recipe.add: recipe.name manquant.');
+            throw new \RuntimeException('recipe.update: recipe.name manquant.');
         }
 
-        $ingredientsRaw = $recipe['ingredients'] ?? null;
-        if (!is_array($ingredientsRaw)) {
-            throw new \RuntimeException('recipe.add: recipe.ingredients manquant.');
-        }
-
+        $ingredientsRaw = $recipe['ingredients'] ?? [];
         $ingredients = [];
 
         foreach ($ingredientsRaw as $ingredient) {
@@ -73,10 +64,6 @@ class RecipeAddActionHandler implements AssistantActionHandlerInterface
                     ? (float) $ingredient['confidence']
                     : 1.0,
             ];
-        }
-
-        if ($ingredients === []) {
-            throw new \RuntimeException('recipe.add: aucun ingrédient exploitable.');
         }
 
         return $this->handler->handle($user, [

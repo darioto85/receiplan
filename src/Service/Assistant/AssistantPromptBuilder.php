@@ -107,6 +107,105 @@ Cela peut donner :
 Tu dois retourner toutes les actions pertinentes.
 
 --------------------------------
+NORMALISATION DES INGRÉDIENTS
+--------------------------------
+
+Tu dois normaliser les ingrédients avant de les retourner.
+
+Règles :
+
+1. Utilise toujours le singulier
+
+tomates → tomate
+oeufs → oeuf
+pommes → pomme
+
+2. Supprime les articles
+
+la tomate → tomate
+des pommes → pomme
+du riz → riz
+
+3. Supprime les conditionnements du nom
+
+boîte de thon → thon
+pot de yaourt → yaourt
+sachet de levure → levure
+
+Le conditionnement doit être dans "unit".
+
+4. Les ingrédients doivent être courts.
+
+Correct :
+tomate
+oeuf
+riz
+farine
+thon
+
+Incorrect :
+tomates fraîches
+bonne farine blanche
+boîte de thon
+
+--------------------------------
+COMPRÉHENSION DES UNITÉS
+--------------------------------
+
+Unités autorisées :
+- g
+- kg
+- ml
+- l
+- piece
+- pot
+- boite
+- sachet
+- tranche
+- paquet
+
+Exemples :
+
+"une tomate"
+→ quantity = 1
+→ unit = piece
+
+"une boîte de thon"
+→ name = thon
+→ quantity = 1
+→ unit = boite
+
+"2 pots de yaourt"
+→ name = yaourt
+→ quantity = 2
+→ unit = pot
+
+"du riz"
+→ quantité inconnue → demander
+
+--------------------------------
+INGRÉDIENTS COURANTS
+--------------------------------
+
+Liste indicative pour stabiliser les réponses :
+tomate
+oignon
+ail
+carotte
+courgette
+riz
+pâtes
+farine
+sucre
+oeuf
+lait
+beurre
+huile
+thon
+jambon
+fromage
+
+--------------------------------
 RÈGLES MÉTIER IMPORTANTES
 --------------------------------
 
@@ -131,62 +230,28 @@ Exemple :
   }
 }
 
-3. Unités autorisées quand elles sont connues :
-- g
-- kg
-- ml
-- l
-- piece
-- pot
-- boite
-- sachet
-- tranche
-- paquet
-
-4. Si l'utilisateur donne une quantité sans unité pour un ingrédient comptable individuellement
+3. Si l'utilisateur donne une quantité sans unité pour un ingrédient comptable individuellement
 (ex: tomate, oeuf, pomme, carotte, courgette),
 tu peux utiliser "piece".
 
-5. Si l'utilisateur mentionne un contenant ou conditionnement, utilise l'unité métier correspondante.
-Exemples :
-- "une boîte de thon" → ingrédient "thon", quantity 1, unit "boite"
-- "2 pots de yaourt" → ingrédient "yaourt", quantity 2, unit "pot"
-- "3 sachets de levure" → ingrédient "levure", quantity 3, unit "sachet"
-- "4 tranches de jambon" → ingrédient "jambon", quantity 4, unit "tranche"
-- "1 paquet de pâtes" → ingrédient "pâtes", quantity 1, unit "paquet"
+4. Si l'utilisateur mentionne un contenant ou conditionnement, utilise l'unité métier correspondante.
 
-6. Quand un conditionnement est clairement exprimé, ne garde pas le contenant dans le nom de l'ingrédient.
-Exemples :
-- "boîte de thon" → name = "thon", unit = "boite"
-- "pot de yaourt" → name = "yaourt", unit = "pot"
-- "sachet de riz" n'est valable que si "sachet" est réellement l'unité voulue par l'utilisateur
+5. Si la quantité est absente et nécessaire à l'exécution, demande-la.
 
-7. Si la quantité est absente et nécessaire à l'exécution, demande-la.
-
-8. Si l'utilisateur dit "je n'ai plus de ..." ou "il ne me reste plus de ...",
+6. Si l'utilisateur dit "je n'ai plus de ..." ou "il ne me reste plus de ...",
 cela suggère souvent une action de type stock.remove ou stock.update vers zéro.
-Si la quantité exacte à retirer est nécessaire au backend et n'est pas connue, demande-la.
 
-9. Si l'utilisateur demande d'ajouter à la liste de courses, et qu'une quantité manque,
+7. Si l'utilisateur demande d'ajouter à la liste de courses et qu'une quantité manque,
 demande-la au lieu d'inventer.
 
-10. N'invente jamais d'ingrédient non mentionné.
+8. N'invente jamais d'ingrédient non mentionné.
 
-11. N'invente jamais une recette complète si l'utilisateur ne l'a pas décrite.
-Tu peux demander les ingrédients manquants.
+9. N'invente jamais une recette complète si l'utilisateur ne l'a pas décrite.
 
-12. Si une action existe déjà dans actions_state, mets-la à jour au lieu d'en créer une nouvelle inutilement.
-
-13. Si tu hésites entre une unité de conditionnement reconnue et "piece",
+10. Si tu hésites entre une unité de conditionnement reconnue et "piece",
 privilégie l'unité de conditionnement reconnue.
-Exemples :
-- "1 boîte de thon" → "boite"
-- "2 sachets de soupe" → "sachet"
-- "1 paquet de riz" → "paquet"
 
-14. Utilise "piece" seulement si :
-- l'objet est naturellement comptable à l'unité,
-- ou si aucune unité plus précise parmi la liste autorisée ne convient.
+11. Si une action existe déjà dans actions_state, mets-la à jour au lieu d'en créer une nouvelle inutilement.
 
 --------------------------------
 GESTION DES INFORMATIONS MANQUANTES
@@ -202,7 +267,7 @@ Format d'un élément missing :
   "options": []
 }
 
-Valeurs possibles pour kind :
+kind peut être :
 - text
 - number
 - select
@@ -233,7 +298,6 @@ shopping.update
 shopping.remove
 
 Structure attendue :
-
 {
   "items": [
     {
@@ -244,47 +308,10 @@ Structure attendue :
   ]
 }
 
-Règles :
-
-- items est obligatoire
-- chaque item doit contenir name
-- quantity peut être null si inconnue
-- unit peut être null si inconnue
-- name doit être le nom de l'ingrédient sans le contenant
-
-Exemples corrects :
-
-"1 boîte de thon"
-
-{
-  "items": [
-    {
-      "name": "thon",
-      "quantity": 1,
-      "unit": "boite"
-    }
-  ]
-}
-
-"3 pots de yaourt"
-
-{
-  "items": [
-    {
-      "name": "yaourt",
-      "quantity": 3,
-      "unit": "pot"
-    }
-  ]
-}
-
---------------------------------
-
 recipe.add
 recipe.update
 
 Structure attendue :
-
 {
   "recipe": {
     "name": "nom de recette",
@@ -298,34 +325,21 @@ Structure attendue :
   }
 }
 
-Règles :
-
-- recipe.name est obligatoire
-- recipe.ingredients est obligatoire
-- chaque ingrédient doit avoir name
-- quantity et unit peuvent être null si inconnus
-
---------------------------------
-
 meal_plan.plan
 
 Structure attendue :
-
 {
   "recipe_name": "nom de recette",
   "date": "YYYY-MM-DD",
-  "meal": "lunch | dinner"
+  "meal": "lunch"
 }
-
---------------------------------
 
 meal_plan.unplan
 
 Structure attendue :
-
 {
   "date": "YYYY-MM-DD",
-  "meal": "lunch | dinner"
+  "meal": "lunch"
 }
 
 --------------------------------
@@ -342,7 +356,13 @@ Tu dois TOUJOURS répondre avec un JSON valide de cette forme :
       "client_action_id": "a1",
       "type": "stock.add | stock.update | stock.remove | recipe.add | recipe.update | shopping.add | shopping.update | shopping.remove | meal_plan.plan | meal_plan.unplan",
       "status": "needs_input | ready | cancelled | blocked",
-      "data": {},
+      "data": {
+        "items": null,
+        "recipe": null,
+        "recipe_name": null,
+        "date": null,
+        "meal": null
+      },
       "missing": []
     }
   ]
@@ -364,6 +384,92 @@ PROMPT;
 
     public function buildJsonSchema(): array
     {
+        $optionSchema = [
+            'type' => 'object',
+            'additionalProperties' => false,
+            'properties' => [
+                'value' => ['type' => 'string'],
+                'label' => ['type' => 'string'],
+            ],
+            'required' => ['value', 'label'],
+        ];
+
+        $missingSchema = [
+            'type' => 'object',
+            'additionalProperties' => false,
+            'properties' => [
+                'field' => ['type' => 'string'],
+                'question' => ['type' => 'string'],
+                'kind' => [
+                    'type' => 'string',
+                    'enum' => ['text', 'number', 'select'],
+                ],
+                'options' => [
+                    'type' => 'array',
+                    'items' => $optionSchema,
+                ],
+            ],
+            'required' => ['field', 'question', 'kind', 'options'],
+        ];
+
+        $itemSchema = [
+            'type' => 'object',
+            'additionalProperties' => false,
+            'properties' => [
+                'name' => ['type' => 'string'],
+                'quantity' => ['type' => ['number', 'null']],
+                'unit' => [
+                    'type' => ['string', 'null'],
+                    'enum' => [
+                        'g',
+                        'kg',
+                        'ml',
+                        'l',
+                        'piece',
+                        'pot',
+                        'boite',
+                        'sachet',
+                        'tranche',
+                        'paquet',
+                        null,
+                    ],
+                ],
+            ],
+            'required' => ['name', 'quantity', 'unit'],
+        ];
+
+        $recipeSchema = [
+            'type' => ['object', 'null'],
+            'additionalProperties' => false,
+            'properties' => [
+                'name' => ['type' => ['string', 'null']],
+                'ingredients' => [
+                    'type' => ['array', 'null'],
+                    'items' => $itemSchema,
+                ],
+            ],
+            'required' => ['name', 'ingredients'],
+        ];
+
+        $dataSchema = [
+            'type' => 'object',
+            'additionalProperties' => false,
+            'properties' => [
+                'items' => [
+                    'type' => ['array', 'null'],
+                    'items' => $itemSchema,
+                ],
+                'recipe' => $recipeSchema,
+                'recipe_name' => ['type' => ['string', 'null']],
+                'date' => ['type' => ['string', 'null']],
+                'meal' => [
+                    'type' => ['string', 'null'],
+                    'enum' => ['lunch', 'dinner', null],
+                ],
+            ],
+            'required' => ['items', 'recipe', 'recipe_name', 'date', 'meal'],
+        ];
+
         return [
             'type' => 'object',
             'additionalProperties' => false,
@@ -388,11 +494,11 @@ PROMPT;
                                     'stock.add',
                                     'stock.update',
                                     'stock.remove',
-                                    'recipe.add',
-                                    'recipe.update',
                                     'shopping.add',
                                     'shopping.update',
                                     'shopping.remove',
+                                    'recipe.add',
+                                    'recipe.update',
                                     'meal_plan.plan',
                                     'meal_plan.unplan',
                                 ],
@@ -401,37 +507,10 @@ PROMPT;
                                 'type' => 'string',
                                 'enum' => ['needs_input', 'ready', 'cancelled', 'blocked'],
                             ],
-                            'data' => [
-                                'type' => 'object',
-                                'additionalProperties' => true,
-                            ],
+                            'data' => $dataSchema,
                             'missing' => [
                                 'type' => 'array',
-                                'items' => [
-                                    'type' => 'object',
-                                    'additionalProperties' => false,
-                                    'properties' => [
-                                        'field' => ['type' => 'string'],
-                                        'question' => ['type' => 'string'],
-                                        'kind' => [
-                                            'type' => 'string',
-                                            'enum' => ['text', 'number', 'select'],
-                                        ],
-                                        'options' => [
-                                            'type' => 'array',
-                                            'items' => [
-                                                'type' => 'object',
-                                                'additionalProperties' => false,
-                                                'properties' => [
-                                                    'value' => ['type' => 'string'],
-                                                    'label' => ['type' => 'string'],
-                                                ],
-                                                'required' => ['value', 'label'],
-                                            ],
-                                        ],
-                                    ],
-                                    'required' => ['field', 'question', 'kind', 'options'],
-                                ],
+                                'items' => $missingSchema,
                             ],
                         ],
                         'required' => [

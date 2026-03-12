@@ -4,17 +4,17 @@ namespace App\Service\Assistant\Handler;
 
 use App\Entity\User;
 use App\Enum\AssistantActionType;
-use App\Service\Ai\AiAddStockHandler;
+use App\Service\Ai\AiShoppingRemoveHandler;
 
-class StockAddActionHandler implements AssistantActionHandlerInterface
+class ShoppingRemoveActionHandler implements AssistantActionHandlerInterface
 {
     public function __construct(
-        private readonly AiAddStockHandler $handler,
+        private readonly AiShoppingRemoveHandler $handler,
     ) {}
 
     public function type(): AssistantActionType
     {
-        return AssistantActionType::STOCK_ADD;
+        return AssistantActionType::SHOPPING_REMOVE;
     }
 
     /**
@@ -25,7 +25,7 @@ class StockAddActionHandler implements AssistantActionHandlerInterface
     public function execute(User $user, array $data): array
     {
         if (!isset($data['items']) || !is_array($data['items'])) {
-            throw new \RuntimeException('stock.add: items manquant.');
+            throw new \RuntimeException('shopping.remove: items manquant.');
         }
 
         $items = [];
@@ -64,7 +64,7 @@ class StockAddActionHandler implements AssistantActionHandlerInterface
         }
 
         if ($items === []) {
-            throw new \RuntimeException('stock.add: aucun item exploitable.');
+            throw new \RuntimeException('shopping.remove: aucun item exploitable.');
         }
 
         return $this->handler->handle($user, [
