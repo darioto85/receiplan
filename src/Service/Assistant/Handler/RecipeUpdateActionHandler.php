@@ -45,6 +45,7 @@ class RecipeUpdateActionHandler implements AssistantActionHandlerInterface
 
             $quantity = $ingredient['quantity'] ?? null;
             $unit = $ingredient['unit'] ?? null;
+            $replaceFrom = $ingredient['replace_from'] ?? null;
 
             $ingredients[] = [
                 'name_raw' => (string) ($ingredient['name_raw'] ?? $ingredientName),
@@ -63,6 +64,9 @@ class RecipeUpdateActionHandler implements AssistantActionHandlerInterface
                 'confidence' => array_key_exists('confidence', $ingredient) && is_numeric($ingredient['confidence'])
                     ? (float) $ingredient['confidence']
                     : 1.0,
+                'replace_from' => is_string($replaceFrom) && trim($replaceFrom) !== ''
+                    ? trim($replaceFrom)
+                    : null,
             ];
         }
 

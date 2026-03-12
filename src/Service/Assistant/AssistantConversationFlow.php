@@ -55,8 +55,7 @@ class AssistantConversationFlow
             $actions = $result['actions'];
             $this->runActionManager->syncActions($run, $actions);
 
-            // Important : les actions doivent être flushées avant exécution,
-            // sinon le repository ne les voit pas encore.
+            // Important : les actions doivent être flushées avant relecture
             $this->em->flush();
         }
 
@@ -68,13 +67,18 @@ class AssistantConversationFlow
         $status = (string) ($result['conversation_status'] ?? AssistantConversationStatus::CONTINUE->value);
         $execution = null;
 
+        // ✅ Si une action a des missing, on force la conversation à rester ouverte
+        if ($this->runActionManager->hasBlockingMissing($run)) {
+            $status = AssistantConversationStatus::CONTINUE->value;
+        }
+
         if ($status === AssistantConversationStatus::READY->value) {
             $execution = $this->actionExecutor->executeRun($user, $run);
 
             if (($execution['success'] ?? false) === true) {
-                $assistantText = "✅ C’est fait.";
+                $assistantText = '✅ C’est fait.';
             } else {
-                $assistantText = "⚠️ J’ai bien compris ta demande, mais je n’ai pas réussi à tout appliquer.";
+                $assistantText = '⚠️ J’ai bien compris ta demande, mais je n’ai pas réussi à tout appliquer.';
             }
 
             $assistantMessage = $this->messageManager->addAssistantMessage(

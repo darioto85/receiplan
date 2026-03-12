@@ -55,6 +55,12 @@ class AssistantRunActionManager
                 continue;
             }
 
+            // ✅ Garde-fou métier :
+            // une action avec missing ne doit jamais être READY
+            if ($missing !== []) {
+                $status = AssistantActionStatus::NEEDS_INPUT;
+            }
+
             $action = $this->runActionRepository->findOneBy([
                 'run' => $run,
                 'clientActionId' => $clientActionId,
@@ -100,6 +106,20 @@ class AssistantRunActionManager
                 'id' => 'ASC',
             ]
         );
+    }
+
+    public function hasBlockingMissing(AssistantRun $run): bool
+    {
+        $actions = $this->runActionRepository->findByRunOrdered($run);
+
+        foreach ($actions as $action) {
+            $missing = $action->getMissing();
+            if (is_array($missing) && $missing !== []) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function resolveExecutionOrder(AssistantActionType $type, int $fallbackIndex): int

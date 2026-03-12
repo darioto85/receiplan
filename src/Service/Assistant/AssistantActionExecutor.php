@@ -44,6 +44,13 @@ class AssistantActionExecutor
         $errors = [];
 
         foreach ($actions as $action) {
+            $missing = $action->getMissing();
+
+            // ✅ Double sécurité : on n’exécute jamais une action incomplète
+            if (is_array($missing) && $missing !== []) {
+                continue;
+            }
+
             $handler = $this->handlers[$action->getType()->value] ?? null;
 
             if (!$handler instanceof AssistantActionHandlerInterface) {

@@ -274,6 +274,42 @@ privilégie l'unité de conditionnement reconnue.
 
 13. Si une action existe déjà dans actions_state, mets-la à jour au lieu d'en créer une nouvelle inutilement.
 
+14. Pour recipe.update, interprète les formulations de cette manière :
+- "ajoute 1 oeuf à la recette" → recipe.update avec recipe.name + ingredient mis à jour
+- "mets 5 oeufs" / "finalement il faut 5 oeufs" → recipe.update avec quantité finale = 5
+- "enlève 2 oeufs" / "retire 2 oeufs" → recipe.update avec quantité finale après retrait si elle peut être déduite de la conversation
+- "supprime les oeufs" / "enlève les oeufs" sans quantité → recipe.update visant la suppression de cet ingrédient
+- "remplace le thon par du jambon" → recipe.update de remplacement, il faut comprendre qu'un ingrédient sort et qu'un autre entre
+
+15. Pour recipe.update, la structure recipe.ingredients doit représenter l'état cible voulu par l'utilisateur,
+pas une quantité à ajouter par défaut.
+
+16. Si l'utilisateur dit qu'une recette doit contenir au final une certaine quantité,
+retourne cette quantité finale dans recipe.ingredients.
+
+17. Si l'utilisateur exprime une correction naturelle comme :
+- "finalement c'est trop"
+- "mets-en moins"
+- "enlève-en 2"
+tu dois comprendre qu'il s'agit d'une modification de recette, pas d'un ajout.
+
+18. Pour un remplacement d'ingrédient dans une recette ("remplace X par Y") :
+- conserve recipe.name
+- l'ingrédient cible doit être l'ingrédient de remplacement
+- renseigne "replace_from" avec le nom normalisé de l'ingrédient remplacé
+- n'invente pas une quantité ni une unité si elles ne sont pas connues
+- si quantité ou unité sont nécessaires à l'exécution, utilise missing
+- n'affirme jamais que c'est prêt si quantité ou unité du remplacement manquent
+
+19. Si l'utilisateur remplace un ingrédient par un autre et que la quantité / unité du nouvel ingrédient ne sont pas explicitement données,
+demande-les sauf si elles sont déjà clairement connues dans la conversation actuelle.
+
+20. Si la demande contient un remplacement, un retrait ou une correction de recette,
+évite de traiter cela comme un simple ajout.
+
+21. Si tu vois dans actions_state une action recipe.update déjà commencée,
+mets-la à jour au lieu de repartir de zéro.
+
 --------------------------------
 GESTION DES INFORMATIONS MANQUANTES
 --------------------------------
@@ -306,6 +342,26 @@ Pour un select d'unité, options peut contenir :
   {"value":"tranche","label":"tranche(s)"},
   {"value":"paquet","label":"paquet(s)"}
 ]
+
+Règles obligatoires supplémentaires :
+
+1. Si "missing" n'est pas vide pour une action :
+- le statut de cette action doit être "needs_input"
+- conversation_status doit être "continue"
+
+2. Une action avec des champs manquants ne doit jamais être marquée "ready".
+
+3. Si plusieurs informations manquent pour une même action, regroupe-les toutes dans "missing".
+
+4. Ne dis jamais implicitement ou explicitement que l'action a été exécutée si "missing" n'est pas vide.
+
+5. Pour recipe.update, si une quantité ou une unité manque pour l'ingrédient à modifier ou remplacer,
+utilise "missing" au lieu d'inventer la valeur.
+
+6. Pour un remplacement du type "remplace le thon par du jambon" :
+- si la quantité du jambon est inconnue, ajoute un missing sur recipe.ingredients.0.quantity
+- si l'unité du jambon est inconnue, ajoute un missing sur recipe.ingredients.0.unit
+- dans ce cas, l'action doit rester en needs_input et la conversation en continue
 
 --------------------------------
 STRUCTURE DES DONNÉES PAR ACTION
@@ -340,11 +396,79 @@ Structure attendue :
       {
         "name": "oeuf",
         "quantity": 3,
-        "unit": "piece"
+        "unit": "piece",
+        "replace_from": null
       }
     ]
   }
 }
+
+Précisions supplémentaires pour recipe.update :
+
+- recipe.name doit contenir le nom de la recette ciblée si elle est connue
+- recipe.ingredients doit contenir les ingrédients concernés par la modification
+- pour un ajout simple à une recette, retourne l'ingrédient avec la quantité voulue
+- pour une quantité finale voulue, retourne cette quantité finale
+- pour un remplacement ("remplace X par Y"), retourne l'ingrédient cible Y dans recipe.ingredients
+- pour un remplacement, renseigne aussi replace_from avec l'ingrédient source X
+- si les informations nécessaires au remplacement ne sont pas complètes, utilise missing et laisse l'action en needs_input
+- ne mets jamais quantity ou unit au hasard pour compléter artificiellement une action
+
+Exemples :
+
+"Ajoute 1 oeuf à la recette de crêpes"
+→
+{
+  "recipe": {
+    "name": "crêpes",
+    "ingredients": [
+      {
+        "name": "oeuf",
+        "quantity": 1,
+        "unit": "piece",
+        "replace_from": null
+      }
+    ]
+  }
+}
+
+"Finalement la recette de crêpes doit avoir 5 oeufs"
+→
+{
+  "recipe": {
+    "name": "crêpes",
+    "ingredients": [
+      {
+        "name": "oeuf",
+        "quantity": 5,
+        "unit": "piece",
+        "replace_from": null
+      }
+    ]
+  }
+}
+
+"Dans ma recette de salade de riz, remplace le thon par du jambon"
+→ si quantité / unité inconnues :
+{
+  "recipe": {
+    "name": "salade de riz",
+    "ingredients": [
+      {
+        "name": "jambon",
+        "quantity": null,
+        "unit": null,
+        "replace_from": "thon"
+      }
+    ]
+  }
+}
++
+missing sur quantity et unit
++
+status = "needs_input"
++
+conversation_status = "continue"
 
 meal_plan.plan
 
@@ -398,6 +522,10 @@ IMPORTANT
 - Si une donnée n'est pas sûre, demande-la.
 - Si toutes les actions sont complètes, retourne conversation_status = "ready".
 - Si au moins une action utile a encore besoin d'information, retourne conversation_status = "continue".
+- Si une action a missing non vide, son status doit être "needs_input".
+- Si une action a missing non vide, elle ne doit jamais être considérée comme exécutable.
+- Pour recipe.update, n'interprète pas automatiquement un remplacement ou une correction comme un ajout.
+- Pour recipe.update, ne marque jamais une action "ready" s'il manque la quantité ou l'unité nécessaires.
 
 Ta réponse doit être uniquement du JSON valide.
 PROMPT;
@@ -455,8 +583,9 @@ PROMPT;
                         null,
                     ],
                 ],
+                'replace_from' => ['type' => ['string', 'null']],
             ],
-            'required' => ['name', 'quantity', 'unit'],
+            'required' => ['name', 'quantity', 'unit', 'replace_from'],
         ];
 
         $recipeSchema = [

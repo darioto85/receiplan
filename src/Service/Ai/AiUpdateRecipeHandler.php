@@ -7,8 +7,8 @@ use App\Entity\Recipe;
 use App\Entity\RecipeIngredient;
 use App\Entity\User;
 use App\Enum\Unit;
-use App\Repository\IngredientRepository;
 use App\Repository\RecipeRepository;
+use App\Service\IngredientResolver;
 use Doctrine\ORM\EntityManagerInterface;
 
 final class AiUpdateRecipeHandler
@@ -16,7 +16,7 @@ final class AiUpdateRecipeHandler
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly RecipeRepository $recipeRepository,
-        private readonly IngredientRepository $ingredientRepository,
+        private readonly IngredientResolver $ingredientResolver,
     ) {}
 
     /**
@@ -48,21 +48,6 @@ final class AiUpdateRecipeHandler
             $patch = [];
         }
 
-        /**
-         * Compatibilité nouveau format :
-         * {
-         *   recipe: {
-         *     name: "...",
-         *     ingredients: [...]
-         *   }
-         * }
-         *
-         * IMPORTANT :
-         * Pour recipe.update, recipe.ingredients représente une cible finale
-         * à appliquer, pas un delta à ajouter.
-         *
-         * Donc on mappe vers update_ingredients, PAS add_ingredients.
-         */
         if (
             (!isset($patch['update_ingredients']) || !is_array($patch['update_ingredients']))
             && isset($draft['recipe'])
@@ -81,7 +66,6 @@ final class AiUpdateRecipeHandler
             'updated' => 0,
         ];
 
-        // Rename
         $newName = $patch['new_name'] ?? null;
         if (is_string($newName)) {
             $newName = trim($newName);
@@ -100,7 +84,7 @@ final class AiUpdateRecipeHandler
             }
         }
 
-        // Remove
+        // Remove explicite
         $remove = $patch['remove_ingredients'] ?? [];
         if (is_array($remove)) {
             foreach ($remove as $row) {
@@ -113,7 +97,7 @@ final class AiUpdateRecipeHandler
                     continue;
                 }
 
-                $ingredient = $this->resolveVisibleIngredient($user, $name, $warnings);
+                $ingredient = $this->resolveIngredient($user, $name, $row['unit'] ?? null);
                 if (!$ingredient) {
                     $warnings[] = 'Ingrédient introuvable à retirer : ' . $name;
                     continue;
@@ -134,7 +118,7 @@ final class AiUpdateRecipeHandler
             }
         }
 
-        // Update
+        // Update / replace
         $updates = $patch['update_ingredients'] ?? [];
         if (is_array($updates)) {
             foreach ($updates as $row) {
@@ -143,11 +127,82 @@ final class AiUpdateRecipeHandler
                 }
 
                 $name = trim((string) ($row['name'] ?? $row['name_raw'] ?? ''));
+                $replaceFrom = trim((string) ($row['replace_from'] ?? ''));
                 if ($name === '') {
                     continue;
                 }
 
-                $ingredient = $this->resolveVisibleIngredient($user, $name, $warnings);
+                $qty = $this->normalizeQuantityToDecimalString(
+                    $row['quantity'] ?? null,
+                    $row['quantity_raw'] ?? null
+                );
+                $unit = $this->normalizeUnit($row['unit'] ?? null);
+
+                // Cas remplacement : replace_from = source, name = cible
+                if ($replaceFrom !== '') {
+                    $sourceIngredient = $this->resolveIngredientAlreadyInRecipe($user, $recipe, $replaceFrom, $warnings);
+                    if (!$sourceIngredient) {
+                        $warnings[] = 'Ingrédient source introuvable dans la recette : ' . $replaceFrom;
+                        continue;
+                    }
+
+                    $sourceIid = $sourceIngredient->getId();
+                    if (!$sourceIid || !isset($byIngredientId[$sourceIid])) {
+                        $warnings[] = 'Ingrédient source absent de la recette : ' . $replaceFrom;
+                        continue;
+                    }
+
+                    $targetIngredient = $this->resolveIngredient($user, $name, $row['unit'] ?? null);
+                    if (!$targetIngredient) {
+                        $warnings[] = 'Ingrédient de remplacement introuvable : ' . $name;
+                        continue;
+                    }
+
+                    $sourceRi = $byIngredientId[$sourceIid];
+
+                    if ($qty === null) {
+                        $warnings[] = 'Quantité manquante pour le remplacement de ' . $replaceFrom . ' par ' . $name;
+                        continue;
+                    }
+
+                    if ($unit === null) {
+                        $warnings[] = 'Unité manquante pour le remplacement de ' . $replaceFrom . ' par ' . $name;
+                        continue;
+                    }
+
+                    $recipe->removeRecipeIngredient($sourceRi);
+                    $this->em->remove($sourceRi);
+                    unset($byIngredientId[$sourceIid]);
+                    $applied['removed']++;
+
+                    $targetIid = $targetIngredient->getId();
+                    if ($targetIid && isset($byIngredientId[$targetIid])) {
+                        $existing = $byIngredientId[$targetIid];
+                        $existing->setQuantity($qty);
+                        $existing->setUnit($unit);
+                        $applied['updated']++;
+                    } else {
+                        $newRi = new RecipeIngredient();
+                        $newRi->setRecipe($recipe);
+                        $newRi->setIngredient($targetIngredient);
+                        $newRi->setQuantity($qty);
+                        $newRi->setUnit($unit);
+
+                        $recipe->addRecipeIngredient($newRi);
+                        $this->em->persist($newRi);
+
+                        if ($targetIid) {
+                            $byIngredientId[$targetIid] = $newRi;
+                        }
+
+                        $applied['added']++;
+                    }
+
+                    continue;
+                }
+
+                // Update normal
+                $ingredient = $this->resolveIngredient($user, $name, $row['unit'] ?? null);
                 if (!$ingredient) {
                     $warnings[] = 'Ingrédient introuvable à modifier : ' . $name;
                     continue;
@@ -158,13 +213,6 @@ final class AiUpdateRecipeHandler
                     $warnings[] = 'Ingrédient non présent dans la recette : ' . $ingredient->getName();
                     continue;
                 }
-
-                $qty = $this->normalizeQuantityToDecimalString(
-                    $row['quantity'] ?? null,
-                    $row['quantity_raw'] ?? null
-                );
-
-                $unit = $this->normalizeUnit($row['unit'] ?? null);
 
                 if ($qty === null && $unit === null) {
                     $warnings[] = 'Modification vide pour ' . $ingredient->getName();
@@ -185,7 +233,7 @@ final class AiUpdateRecipeHandler
             }
         }
 
-        // Add
+        // Add explicite
         $adds = $patch['add_ingredients'] ?? [];
         if (is_array($adds)) {
             foreach ($adds as $row) {
@@ -198,7 +246,7 @@ final class AiUpdateRecipeHandler
                     continue;
                 }
 
-                $ingredient = $this->resolveVisibleIngredient($user, $name, $warnings);
+                $ingredient = $this->resolveIngredient($user, $name, $row['unit'] ?? null);
                 if (!$ingredient) {
                     $warnings[] = 'Ingrédient introuvable à ajouter : ' . $name;
                     continue;
@@ -221,7 +269,6 @@ final class AiUpdateRecipeHandler
                 }
 
                 if ($iid && isset($byIngredientId[$iid])) {
-                    // Déjà présent : ici on est bien dans un ADD incrémental
                     $existing = $byIngredientId[$iid];
 
                     $newQty = $existing->getQuantityFloat() + (float) $qty;
@@ -257,6 +304,17 @@ final class AiUpdateRecipeHandler
 
         $this->em->persist($recipe);
         $this->em->flush();
+
+        if (
+            $applied['renamed'] === false
+            && $applied['added'] === 0
+            && $applied['removed'] === 0
+            && $applied['updated'] === 0
+        ) {
+            throw new \RuntimeException(
+                count($warnings) > 0 ? implode(' | ', $warnings) : 'update_recipe_no_change_applied'
+            );
+        }
 
         return [
             'recipe' => [
@@ -309,31 +367,45 @@ final class AiUpdateRecipeHandler
         };
     }
 
-    private function resolveVisibleIngredient(User $user, string $name, array &$warnings): ?Ingredient
+    private function resolveIngredient(User $user, string $name, mixed $unitValue = null): ?Ingredient
     {
         $name = trim($name);
         if ($name === '') {
             return null;
         }
 
-        $nameKey = Ingredient::normalizeName($name);
+        $unit = is_string($unitValue) ? trim($unitValue) : null;
+        $unit = $unit !== '' ? $unit : null;
 
-        $ing = $this->ingredientRepository->findOneVisibleByNameKey($user, $nameKey);
-        if ($ing instanceof Ingredient) {
-            return $ing;
+        return $this->ingredientResolver->resolveOrCreate($user, $name, $unit);
+    }
+
+    private function resolveIngredientAlreadyInRecipe(
+        User $user,
+        Recipe $recipe,
+        string $name,
+        array &$warnings
+    ): ?Ingredient {
+        $name = trim($name);
+        if ($name === '') {
+            return null;
         }
 
-        $res = $this->ingredientRepository->searchVisibleToUser($user, $name, 3);
-        if (count($res) === 1) {
-            $warnings[] = 'Ingrédient approx. : « ' . $name . ' » → « ' . $res[0]->getName() . ' »';
-            return $res[0];
+        $targetKey = Ingredient::normalizeName($name);
+
+        foreach ($recipe->getRecipeIngredients() as $ri) {
+            $ingredient = $ri->getIngredient();
+            if (!$ingredient) {
+                continue;
+            }
+
+            $ingredientKey = Ingredient::normalizeName((string) $ingredient->getName());
+            if ($ingredientKey === $targetKey) {
+                return $ingredient;
+            }
         }
 
-        if (count($res) > 1) {
-            $warnings[] = 'Ingrédient ambigu : « ' . $name . ' » (plusieurs résultats)';
-        }
-
-        return null;
+        return $this->resolveIngredient($user, $name);
     }
 
     /**
