@@ -36,15 +36,35 @@ final class AiIngredientNormalizer
 
         $quantity = $item['quantity'];
         $quantityRaw = $item['quantity_raw'];
-        $unit = $this->normalizeUnit($item['unit'] ?? null);
         $unitRaw = $item['unit_raw'] ?? null;
+
+        $normalizedUnitInfo = $this->normalizeUnitWithConversion(
+            $item['unit'] ?? null,
+            is_numeric($quantity) ? (float) $quantity : null
+        );
+
+        $unit = $normalizedUnitInfo['unit'];
+        $quantity = $normalizedUnitInfo['quantity'];
+
+        if (!empty($normalizedUnitInfo['converted'])) {
+            $warnings[] = 'unit_converted';
+        }
 
         // Si l'unité normalisée est encore nulle, on tente depuis unit_raw
         if ($unit === null && is_string($unitRaw) && trim($unitRaw) !== '') {
-            $parsedUnit = $this->normalizeUnit($unitRaw);
-            if ($parsedUnit !== null) {
-                $unit = $parsedUnit;
+            $normalizedFromRaw = $this->normalizeUnitWithConversion(
+                $unitRaw,
+                is_numeric($quantity) ? (float) $quantity : null
+            );
+
+            if ($normalizedFromRaw['unit'] !== null) {
+                $unit = $normalizedFromRaw['unit'];
+                $quantity = $normalizedFromRaw['quantity'];
                 $warnings[] = 'unit_normalized_from_raw';
+
+                if (!empty($normalizedFromRaw['converted'])) {
+                    $warnings[] = 'unit_converted_from_raw';
+                }
             }
         }
 
@@ -54,6 +74,22 @@ final class AiIngredientNormalizer
             if ($parsed !== null) {
                 $quantity = $parsed;
                 $warnings[] = 'quantity_parsed_from_raw';
+            }
+        }
+
+        // Si la quantité vient d'être trouvée après coup, on retente la normalisation
+        // de l'unité brute pour gérer correctement "50 cl" -> 500 ml.
+        if ($quantity !== null && $unit === null && is_string($unitRaw) && trim($unitRaw) !== '') {
+            $normalizedFromRaw = $this->normalizeUnitWithConversion($unitRaw, (float) $quantity);
+
+            if ($normalizedFromRaw['unit'] !== null) {
+                $unit = $normalizedFromRaw['unit'];
+                $quantity = $normalizedFromRaw['quantity'];
+                $warnings[] = 'unit_normalized_from_raw_after_quantity_parse';
+
+                if (!empty($normalizedFromRaw['converted'])) {
+                    $warnings[] = 'unit_converted_from_raw';
+                }
             }
         }
 
@@ -125,15 +161,30 @@ final class AiIngredientNormalizer
         return null;
     }
 
-    private function normalizeUnit(?string $unit): ?string
+    /**
+     * @return array{
+     *   unit:string|null,
+     *   quantity:float|null,
+     *   converted:bool
+     * }
+     */
+    private function normalizeUnitWithConversion(?string $unit, ?float $quantity): array
     {
         if ($unit === null) {
-            return null;
+            return [
+                'unit' => null,
+                'quantity' => $quantity,
+                'converted' => false,
+            ];
         }
 
         $u = trim(mb_strtolower($unit));
         if ($u === '') {
-            return null;
+            return [
+                'unit' => null,
+                'quantity' => $quantity,
+                'converted' => false,
+            ];
         }
 
         $u = str_replace('.', '', $u);
@@ -144,7 +195,24 @@ final class AiIngredientNormalizer
         $u = str_replace(['ù', 'û', 'ü'], 'u', $u);
         $u = str_replace('ç', 'c', $u);
 
-        return match ($u) {
+        // Conversions vers unités métier finales
+        if (in_array($u, ['cl', 'centilitre', 'centilitres'], true)) {
+            return [
+                'unit' => 'ml',
+                'quantity' => $quantity !== null ? $quantity * 10 : null,
+                'converted' => true,
+            ];
+        }
+
+        if (in_array($u, ['dl', 'decilitre', 'decilitres'], true)) {
+            return [
+                'unit' => 'ml',
+                'quantity' => $quantity !== null ? $quantity * 100 : null,
+                'converted' => true,
+            ];
+        }
+
+        $normalizedUnit = match ($u) {
             'g', 'gramme', 'grammes', 'gr' => 'g',
 
             'kg', 'kilo', 'kilos', 'kilogramme', 'kilogrammes' => 'kg',
@@ -167,6 +235,12 @@ final class AiIngredientNormalizer
 
             default => null,
         };
+
+        return [
+            'unit' => $normalizedUnit,
+            'quantity' => $quantity,
+            'converted' => false,
+        ];
     }
 
     private function isSuspiciousQuantity(float $quantity, string $unit): bool

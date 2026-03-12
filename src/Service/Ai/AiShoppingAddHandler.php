@@ -5,6 +5,7 @@ namespace App\Service\Ai;
 use App\Entity\Ingredient;
 use App\Entity\Shopping;
 use App\Entity\User;
+use App\Enum\Unit;
 use App\Service\IngredientResolver;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -52,26 +53,34 @@ final class AiShoppingAddHandler
         $ingredientRepo = $this->em->getRepository(Ingredient::class);
 
         foreach ($items as $idx => $it) {
-            if (!is_array($it)) continue;
+            if (!is_array($it)) {
+                continue;
+            }
 
-            // quantity obligatoire pour add
             $qty = $it['quantity'] ?? null;
             if ($qty === null || $qty === '' || !is_numeric($qty)) {
-                $warnings[] = ['index' => (int)$idx, 'warnings' => ['missing_quantity']];
-                continue;
-            }
-            $qty = (float) $qty;
-            if ($qty <= 0) {
-                $warnings[] = ['index' => (int)$idx, 'warnings' => ['non_positive_quantity']];
+                $warnings[] = ['index' => (int) $idx, 'warnings' => ['missing_quantity']];
                 continue;
             }
 
-            // Résolution ingrédient: ingredient_id > name
+            $qty = (float) $qty;
+            if ($qty <= 0) {
+                $warnings[] = ['index' => (int) $idx, 'warnings' => ['non_positive_quantity']];
+                continue;
+            }
+
+            $unit = is_string($it['unit'] ?? null) ? (string) $it['unit'] : null;
+            $unitEnum = $this->mapUnit($unit);
+
+            if ($unit !== null && $unitEnum === null) {
+                $warnings[] = ['index' => (int) $idx, 'warnings' => ['unsupported_unit']];
+            }
+
             $ingredient = null;
 
             $iid = $it['ingredient_id'] ?? null;
             if (is_numeric($iid)) {
-                $found = $ingredientRepo->find((int)$iid);
+                $found = $ingredientRepo->find((int) $iid);
                 if ($found instanceof Ingredient) {
                     $owner = $found->getUser();
                     if ($owner === null || $owner->getId() === $user->getId()) {
@@ -81,18 +90,20 @@ final class AiShoppingAddHandler
             }
 
             if (!$ingredient instanceof Ingredient) {
-                $name = trim((string)($it['name'] ?? $it['name_raw'] ?? ''));
+                $name = trim((string) ($it['name'] ?? $it['name_raw'] ?? ''));
                 if ($name === '') {
-                    $warnings[] = ['index' => (int)$idx, 'warnings' => ['empty_name']];
+                    $warnings[] = ['index' => (int) $idx, 'warnings' => ['empty_name']];
                     continue;
                 }
 
-                $unitGuess = is_string($it['unit'] ?? null) ? (string)$it['unit'] : null;
-                $ingredient = $this->ingredientResolver->resolveOrCreate($user, $name, $unitGuess);
+                $ingredient = $this->ingredientResolver->resolveOrCreate($user, $name, $unit);
             }
 
             /** @var Shopping|null $row */
-            $row = $shoppingRepo->findOneBy(['user' => $user, 'ingredient' => $ingredient]);
+            $row = $shoppingRepo->findOneBy([
+                'user' => $user,
+                'ingredient' => $ingredient,
+            ]);
 
             if (!$row) {
                 $row = new Shopping();
@@ -102,13 +113,21 @@ final class AiShoppingAddHandler
                 $row->setChecked(false);
                 $row->setQuantity(0.0);
 
+                if ($unitEnum instanceof Unit) {
+                    $row->setUnit($unitEnum);
+                }
+
                 $this->em->persist($row);
                 $created++;
             } else {
                 $updated++;
-                // si la ligne existante est auto, on la “prend en main” (optionnel mais UX souvent attendue)
+
                 if ($row->getSource() === 'auto') {
                     $row->setSource('manual');
+                }
+
+                if ($unitEnum instanceof Unit) {
+                    $row->setUnit($unitEnum);
                 }
             }
 
@@ -122,5 +141,26 @@ final class AiShoppingAddHandler
             'created' => $created,
             'warnings' => $warnings,
         ];
+    }
+
+    private function mapUnit(?string $unit): ?Unit
+    {
+        if ($unit === null || trim($unit) === '') {
+            return null;
+        }
+
+        return match ($unit) {
+            'g' => Unit::G,
+            'kg' => Unit::KG,
+            'ml' => Unit::ML,
+            'l' => Unit::L,
+            'piece' => Unit::PIECE,
+            'pot' => Unit::POT,
+            'boite' => Unit::BOITE,
+            'sachet' => Unit::SACHET,
+            'tranche' => Unit::TRANCHE,
+            'paquet' => Unit::PAQUET,
+            default => null,
+        };
     }
 }
