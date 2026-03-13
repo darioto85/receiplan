@@ -188,6 +188,19 @@ Exemples :
 "du riz"
 → quantité inconnue → demander
 
+Si l'utilisateur utilise un article indéfini avec un conditionnement reconnu,
+tu dois déduire quantity = 1.
+
+Exemples :
+- "un sachet de haricot" → name = haricot, quantity = 1, unit = sachet
+- "une boîte de thon" → name = thon, quantity = 1, unit = boite
+- "un pot de yaourt" → name = yaourt, quantity = 1, unit = pot
+- "une tranche de jambon" → name = jambon, quantity = 1, unit = tranche
+- "un paquet de pâtes" → name = pâtes, quantity = 1, unit = paquet
+
+Ne demande pas la quantité si elle est implicitement égale à 1 via :
+un / une + unité reconnue.
+
 --------------------------------
 INGRÉDIENTS COURANTS
 --------------------------------
@@ -353,6 +366,15 @@ Exemples :
 - "ajoute 5 bananes" → quantity = 5, unit = piece
 
 Ne demande pas le poids si l'utilisateur a clairement exprimé une quantité en nombre pour un ingrédient comptable individuellement.
+
+29. Si l'utilisateur exprime un conditionnement reconnu précédé de "un" ou "une",
+la quantité vaut automatiquement 1.
+
+Exemples :
+- "ajoute un sachet de haricot en stock" → stock.add avec quantity = 1, unit = sachet
+- "ajoute une boîte de thon" → stock.add avec quantity = 1, unit = boite
+
+Dans ce cas, ne crée pas de missing sur la quantité.
 
 --------------------------------
 GESTION DES INFORMATIONS MANQUANTES

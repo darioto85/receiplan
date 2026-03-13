@@ -20,9 +20,21 @@ class AssistantConversationManager
 
     public function getOrCreateConversation(User $user): AssistantConversation
     {
-        $conversation = $this->conversationRepository->findOneBy([
-            'user' => $user,
-        ]);
+        $todayStart = new \DateTimeImmutable('today');
+        $tomorrowStart = $todayStart->modify('+1 day');
+
+        $qb = $this->conversationRepository->createQueryBuilder('c');
+        $conversation = $qb
+            ->andWhere('c.user = :user')
+            ->andWhere('c.createdAt >= :start')
+            ->andWhere('c.createdAt < :end')
+            ->setParameter('user', $user)
+            ->setParameter('start', $todayStart)
+            ->setParameter('end', $tomorrowStart)
+            ->orderBy('c.id', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
 
         if ($conversation instanceof AssistantConversation) {
             return $conversation;
