@@ -72,7 +72,13 @@ class AssistantConversationFlow
             $status = AssistantConversationStatus::CONTINUE->value;
         }
 
+        /**
+         * --------------------------------
+         * EXECUTION DES ACTIONS
+         * --------------------------------
+         */
         if ($status === AssistantConversationStatus::READY->value) {
+
             $execution = $this->actionExecutor->executeRun($user, $run);
 
             if (($execution['success'] ?? false) === true) {
@@ -102,7 +108,37 @@ class AssistantConversationFlow
             ];
         }
 
+        /**
+         * --------------------------------
+         * FIN DE CONVERSATION SANS ACTION
+         * --------------------------------
+         */
+        if ($status === AssistantConversationStatus::DONE->value) {
+
+            $assistantMessage = $this->messageManager->addAssistantMessage(
+                $conversation,
+                $run,
+                $assistantText,
+                $result
+            );
+
+            $this->conversationManager->closeRun($run, AssistantConversationStatus::DONE);
+            $this->em->flush();
+
+            return [
+                'assistant_message' => $assistantMessage,
+                'actions' => [],
+                'status' => $status,
+            ];
+        }
+
+        /**
+         * --------------------------------
+         * HORS PERIMETRE
+         * --------------------------------
+         */
         if ($status === AssistantConversationStatus::OUT_OF_SCOPE->value) {
+
             $assistantMessage = $this->messageManager->addAssistantMessage(
                 $conversation,
                 $run,
@@ -115,11 +151,16 @@ class AssistantConversationFlow
 
             return [
                 'assistant_message' => $assistantMessage,
-                'actions' => $actions,
+                'actions' => [],
                 'status' => $status,
             ];
         }
 
+        /**
+         * --------------------------------
+         * CONVERSATION EN COURS
+         * --------------------------------
+         */
         $assistantMessage = $this->messageManager->addAssistantMessage(
             $conversation,
             $run,
