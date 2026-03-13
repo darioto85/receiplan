@@ -255,3 +255,14 @@
   .rp-scan-drop-title{ font-size: 22px; }
   .rp-scan-illus{ width: 200px; height: 110px; }
 }
+
+.rp-chat-input [data-assistant-chat-target="micButton"].is-loading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rp-chat-input [data-assistant-chat-target="micButton"] .spinner-border {
+  width: 1rem;
+  height: 1rem;
+}

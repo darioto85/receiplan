@@ -9,7 +9,10 @@
       data-controller="assistant-chat"
       data-assistant-chat-history-url-value="/assistant/chat/history"
       data-assistant-chat-message-url-value="/assistant/chat/message"
+      data-assistant-chat-confirm-url-value="/assistant/chat/confirm"
+      data-assistant-chat-clarify-url-value="/assistant/chat/clarify"
       data-assistant-chat-transcribe-url-value="/api/ai/transcribe"
+      data-assistant-chat-help-modal-id-value="assistantHelpModal"
     >
       {# Zone messages #}
       <div
@@ -55,6 +58,60 @@
         </div>
 
         <div class="small text-muted mt-1" data-assistant-chat-target="status"></div>
+      </div>
+
+      {# Modale d'aide premier affichage #}
+      <div
+        class="modal fade"
+        id="assistantHelpModal"
+        tabindex="-1"
+        aria-labelledby="assistantHelpModalLabel"
+        aria-hidden="true"
+        data-assistant-chat-target="helpModal"
+      >
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content rp-chat-help-modal">
+            <div class="modal-header border-0 pb-0">
+              <h5 class="modal-title" id="assistantHelpModalLabel">Comment utiliser l’assistant vocal</h5>
+            </div>
+
+            <div class="modal-body pt-2">
+              <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="rp-chat-help-icon">
+                  <img
+                    src="{{ asset('img/actions/micro.png') }}"
+                    alt="Micro"
+                    class="img-fluid"
+                    style="max-width: 56px;"
+                  >
+                </div>
+
+                <div class="small text-muted">
+                  Utilise le micro pour dicter ton message à l’assistant.
+                </div>
+              </div>
+
+              <div class="rp-chat-help-steps">
+                <div class="mb-2">
+                  <strong>1 -</strong> Clique 1x sur le micro pour enregistrer
+                </div>
+                <div>
+                  <strong>2 -</strong> Clique une nouvelle fois pour arrêter
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-footer border-0 pt-0">
+              <button
+                type="button"
+                class="btn btn-primary w-100"
+                data-action="click->assistant-chat#closeHelpModal"
+              >
+                Compris
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

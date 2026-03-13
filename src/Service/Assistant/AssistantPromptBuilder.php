@@ -172,6 +172,29 @@ Unités autorisées :
 - tranche
 - paquet
 
+RÈGLE PRIORITAIRE ET OBLIGATOIRE :
+
+Si l'utilisateur utilise :
+- un / une + unité reconnue
+ou
+- un nombre + unité reconnue
+
+alors tu dois en déduire immédiatement la quantité et l'unité,
+sans poser de question supplémentaire.
+
+Exemples obligatoires :
+- "un sachet de haricot" → name = haricot, quantity = 1, unit = sachet
+- "une boîte de thon" → name = thon, quantity = 1, unit = boite
+- "un pot de yaourt" → name = yaourt, quantity = 1, unit = pot
+- "une tranche de jambon" → name = jambon, quantity = 1, unit = tranche
+- "un paquet de pâtes" → name = pâtes, quantity = 1, unit = paquet
+- "2 sachets de riz" → name = riz, quantity = 2, unit = sachet
+- "3 boîtes de thon" → name = thon, quantity = 3, unit = boite
+
+Tu ne dois JAMAIS demander la quantité si elle est déjà déductible via :
+- un / une + unité reconnue
+- ou un nombre + unité reconnue
+
 Exemples :
 
 "une tomate"
@@ -191,18 +214,19 @@ Exemples :
 "du riz"
 → quantité inconnue → demander
 
-Si l'utilisateur utilise un article indéfini avec un conditionnement reconnu,
-tu dois déduire quantity = 1.
+Si une recette utilise des unités culinaires non supportées par Kuko
+(comme cuillère à soupe ou cuillère à café), convertis-les automatiquement en ml.
+
+Équivalences à utiliser :
+- 1 cuillère à soupe = 15 ml
+- 1 cuillère à café = 5 ml
 
 Exemples :
-- "un sachet de haricot" → name = haricot, quantity = 1, unit = sachet
-- "une boîte de thon" → name = thon, quantity = 1, unit = boite
-- "un pot de yaourt" → name = yaourt, quantity = 1, unit = pot
-- "une tranche de jambon" → name = jambon, quantity = 1, unit = tranche
-- "un paquet de pâtes" → name = pâtes, quantity = 1, unit = paquet
+- "2 cuillères à soupe d'huile" → name = huile, quantity = 30, unit = ml
+- "1 cuillère à café de sucre" → name = sucre, quantity = 5, unit = ml
 
-Ne demande pas la quantité si elle est implicitement égale à 1 via :
-un / une + unité reconnue.
+Ne retourne jamais "cuillère", "cuillère à soupe" ou "cuillère à café" dans unit.
+Utilise uniquement les unités autorisées.
 
 --------------------------------
 INGRÉDIENTS COURANTS
@@ -491,6 +515,12 @@ Si l'utilisateur dit "demain", "aujourd'hui" ou "après-demain", calcule directe
 
 8. Pour meal_plan.plan et meal_plan.unplan, ne crée jamais de missing sur "meal".
 
+9. Si l'utilisateur écrit "un" ou "une" suivi d'une unité reconnue
+(sachet, boite, pot, tranche, paquet),
+tu dois fixer quantity = 1 automatiquement.
+
+10. Dans ce cas, tu ne dois jamais créer de missing sur quantity ni sur unit.
+
 --------------------------------
 STRUCTURE DES DONNÉES PAR ACTION
 --------------------------------
@@ -691,6 +721,8 @@ IMPORTANT
 - Pour les suggestions de recettes, ne crée pas recipe.add avant confirmation explicite de l'utilisateur.
 - Si l'utilisateur refuse d'enregistrer une recette proposée, termine avec conversation_status = "done" et sans action.
 - Pour une recette suggérée, ne crée jamais recipe.add avec des ingrédients sans quantités exploitables.
+- Si l'utilisateur écrit "un" ou "une" suivi d'une unité reconnue, tu dois déduire quantity = 1 et l'unité correspondante sans poser de question.
+- Ne demande jamais de précision pour "un sachet", "une boîte", "un pot", "une tranche" ou "un paquet" si l'unité est déjà explicitement présente dans la phrase.
 
 Ta réponse doit être uniquement du JSON valide.
 PROMPT;

@@ -1,7 +1,7 @@
 import { Controller } from "@hotwired/stimulus";
 
 export default class extends Controller {
-  static targets = ["messages", "input", "status", "micButton", "sendButton"];
+  static targets = ["messages", "input", "status", "micButton", "sendButton", "helpModal"];
   static values = {
     historyUrl: String,
     messageUrl: String,
@@ -12,6 +12,7 @@ export default class extends Controller {
     locale: { type: String, default: "fr-FR" },
 
     prerollSeconds: { type: Number, default: 2 },
+    helpModalId: { type: String, default: "assistantHelpModal" },
   };
 
   connect() {
@@ -34,7 +35,16 @@ export default class extends Controller {
     this.sampleRate = 48000;
     this.isWebAudioRecording = false;
 
+    this.helpModalInstance = null;
+    this.helpModalStorageKey = "assistant_help_modal_seen";
+
+    if (this.hasMicButtonTarget) {
+      this.micButtonDefaultHtml = this.micButtonTarget.innerHTML;
+    }
+
     this.setStatus("");
+    this.initHelpModal();
+
     this.loadHistory().finally(() => {
       if (this.hasInputTarget) this.inputTarget.focus();
     });
@@ -49,7 +59,44 @@ export default class extends Controller {
       if (this.isRecording) this.stopRecord();
       this.stopStream();
       this.stopWebAudioGraph();
+
+      if (this.helpModalInstance) {
+        this.helpModalInstance.hide();
+      }
     } catch {}
+  }
+
+  // =========================================================
+  // Help modal
+  // =========================================================
+  initHelpModal() {
+    let modalElement = null;
+
+    if (this.hasHelpModalTarget) {
+      modalElement = this.helpModalTarget;
+    } else if (this.hasHelpModalIdValue && this.helpModalIdValue) {
+      modalElement = document.getElementById(this.helpModalIdValue);
+    }
+
+    if (!modalElement) return;
+
+    if (typeof window.bootstrap === "undefined" || !window.bootstrap.Modal) {
+      return;
+    }
+
+    this.helpModalInstance = new window.bootstrap.Modal(modalElement);
+
+    if (!localStorage.getItem(this.helpModalStorageKey)) {
+      this.helpModalInstance.show();
+    }
+  }
+
+  closeHelpModal() {
+    localStorage.setItem(this.helpModalStorageKey, "1");
+
+    if (this.helpModalInstance) {
+      this.helpModalInstance.hide();
+    }
   }
 
   // =========================================================
@@ -108,12 +155,11 @@ export default class extends Controller {
     bubble.className = isUser
       ? "px-3 py-2 rounded-4 rp-message"
       : "px-3 py-2 rounded-4 border bg-white";
-    
+
     bubble.textContent = content;
 
     bubbleContainer.appendChild(bubble);
 
-    // ✅ CLARIFY
     if (!isUser && payload?.type === "clarify" && message?.id) {
       const alreadyClarified = payload.clarified === true;
       if (!alreadyClarified) {
@@ -122,11 +168,9 @@ export default class extends Controller {
       }
     }
 
-    // ✅ CONFIRM
     if (!isUser && payload?.type === "confirm" && message?.id) {
       const alreadyConfirmed = payload.confirmed === "yes" || payload.confirmed === "no";
       if (!alreadyConfirmed) {
-        // details + edit
         const detailBlock = this.buildDetailsBlock(payload, message.id);
         if (detailBlock) bubbleContainer.appendChild(detailBlock);
 
@@ -144,12 +188,15 @@ export default class extends Controller {
         noBtn.textContent = "Non";
 
         const removeConfirmUi = () => {
-          try { if (actions.parentNode) actions.parentNode.removeChild(actions); } catch {}
-          try { if (detailBlock && detailBlock.parentNode) detailBlock.parentNode.removeChild(detailBlock); } catch {}
+          try {
+            if (actions.parentNode) actions.parentNode.removeChild(actions);
+          } catch {}
+          try {
+            if (detailBlock && detailBlock.parentNode) detailBlock.parentNode.removeChild(detailBlock);
+          } catch {}
         };
 
         yesBtn.addEventListener("click", async () => {
-          // récupérer un payload édité si présent
           const edited = detailBlock?.dataset?.editedPayload
             ? JSON.parse(detailBlock.dataset.editedPayload)
             : null;
@@ -244,13 +291,14 @@ export default class extends Controller {
     btn.textContent = "Continuer";
 
     const removeClarifyUi = () => {
-      try { if (container.parentNode) container.parentNode.removeChild(container); } catch {}
+      try {
+        if (container.parentNode) container.parentNode.removeChild(container);
+      } catch {}
     };
 
     btn.addEventListener("click", async () => {
       const answers = {};
 
-      // exige réponse à tous les champs affichés
       for (const q of questions) {
         if (!q?.path) continue;
         const el = inputs.get(q.path);
@@ -327,10 +375,8 @@ export default class extends Controller {
     body.className = "border rounded-3 bg-light mt-1 p-2";
     body.style.display = "none";
 
-    // Draft éditable (on copie profondément le payload)
     let draft = ap ? JSON.parse(JSON.stringify(ap)) : null;
 
-    // Helpers de rendu
     const renderReadOnlyList = () => {
       body.innerHTML = "";
 
@@ -346,15 +392,16 @@ export default class extends Controller {
         li.textContent = l;
         ul.appendChild(li);
       }
+
       if (lines.length > 12) {
         const li = document.createElement("li");
         li.className = "small text-muted";
         li.textContent = `+${lines.length - 12} autres…`;
         ul.appendChild(li);
       }
+
       body.appendChild(ul);
 
-      // ✅ bouton Modifier uniquement pour add_stock pour l’instant
       if (action === "add_stock" && draft?.items && Array.isArray(draft.items)) {
         const row = document.createElement("div");
         row.className = "d-flex justify-content-end";
@@ -380,20 +427,17 @@ export default class extends Controller {
         return;
       }
 
-      // Editor list
       for (let i = 0; i < items.length; i++) {
         const it = items[i] || {};
         const card = document.createElement("div");
         card.className = "border rounded-3 bg-white p-2 mb-2";
 
-        // name
         const nameInput = document.createElement("input");
         nameInput.className = "form-control form-control-sm mb-2";
         nameInput.type = "text";
         nameInput.placeholder = "Nom";
         nameInput.value = (it.name || it.name_raw || "").toString();
 
-        // quantity
         const qtyInput = document.createElement("input");
         qtyInput.className = "form-control form-control-sm mb-2";
         qtyInput.type = "number";
@@ -402,9 +446,9 @@ export default class extends Controller {
         qtyInput.placeholder = "Quantité";
         qtyInput.value = it.quantity ?? it.quantity_raw ?? "";
 
-        // unit
         const unitSelect = document.createElement("select");
         unitSelect.className = "form-select form-select-sm";
+
         const unitOptions = [
           { value: "", label: "—" },
           { value: "piece", label: "pièce(s)" },
@@ -413,15 +457,16 @@ export default class extends Controller {
           { value: "ml", label: "mL" },
           { value: "l", label: "L" },
         ];
+
         for (const opt of unitOptions) {
           const o = document.createElement("option");
           o.value = opt.value;
           o.textContent = opt.label;
           unitSelect.appendChild(o);
         }
+
         unitSelect.value = (it.unit || it.unit_raw || "").toString();
 
-        // remove item (optionnel)
         const removeRow = document.createElement("div");
         removeRow.className = "d-flex justify-content-end mt-2";
 
@@ -442,7 +487,6 @@ export default class extends Controller {
         card.appendChild(unitSelect);
         card.appendChild(removeRow);
 
-        // bind changes
         const applyItemChanges = () => {
           const name = nameInput.value.trim();
           const qtyStr = qtyInput.value.toString().trim();
@@ -470,13 +514,11 @@ export default class extends Controller {
         qtyInput.addEventListener("input", applyItemChanges);
         unitSelect.addEventListener("change", applyItemChanges);
 
-        // ensure initial sync
         applyItemChanges();
 
         body.appendChild(card);
       }
 
-      // actions save/cancel
       const footer = document.createElement("div");
       footer.className = "d-flex justify-content-end gap-2";
 
@@ -491,21 +533,18 @@ export default class extends Controller {
       saveBtn.textContent = "OK";
 
       cancelBtn.addEventListener("click", () => {
-        // reset draft depuis payload initial
         draft = ap ? JSON.parse(JSON.stringify(ap)) : null;
         container.dataset.editedPayload = "";
         renderReadOnlyList();
       });
 
       saveBtn.addEventListener("click", () => {
-        // simple validation: enlever items vides
         if (draft?.items && Array.isArray(draft.items)) {
           draft.items = draft.items
             .map((it) => it || {})
             .filter((it) => (it.name || it.name_raw || "").toString().trim() !== "");
         }
 
-        // stocker le payload édité sur le container (lu au clic Oui)
         container.dataset.editedPayload = JSON.stringify(draft);
         renderReadOnlyList();
       });
@@ -529,19 +568,23 @@ export default class extends Controller {
 
   detailsLinesForAction(action, draft) {
     let lines = [];
+
     if (action === "add_stock") {
       const items = Array.isArray(draft?.items) ? draft.items : [];
       lines = items.map((it) => this.formatStockLine(it)).filter(Boolean);
     } else if (action === "add_recipe") {
       const name = (draft?.name || draft?.recipe_name || "").toString().trim();
       if (name) lines.push(`Recette : ${name}`);
+
       const ingredients = Array.isArray(draft?.ingredients) ? draft.ingredients : [];
       for (const ing of ingredients.slice(0, 10)) {
         const line = this.formatRecipeIngredientLine(ing);
         if (line) lines.push(line);
       }
+
       if (ingredients.length > 10) lines.push(`+${ingredients.length - 10} autres ingrédients…`);
     }
+
     return lines;
   }
 
@@ -600,6 +643,7 @@ export default class extends Controller {
 
   formatRecipeIngredientLine(ing) {
     if (!ing || typeof ing !== "object") return null;
+
     const name = (ing.name || ing.ingredient || ing.name_raw || "").toString().trim();
     if (!name) return null;
 
@@ -615,16 +659,16 @@ export default class extends Controller {
       const uLbl = this.unitLabel(unit, qty);
       return uLbl ? `${name} — ${qty} ${uLbl}` : `${name} — ${qty}`;
     }
+
     if (qtyRaw) return unit ? `${name} — ${qtyRaw} ${unit}` : `${name} — ${qtyRaw}`;
+
     return `${name}`;
   }
 
-  // =========================================================
-  // Confirm (avec override payload)
-  // =========================================================
   async confirmAction(messageId, decision, actionPayloadOverride) {
     try {
       const body = { message_id: messageId, decision };
+
       if (decision === "yes" && actionPayloadOverride && typeof actionPayloadOverride === "object") {
         body.action_payload = actionPayloadOverride;
       }
@@ -653,9 +697,6 @@ export default class extends Controller {
     }
   }
 
-  // =========================================================
-  // Send
-  // =========================================================
   async send(event) {
     if (event?.isComposing) return;
     if (this.isSending || this.isLoading || this.isTranscribing) return;
@@ -707,13 +748,14 @@ export default class extends Controller {
 
   scrollToBottom() {
     if (!this.hasMessagesTarget) return;
+
     requestAnimationFrame(() => {
       this.messagesTarget.scrollTop = this.messagesTarget.scrollHeight;
     });
   }
 
   // =========================================================
-  // Voice (inchangé)
+  // Voice
   // =========================================================
   async toggleMic() {
     if (this.isTranscribing) return;
@@ -731,14 +773,16 @@ export default class extends Controller {
 
   stopStream() {
     if (!this.mediaStream) return;
-    try { this.mediaStream.getTracks().forEach((t) => t.stop()); } catch {}
+    try {
+      this.mediaStream.getTracks().forEach((t) => t.stop());
+    } catch {}
     this.mediaStream = null;
   }
 
   async startRecord() {
     this.recordedBlob = null;
     this.isRecording = true;
-    this._setMicButtonState(true);
+    this._setMicButtonState("recording");
 
     if (this.isFirefox) {
       await this.startFirefoxWebAudio();
@@ -747,7 +791,7 @@ export default class extends Controller {
 
     if (!this.mediaSupported) {
       this.isRecording = false;
-      this._setMicButtonState(false);
+      this._setMicButtonState("idle");
       return;
     }
 
@@ -765,7 +809,10 @@ export default class extends Controller {
       this.mediaRecorder.onstop = async () => {
         const type = this.mediaRecorder?.mimeType || "audio/webm";
         this.recordedBlob = new Blob(this.audioChunks, { type });
-        if (this.recordedBlob.size === 0) return;
+        if (this.recordedBlob.size === 0) {
+          this._setMicButtonState("idle");
+          return;
+        }
         await this.autoTranscribeIntoInput();
       };
 
@@ -774,7 +821,7 @@ export default class extends Controller {
     } catch (e) {
       console.error("[assistant-chat] startRecord error", e);
       this.isRecording = false;
-      this._setMicButtonState(false);
+      this._setMicButtonState("idle");
       this.stopStream();
     }
   }
@@ -783,17 +830,27 @@ export default class extends Controller {
     if (!this.isRecording) return;
 
     this.isRecording = false;
-    this._setMicButtonState(false);
+    this._setMicButtonState("loading");
 
     if (this.isFirefox) {
       this.stopFirefoxWebAudio();
       return;
     }
 
-    if (!this.mediaRecorder) return;
+    if (!this.mediaRecorder) {
+      this._setMicButtonState("idle");
+      return;
+    }
 
-    try { if (typeof this.mediaRecorder.requestData === "function") this.mediaRecorder.requestData(); } catch {}
-    try { setTimeout(() => this.mediaRecorder.stop(), 50); } catch {}
+    try {
+      if (typeof this.mediaRecorder.requestData === "function") this.mediaRecorder.requestData();
+    } catch {}
+
+    try {
+      setTimeout(() => this.mediaRecorder.stop(), 50);
+    } catch {
+      this._setMicButtonState("idle");
+    }
   }
 
   async startFirefoxWebAudio() {
@@ -803,7 +860,7 @@ export default class extends Controller {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtx) {
         this.isRecording = false;
-        this._setMicButtonState(false);
+        this._setMicButtonState("idle");
         return;
       }
 
@@ -842,23 +899,27 @@ export default class extends Controller {
       this.isWebAudioRecording = false;
       this.stopWebAudioGraph();
       this.isRecording = false;
-      this._setMicButtonState(false);
+      this._setMicButtonState("idle");
     }
   }
 
   stopFirefoxWebAudio() {
     try {
       this.isWebAudioRecording = false;
+      this._setMicButtonState("loading");
 
       const recorded = this.concatFloat32(this.recordBuffers, this.recordSamples);
       const wavArrayBuffer = this.encodeWav16(recorded, this.sampleRate);
       this.recordedBlob = new Blob([wavArrayBuffer], { type: "audio/wav" });
 
       this.stopWebAudioGraph();
-      this.autoTranscribeIntoInput().catch(() => {});
+      this.autoTranscribeIntoInput().catch(() => {
+        this._setMicButtonState("idle");
+      });
     } catch (e) {
       console.error("[assistant-chat] Firefox stop error", e);
       this.stopWebAudioGraph();
+      this._setMicButtonState("idle");
     }
   }
 
@@ -870,6 +931,7 @@ export default class extends Controller {
       }
       if (this.sourceNode) this.sourceNode.disconnect();
     } catch {}
+
     this.processorNode = null;
     this.sourceNode = null;
   }
@@ -877,10 +939,12 @@ export default class extends Controller {
   concatFloat32(chunks, totalSamples) {
     const out = new Float32Array(totalSamples);
     let offset = 0;
+
     for (const c of chunks) {
       out.set(c, offset);
       offset += c.length;
     }
+
     return out;
   }
 
@@ -923,23 +987,34 @@ export default class extends Controller {
   }
 
   writeString(view, offset, str) {
-    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    for (let i = 0; i < str.length; i++) {
+      view.setUint8(offset + i, str.charCodeAt(i));
+    }
   }
 
   async autoTranscribeIntoInput() {
     if (this.isTranscribing) return;
-    if (!this.recordedBlob || this.recordedBlob.size === 0) return;
+    if (!this.recordedBlob || this.recordedBlob.size === 0) {
+      this._setMicButtonState("idle");
+      return;
+    }
 
     this.isTranscribing = true;
+    this._setMicButtonState("loading");
+    this.setStatus("Transcription…");
+
     try {
       const text = await this.transcribeAudio();
       if (!text) return;
+
       if (this.hasInputTarget) {
         this.inputTarget.value = text;
         this.inputTarget.focus();
       }
     } finally {
       this.isTranscribing = false;
+      this._setMicButtonState("idle");
+      this.setStatus("");
     }
   }
 
@@ -976,9 +1051,11 @@ export default class extends Controller {
       "video/webm;codecs=opus",
       "video/webm",
     ];
+
     for (const t of candidates) {
       if (window.MediaRecorder && MediaRecorder.isTypeSupported(t)) return t;
     }
+
     return null;
   }
 
@@ -992,25 +1069,57 @@ export default class extends Controller {
     if (this.hasInputTarget) this.inputTarget.disabled = isBusy;
   }
 
-  _setMicButtonState(isRecording) {
+  _setMicButtonState(state) {
     if (!this.hasMicButtonTarget) return;
-    this.micButtonTarget.textContent = isRecording ? "⏹️" : "🎙️";
-    this.micButtonTarget.setAttribute("aria-pressed", isRecording ? "true" : "false");
+
+    this.micButtonTarget.classList.remove("is-recording", "is-loading");
+
+    if (state === "recording") {
+      this.micButtonTarget.innerHTML = "⏹️";
+      this.micButtonTarget.classList.add("is-recording");
+      this.micButtonTarget.setAttribute("title", "Arrêter");
+      this.micButtonTarget.setAttribute("aria-label", "Arrêter l’enregistrement");
+      this.micButtonTarget.setAttribute("aria-pressed", "true");
+      return;
+    }
+
+    if (state === "loading") {
+      this.micButtonTarget.innerHTML = `
+        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+      `;
+      this.micButtonTarget.classList.add("is-loading");
+      this.micButtonTarget.setAttribute("title", "Transcription en cours");
+      this.micButtonTarget.setAttribute("aria-label", "Transcription en cours");
+      this.micButtonTarget.setAttribute("aria-pressed", "false");
+      return;
+    }
+
+    this.micButtonTarget.innerHTML = this.micButtonDefaultHtml || "🎙️";
+    this.micButtonTarget.setAttribute("title", "Dicter");
+    this.micButtonTarget.setAttribute("aria-label", "Micro");
+    this.micButtonTarget.setAttribute("aria-pressed", "false");
   }
 
   beep() {
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtx) return;
+
       const ctx = new AudioCtx();
       const o = ctx.createOscillator();
       const g = ctx.createGain();
+
       o.connect(g);
       g.connect(ctx.destination);
+
       o.frequency.value = 880;
       g.gain.value = 0.05;
       o.start();
-      setTimeout(() => { o.stop(); ctx.close(); }, 120);
+
+      setTimeout(() => {
+        o.stop();
+        ctx.close();
+      }, 120);
     } catch {}
   }
 }
