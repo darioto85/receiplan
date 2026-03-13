@@ -20,25 +20,22 @@ class MealPlanPlanActionHandler implements AssistantActionHandlerInterface
     public function execute(User $user, array $data): array
     {
         $recipeName = trim((string) ($data['recipe_name'] ?? ''));
-        $date = $data['date'] ?? null;
-        $meal = $data['meal'] ?? null;
+        $date = trim((string) ($data['date'] ?? ''));
 
         if ($recipeName === '') {
             throw new \RuntimeException('meal_plan.plan: recipe_name manquant.');
         }
 
-        if (!is_string($date) || trim($date) === '') {
+        if ($date === '') {
             throw new \RuntimeException('meal_plan.plan: date manquante.');
         }
 
-        if (!is_string($meal) || trim($meal) === '') {
-            throw new \RuntimeException('meal_plan.plan: meal manquant.');
-        }
-
         return $this->handler->handle($user, [
-            'recipe_name' => $recipeName,
             'date' => $date,
-            'meal' => $meal,
+            'recipe' => [
+                'name_raw' => $recipeName,
+                'name' => $recipeName,
+            ],
         ]);
     }
 }
