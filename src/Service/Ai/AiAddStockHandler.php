@@ -4,6 +4,7 @@ namespace App\Service\Ai;
 
 use App\Entity\User;
 use App\Entity\UserIngredient;
+use App\Enum\Unit;
 use App\Service\AiIngredientNormalizer;
 use App\Service\IngredientResolver;
 use Doctrine\ORM\EntityManagerInterface;
@@ -23,7 +24,7 @@ final class AiAddStockHandler
      *     name:string,
      *     quantity:float|null,
      *     quantity_raw:string|null,
-     *     unit:('g'|'kg'|'ml'|'l'|'piece'|'pack'|null),
+     *     unit:('g'|'kg'|'ml'|'l'|'piece'|'pot'|'boite'|'sachet'|'tranche'|'paquet'|null),
      *     unit_raw:string|null,
      *     notes:string|null,
      *     confidence:float
@@ -49,7 +50,7 @@ final class AiAddStockHandler
 
         /**
          * Cache in-memory pour éviter de créer 2 UserIngredient identiques
-         * dans la même requête (surtout quand Ingredient est nouveau et n’a pas encore d’id).
+         * dans la même requête.
          *
          * @var array<string, UserIngredient>
          */
@@ -85,21 +86,24 @@ final class AiAddStockHandler
                 continue;
             }
 
-            // ✅ Ingredient user-aware + cache anti-doublons (via IngredientResolver)
+            $unitEnum = $this->mapUnit($unit);
+            if ($unit !== null && $unitEnum === null) {
+                $globalNeedsConfirmation = true;
+                $warningsByIndex[] = ['index' => (int) $idx, 'warnings' => ['unsupported_unit']];
+            }
+
             $ingredient = $this->ingredientResolver->resolveOrCreate(
                 $user,
                 $ingName,
                 is_string($unit) ? $unit : null
             );
 
-            // ✅ Clé de cache UserIngredient : id si dispo, sinon instance (spl_object_id)
             $ingId = method_exists($ingredient, 'getId') ? $ingredient->getId() : null;
             $uiKey = $ingId ? ('id:' . $ingId) : ('obj:' . spl_object_id($ingredient));
 
             if (isset($userIngredientCache[$uiKey])) {
                 $ui = $userIngredientCache[$uiKey];
             } else {
-                // Si l’ingredient existe déjà en DB (id non null), on peut tenter un findOneBy
                 $ui = null;
 
                 if ($ingId !== null) {
@@ -115,13 +119,21 @@ final class AiAddStockHandler
                     $ui->setUser($user);
                     $ui->setIngredient($ingredient);
                     $ui->setQuantity(0.0);
+
+                    if ($unitEnum instanceof Unit) {
+                        $ui->setUnit($unitEnum);
+                    }
+
                     $this->em->persist($ui);
+                } elseif ($unitEnum instanceof Unit) {
+                    // Si l'utilisateur fournit explicitement une unité,
+                    // on l'applique aussi sur un stock existant.
+                    $ui->setUnit($unitEnum);
                 }
 
                 $userIngredientCache[$uiKey] = $ui;
             }
 
-            // Incrément stock
             $ui->setQuantity((float) $ui->getQuantity() + (float) $quantity);
             $updated++;
 
@@ -137,5 +149,26 @@ final class AiAddStockHandler
             'needs_confirmation' => $globalNeedsConfirmation,
             'warnings' => $warningsByIndex,
         ];
+    }
+
+    private function mapUnit(?string $unit): ?Unit
+    {
+        if ($unit === null || trim($unit) === '') {
+            return null;
+        }
+
+        return match ($unit) {
+            'g' => Unit::G,
+            'kg' => Unit::KG,
+            'ml' => Unit::ML,
+            'l' => Unit::L,
+            'piece' => Unit::PIECE,
+            'pot' => Unit::POT,
+            'boite' => Unit::BOITE,
+            'sachet' => Unit::SACHET,
+            'tranche' => Unit::TRANCHE,
+            'paquet' => Unit::PAQUET,
+            default => null,
+        };
     }
 }

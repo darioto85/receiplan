@@ -9,10 +9,14 @@ services:
     autowire: true
     autoconfigure: true
 
-  # ✅ Auto-tag de toutes les actions IA (plus besoin de déclarer chaque AiAction une par une)
   _instanceof:
+    # Auto-tag de toutes les actions IA
     App\Service\Ai\Action\AiActionInterface:
       tags: ['app.ai_action']
+
+    # Auto-tag de tous les handlers du nouvel assistant
+    App\Service\Assistant\Handler\AssistantActionHandlerInterface:
+      tags: ['app.assistant_action_handler']
 
   # Auto-register de tout le code App\
   App\:
@@ -26,6 +30,12 @@ services:
   App\Controller\:
     resource: '../src/Controller/'
     tags: ['controller.service_arguments']
+
+  # Services Assistant
+  App\Service\Assistant\:
+    resource: '../src/Service/Assistant/'
+    autowire: true
+    autoconfigure: true
 
   # ----------------------------
   # AWS S3 client for Cloudflare R2

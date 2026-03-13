@@ -2,17 +2,14 @@
 
 {% block title %}Assistant{% endblock %}
 
-{# On ajoute une classe sur rp-page via un wrapper interne (sans toucher base.html.twig) #}
 {% block body %}
   <div class="rp-chat-page">
     <div
       class="rp-chat-layout d-flex flex-column"
       data-controller="assistant-chat"
-      data-assistant-chat-history-url-value="/assistant/history"
-      data-assistant-chat-message-url-value="/assistant/message"
+      data-assistant-chat-history-url-value="/assistant/chat/history"
+      data-assistant-chat-message-url-value="/assistant/chat/message"
       data-assistant-chat-transcribe-url-value="/api/ai/transcribe"
-      data-assistant-chat-confirm-url-value="{{ path('assistant_confirm') }}"
-      data-assistant-chat-clarify-url-value="{{ path('assistant_clarify') }}"
     >
       {# Zone messages #}
       <div
