@@ -25,7 +25,7 @@ final class AssistantChatController extends AbstractController
         private readonly KernelInterface $kernel,
     ) {}
 
-    #[Route('/assistant/chat', name: 'assistant_chat', methods: ['GET'])]
+    #[Route('/assistant/chat', name: 'assistant', methods: ['GET'])]
     public function index(): Response
     {
         return $this->render('assistant/chat.html.twig');

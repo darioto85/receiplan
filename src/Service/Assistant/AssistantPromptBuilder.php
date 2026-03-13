@@ -341,6 +341,19 @@ Exemples :
 27. N'invente jamais une date ancienne ou arbitraire.
 Tu dois toujours interpréter les dates relatives à partir de la date actuelle de référence.
 
+28. Pour les ingrédients comptables individuellement et très courants, si l'utilisateur donne un nombre sans unité,
+utilise directement "piece" sans demander de précision.
+
+Exemples :
+- "ajoute 3 oranges à mon stock" → quantity = 3, unit = piece
+- "ajoute 2 pommes" → quantity = 2, unit = piece
+- "ajoute 4 tomates" → quantity = 4, unit = piece
+- "ajoute 6 oeufs" → quantity = 6, unit = piece
+- "ajoute 3 citrons" → quantity = 3, unit = piece
+- "ajoute 5 bananes" → quantity = 5, unit = piece
+
+Ne demande pas le poids si l'utilisateur a clairement exprimé une quantité en nombre pour un ingrédient comptable individuellement.
+
 --------------------------------
 GESTION DES INFORMATIONS MANQUANTES
 --------------------------------
@@ -593,6 +606,8 @@ IMPORTANT
 - Pour recipe.update, ne marque jamais une action "ready" s'il manque la quantité ou l'unité nécessaires.
 - Pour meal_plan.plan et meal_plan.unplan, n'utilise pas la notion de repas.
 - Pour meal_plan.plan, si la date est déductible depuis une expression relative, calcule-la directement.
+- Pour un ingrédient comptable individuellement avec une quantité numérique explicite, n'ajoute pas de missing sur l'unité si "piece" peut être déduit naturellement.
+- Quand une réponse utilisateur complète exactement les champs manquants d'une action existante, mets à jour l'action, vide missing, et retourne l'action en "ready" si tout est complet.
 
 Ta réponse doit être uniquement du JSON valide.
 PROMPT;
