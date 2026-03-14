@@ -30,9 +30,9 @@ security:
 
       remember_me:
         secret: '%kernel.secret%'
-        lifetime: 604800
+        lifetime: 7776000 # 90 jours
         path: /
-        # always_remember_me: true
+        always_remember_me: true
 
       # switch_user: true
 
@@ -65,8 +65,8 @@ security:
     - { path: ^/assistant, roles: ROLE_USER }
 
     - { path: ^/godmode, roles: ROLE_USER_ADMIN }
-    
-    # Tout le reste nécessite un user connecté
+
+    # Tout le reste en accès public
     - { path: ^/, roles: PUBLIC_ACCESS }
 
 when@test:
