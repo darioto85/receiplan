@@ -36,7 +36,9 @@ class StockController extends AbstractController
             ->getQuery()
             ->getResult();
 
-        $form = $this->createForm(StockUpsertType::class);
+        $form = $this->createForm(StockUpsertType::class, null, [
+            'user' => $user,
+        ]);
 
         return $this->render('stock/index.html.twig', [
             'items' => $items,
@@ -190,7 +192,9 @@ class StockController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        $form = $this->createForm(StockUpsertType::class);
+        $form = $this->createForm(StockUpsertType::class, null, [
+            'user' => $user,
+        ]);
         $form->handleRequest($request);
 
         $isAjax = $request->isXmlHttpRequest();

@@ -259,8 +259,6 @@ export default class extends Controller {
     const id = event.params.id;
     if (!id) return;
 
-    if (!confirm("Supprimer cet article de la liste ?")) return;
-
     this.findRowsForId(id).forEach((row) => {
       row
         .querySelectorAll('[data-shopping-target="checkbox"], input[type="number"]')

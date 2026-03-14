@@ -31,7 +31,9 @@ final class ShoppingController extends AbstractController
         $items = $shoppingRepository->findForUser($user);
 
         // ✅ même form que Stock
-        $form = $this->createForm(StockUpsertType::class);
+        $form = $this->createForm(StockUpsertType::class, null, [
+            'user' => $user,
+        ]);
 
         return $this->render('shopping/index.html.twig', [
             'items' => $items,
@@ -50,7 +52,9 @@ final class ShoppingController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        $form = $this->createForm(StockUpsertType::class);
+        $form = $this->createForm(StockUpsertType::class, null, [
+            'user' => $user,
+        ]);
         $form->handleRequest($request);
 
         $isAjax = $request->isXmlHttpRequest();

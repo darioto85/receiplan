@@ -3,7 +3,9 @@
 namespace App\Form;
 
 use App\Entity\Ingredient;
+use App\Entity\User;
 use App\Enum\Unit;
+use App\Repository\IngredientRepository;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
@@ -15,6 +17,9 @@ class StockUpsertType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
+        /** @var User|null $user */
+        $user = $options['user'];
+
         $builder
             ->add('ingredient', EntityType::class, [
                 'class' => Ingredient::class,
@@ -22,6 +27,16 @@ class StockUpsertType extends AbstractType
                 'placeholder' => 'Rechercher un ingrédient…',
                 'autocomplete' => true,
                 'required' => true,
+                'query_builder' => function (IngredientRepository $ingredientRepository) use ($user) {
+                    if (!$user instanceof User) {
+                        return $ingredientRepository->createQueryBuilder('i')
+                            ->where('1 = 0');
+                    }
+
+                    return $ingredientRepository
+                        ->createVisibleToUserQueryBuilder($user, 'i')
+                        ->orderBy('i.name', 'ASC');
+                },
             ])
             ->add('quantity', NumberType::class, [
                 'required' => true,
@@ -36,18 +51,12 @@ class StockUpsertType extends AbstractType
             ->add('unit', ChoiceType::class, [
                 'required' => true,
                 'placeholder' => false,
-
-                // ✅ important : labels affichés
                 'choice_label' => static function ($choice, $key, $value) {
-                    // $key = 'g', 'kg', etc. dans notre tableau
                     return (string) $key;
                 },
-
-                // ✅ IMPORTANT : value HTML = backed enum value ("g", "kg", "piece"...)
                 'choice_value' => static function (?Unit $choice) {
                     return $choice?->value;
                 },
-
                 'choices' => [
                     'g' => Unit::G,
                     'kg' => Unit::KG,
@@ -60,8 +69,6 @@ class StockUpsertType extends AbstractType
                     'tranche' => Unit::TRANCHE,
                     'paquet' => Unit::PAQUET,
                 ],
-
-                // ✅ valeur par défaut
                 'data' => Unit::G,
             ])
         ;
@@ -71,6 +78,9 @@ class StockUpsertType extends AbstractType
     {
         $resolver->setDefaults([
             'csrf_protection' => true,
+            'user' => null,
         ]);
+
+        $resolver->setAllowedTypes('user', ['null', User::class]);
     }
 }

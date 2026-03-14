@@ -40,7 +40,9 @@ final class RecipeWizardController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        $form = $this->createForm(RecipeIngredientUpsertType::class);
+        $form = $this->createForm(RecipeIngredientUpsertType::class, null, [
+            'user' => $user,
+        ]);
 
         return $this->render('recipe_wizard/edit.html.twig', [
             'recipe' => $recipe,
@@ -126,7 +128,9 @@ final class RecipeWizardController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        $form = $this->createForm(RecipeIngredientUpsertType::class);
+        $form = $this->createForm(RecipeIngredientUpsertType::class, null, [
+            'user' => $user,
+        ]);
         $form->handleRequest($request);
 
         if (!$request->isXmlHttpRequest()) {
@@ -500,5 +504,4 @@ final class RecipeWizardController extends AbstractController
             'content' => $step->getContent(),
         ]);
     }
-
 }
