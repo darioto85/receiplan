@@ -59,7 +59,7 @@
             style="object-fit: contain; border-radius: 8px; flex: 0 0 auto;"
           >
 
-          {# ✅ Nom sur 2 lignes max, puis ellipsis #}
+          {# Nom sur 2 lignes max #}
           <div style="min-width:0;">
             <div
               class="fw-semibold"
@@ -79,7 +79,7 @@
         </div>
 
         {# ===== RIGHT: quantity + unit ===== #}
-        <div class="flex-shrink-0" style="width: 110px;">
+        <div class="flex-shrink-0" style="width: 150px;">
           <div class="input-group input-group-sm">
             <input
               type="number"
@@ -92,9 +92,27 @@
               title="Modifier la quantité (0 = retirer de la liste)"
               aria-label="Quantité"
             >
-            <span class="input-group-text text-muted" style="max-width: 54px; overflow:hidden; text-overflow:ellipsis;">
-              {{ unitLabel ?: '—' }}
-            </span>
+
+            <select
+              class="rp-unit-select rp-unit-select-mobile input-group-text text-muted"
+              data-action="change->shopping#updateUnit"
+              data-shopping-id-param="{{ item.id }}"
+              data-previous-value="{{ unitValue }}"
+              title="Modifier l’unité"
+              aria-label="Unité"
+              style="max-width: 78px;"
+            >
+              <option value="g" {{ unitValue == 'g' ? 'selected' : '' }}>g</option>
+              <option value="kg" {{ unitValue == 'kg' ? 'selected' : '' }}>kg</option>
+              <option value="ml" {{ unitValue == 'ml' ? 'selected' : '' }}>ml</option>
+              <option value="l" {{ unitValue == 'l' ? 'selected' : '' }}>L</option>
+              <option value="piece" {{ unitValue == 'piece' ? 'selected' : '' }}>pièce</option>
+              <option value="pot" {{ unitValue == 'pot' ? 'selected' : '' }}>pot</option>
+              <option value="boite" {{ unitValue == 'boite' ? 'selected' : '' }}>boîte</option>
+              <option value="sachet" {{ unitValue == 'sachet' ? 'selected' : '' }}>sachet</option>
+              <option value="tranche" {{ unitValue == 'tranche' ? 'selected' : '' }}>tranche</option>
+              <option value="paquet" {{ unitValue == 'paquet' ? 'selected' : '' }}>paquet</option>
+            </select>
           </div>
         </div>
 
@@ -139,19 +157,41 @@
     </td>
 
     <td class="text-nowrap">
+    <div class="input-group input-group-sm">
       <input
         type="number"
         step="0.01"
         min="0"
-        class="form-control form-control-sm"
+        class="input-group-text text-muted"
         value="{{ item.quantity }}"
         data-action="change->shopping#updateQuantity"
         data-shopping-id-param="{{ item.id }}"
         title="Modifier la quantité (0 = retirer de la liste)"
       >
+      </div>
     </td>
 
-    <td>{{ unitLabel ?: '—' }}</td>
+    <td class="text-nowrap">
+      <select
+        class="rp-unit-select"
+        data-action="change->shopping#updateUnit"
+        data-shopping-id-param="{{ item.id }}"
+        data-previous-value="{{ unitValue }}"
+        title="Modifier l’unité"
+        aria-label="Unité"
+      >
+        <option value="g" {{ unitValue == 'g' ? 'selected' : '' }}>g</option>
+        <option value="kg" {{ unitValue == 'kg' ? 'selected' : '' }}>kg</option>
+        <option value="ml" {{ unitValue == 'ml' ? 'selected' : '' }}>ml</option>
+        <option value="l" {{ unitValue == 'l' ? 'selected' : '' }}>L</option>
+        <option value="piece" {{ unitValue == 'piece' ? 'selected' : '' }}>pièce</option>
+        <option value="pot" {{ unitValue == 'pot' ? 'selected' : '' }}>pot</option>
+        <option value="boite" {{ unitValue == 'boite' ? 'selected' : '' }}>boîte</option>
+        <option value="sachet" {{ unitValue == 'sachet' ? 'selected' : '' }}>sachet</option>
+        <option value="tranche" {{ unitValue == 'tranche' ? 'selected' : '' }}>tranche</option>
+        <option value="paquet" {{ unitValue == 'paquet' ? 'selected' : '' }}>paquet</option>
+      </select>
+    </td>
 
     <td class="text-end">
       <button

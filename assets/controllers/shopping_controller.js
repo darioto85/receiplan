@@ -6,6 +6,7 @@ export default class extends Controller {
     toggleUrl: String,
     validateUrl: String,
     updateQuantityUrl: String,
+    updateUnitUrl: String,
     upsertUrl: String,
     csrfToken: String,
   };
@@ -128,10 +129,6 @@ export default class extends Controller {
         form.querySelector('input[name*="[quantity]"]');
       if (qtyInput) qtyInput.value = "";
 
-      // (optionnel) reset unit si besoin — on ne touche pas par défaut
-      // const unitSelect = form.querySelector('select[name$="[unit]"], select[name*="[unit]"]');
-      // if (unitSelect) unitSelect.value = unitSelect.value;
-
       // ✅ mettre à jour UI
       this.refreshValidateButtonState();
 
@@ -253,6 +250,38 @@ export default class extends Controller {
     }
   }
 
+  async updateUnit(event) {
+    const select = event.currentTarget;
+    const id = event.params.id;
+    if (!id) return;
+
+    const rawUnit = String(select.value ?? "").trim();
+    const previousValue = select.dataset.previousValue ?? "";
+
+    select.disabled = true;
+
+    try {
+      const data = await this.postUnit(id, rawUnit);
+      if (!data?.ok) {
+        select.value = previousValue;
+        console.error("updateUnit failed", data);
+        return;
+      }
+
+      this.findRowsForId(id).forEach((row) => {
+        row.querySelectorAll('select[data-action*="shopping#updateUnit"]').forEach((s) => {
+          s.value = data.unit;
+          s.dataset.previousValue = data.unit;
+        });
+      });
+    } catch (e) {
+      select.value = previousValue;
+      console.error(e);
+    } finally {
+      select.disabled = false;
+    }
+  }
+
   async remove(event) {
     event?.preventDefault?.();
 
@@ -261,7 +290,7 @@ export default class extends Controller {
 
     this.findRowsForId(id).forEach((row) => {
       row
-        .querySelectorAll('[data-shopping-target="checkbox"], input[type="number"]')
+        .querySelectorAll('[data-shopping-target="checkbox"], input[type="number"], select')
         .forEach((el) => {
           el.disabled = true;
         });
@@ -273,7 +302,7 @@ export default class extends Controller {
         console.error("remove failed", data);
         this.findRowsForId(id).forEach((row) => {
           row
-            .querySelectorAll('[data-shopping-target="checkbox"], input[type="number"]')
+            .querySelectorAll('[data-shopping-target="checkbox"], input[type="number"], select')
             .forEach((el) => {
               el.disabled = false;
             });
@@ -286,7 +315,7 @@ export default class extends Controller {
       console.error(e);
       this.findRowsForId(id).forEach((row) => {
         row
-          .querySelectorAll('[data-shopping-target="checkbox"], input[type="number"]')
+          .querySelectorAll('[data-shopping-target="checkbox"], input[type="number"], select')
           .forEach((el) => {
             el.disabled = false;
           });
@@ -376,6 +405,27 @@ export default class extends Controller {
 
     const form = new URLSearchParams();
     form.set("quantity", String(rawQty).trim().replace(",", "."));
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+        Accept: "application/json",
+        ...this.csrfHeader(),
+      },
+      body: form.toString(),
+    });
+
+    const data = await this.safeJson(res);
+    if (!res.ok) return data ?? { ok: false };
+    return data;
+  }
+
+  async postUnit(id, rawUnit) {
+    const url = this.buildUrlWithId(this.updateUnitUrlValue, id);
+
+    const form = new URLSearchParams();
+    form.set("unit", String(rawUnit).trim());
 
     const res = await fetch(url, {
       method: "POST",

@@ -146,6 +146,8 @@ final class ShoppingController extends AbstractController
             'isNew' => $isNew,
             'id' => $existing->getId(),
             'quantity' => $existing->getQuantity(),
+            'unit' => $existing->getUnitValue(),
+            'unitLabel' => $existing->getUnitLabel(),
             'checked' => $existing->isChecked(),
             'count' => $count,
             'htmlDesktop' => $htmlDesktop,
@@ -266,10 +268,6 @@ final class ShoppingController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        if (!$shopping) {
-            return $this->json(['ok' => true, 'removed' => true]);
-        }
-
         if ($shopping->getUser() !== $user) {
             return $this->json(['message' => 'Accès refusé.'], 403);
         }
@@ -298,6 +296,42 @@ final class ShoppingController extends AbstractController
             'removed' => false,
             'id' => $shopping->getId(),
             'quantity' => $shopping->getQuantity(),
+        ]);
+    }
+
+    #[Route('/{id}/unit', name: 'shopping_update_unit', methods: ['POST'])]
+    public function updateUnit(
+        Shopping $shopping,
+        Request $request,
+        EntityManagerInterface $em
+    ): Response {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        if ($shopping->getUser() !== $user) {
+            return $this->json(['ok' => false, 'message' => 'Accès refusé.'], 403);
+        }
+
+        $rawUnit = trim((string) $request->request->get('unit', ''));
+        $unit = Unit::tryFrom($rawUnit);
+
+        if (!$unit instanceof Unit) {
+            return $this->json([
+                'ok' => false,
+                'message' => 'Unité invalide.',
+            ], 422);
+        }
+
+        $shopping->setUnit($unit);
+        $em->flush();
+
+        return $this->json([
+            'ok' => true,
+            'id' => $shopping->getId(),
+            'unit' => $shopping->getUnitValue(),
+            'unitLabel' => $shopping->getUnitLabel(),
         ]);
     }
 }
