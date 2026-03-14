@@ -220,7 +220,6 @@ export default class extends Controller {
     const v = String(unitValue);
     unitSelect.value = v;
 
-    // si mismatch (valeur pas présente), on ne casse rien
     if (unitSelect.value !== v) return;
 
     unitSelect.dispatchEvent(new Event('change', { bubbles: true }));
@@ -269,7 +268,9 @@ export default class extends Controller {
 
     this._openCreateModal(ingredientName);
 
-    try { this.ts.close(); } catch (err) {}
+    try {
+      this.ts.close();
+    } catch (err) {}
   }
 
   // ---- Modal
@@ -278,12 +279,14 @@ export default class extends Controller {
     if (!modalEl) return null;
 
     const nameInput = document.getElementById('ingredientCreateName');
+    const categorySelect = document.getElementById('ingredientCreateCategory');
     const unitSelect = document.getElementById('ingredientCreateUnit');
     const errorBox = document.getElementById('ingredientCreateError');
     const submitBtn = document.getElementById('ingredientCreateSubmit');
 
-    if (!nameInput || !unitSelect || !errorBox || !submitBtn) return null;
-    return { modalEl, nameInput, unitSelect, errorBox, submitBtn };
+    if (!nameInput || !categorySelect || !unitSelect || !errorBox || !submitBtn) return null;
+
+    return { modalEl, nameInput, categorySelect, unitSelect, errorBox, submitBtn };
   }
 
   _openCreateModal(prefillName) {
@@ -298,6 +301,7 @@ export default class extends Controller {
 
     els.errorBox.innerHTML = '';
     els.nameInput.value = prefillName || '';
+    els.categorySelect.value = '';
     if (!els.unitSelect.value) els.unitSelect.value = 'g';
 
     this._attachModalListeners();
@@ -367,11 +371,18 @@ export default class extends Controller {
     els.errorBox.innerHTML = '';
 
     const name = String(els.nameInput.value || '').trim();
+    const category = String(els.categorySelect.value || '').trim();
     const unit = String(els.unitSelect.value || 'g').trim();
 
     if (!name) {
       els.errorBox.innerHTML = `<div class="alert alert-danger mb-0">Nom requis.</div>`;
       els.nameInput.focus();
+      return;
+    }
+
+    if (!category) {
+      els.errorBox.innerHTML = `<div class="alert alert-danger mb-0">Catégorie requise.</div>`;
+      els.categorySelect.focus();
       return;
     }
 
@@ -388,6 +399,7 @@ export default class extends Controller {
     try {
       const form = new FormData();
       form.append('name', name);
+      form.append('category', category);
       form.append('unit', unit);
       if (csrf) form.append('_token', csrf);
 
@@ -428,7 +440,9 @@ export default class extends Controller {
 
       this._setUnitInForm(createdUnit);
 
-      try { this._bsModal?.hide(); } catch (e) {}
+      try {
+        this._bsModal?.hide();
+      } catch (e) {}
 
       this._focusQuantityInputNear(targetSelect);
     } catch (err) {

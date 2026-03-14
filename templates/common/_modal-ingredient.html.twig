@@ -17,6 +17,7 @@
       </div>
 
       <div class="modal-body pt-2">
+
         <div class="mb-3">
           <label class="form-label" for="ingredientCreateName">Nom</label>
           <input
@@ -26,6 +27,16 @@
             autocomplete="off"
             placeholder="Ex : Tomates cerises"
           >
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="ingredientCreateCategory">Catégorie</label>
+          <select class="form-select" id="ingredientCreateCategory">
+            <option value="">Choisir une catégorie</option>
+            {% for category in enum('App\\Enum\\CategoryEnum').cases() %}
+              <option value="{{ category.value }}">{{ category.label() }}</option>
+            {% endfor %}
+          </select>
         </div>
 
         <div class="mb-2">
@@ -45,11 +56,16 @@
         </div>
 
         <div class="mt-3" id="ingredientCreateError"></div>
+
       </div>
 
       <div class="modal-footer border-0 pt-0">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
-        <button type="button" class="btn btn-primary" id="ingredientCreateSubmit">Créer</button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          Annuler
+        </button>
+        <button type="button" class="btn btn-primary" id="ingredientCreateSubmit">
+          Créer
+        </button>
       </div>
 
     </div>

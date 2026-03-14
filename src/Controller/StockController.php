@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Ingredient;
 use App\Entity\User;
 use App\Entity\UserIngredient;
+use App\Enum\CategoryEnum;
 use App\Enum\Unit;
 use App\Form\StockUpsertType;
 use App\Repository\IngredientRepository;
@@ -58,14 +59,12 @@ class StockController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        $q = (string) $request->query->get('q', '');
-        $q = trim($q);
+        $q = trim((string) $request->query->get('q', ''));
 
         if ($q === '') {
             return new JsonResponse([]);
         }
 
-        // petite limite côté API (TomSelect peut aussi limiter côté client)
         $limit = (int) $request->query->get('limit', 20);
         if ($limit <= 0 || $limit > 50) {
             $limit = 20;
@@ -77,8 +76,6 @@ class StockController extends AbstractController
             return [
                 'value' => $ing->getId(),
                 'text' => $ing->getName(),
-
-                // ✅ important pour auto-unité (mais on ajoutera aussi un fallback "detail")
                 'unit' => $ing->getBaseUnitValue(),
             ];
         }, $items);
@@ -103,7 +100,6 @@ class StockController extends AbstractController
             return new JsonResponse(['status' => 'error', 'message' => 'ID invalide.'], 422);
         }
 
-        // ✅ sécurité : visible pour l'user (global ou privé user)
         $ingredient = $ingredientRepository->createVisibleToUserQueryBuilder($user, 'i')
             ->andWhere('i.id = :id')
             ->setParameter('id', $id)
@@ -139,6 +135,7 @@ class StockController extends AbstractController
 
         $name = trim((string) $request->request->get('name', ''));
         $unitRaw = (string) $request->request->get('unit', Unit::G->value);
+        $categoryRaw = trim((string) $request->request->get('category', ''));
 
         if ($name === '') {
             return new JsonResponse([
@@ -147,9 +144,15 @@ class StockController extends AbstractController
             ], 422);
         }
 
+        if ($categoryRaw === '') {
+            return new JsonResponse([
+                'status' => 'error',
+                'message' => 'Catégorie requise.',
+            ], 422);
+        }
+
         $nameKey = Ingredient::normalizeName($name);
 
-        // ✅ anti-doublon (global d'abord, puis user)
         $existing = $ingredientRepository->findOneVisibleByNameKey($user, $nameKey);
         if ($existing) {
             return new JsonResponse([
@@ -157,17 +160,27 @@ class StockController extends AbstractController
                 'id' => $existing->getId(),
                 'name' => $existing->getName(),
                 'unit' => $existing->getUnitValue(),
+                'category' => method_exists($existing, 'getCategoryValue') ? $existing->getCategoryValue() : null,
                 'alreadyExists' => true,
             ]);
         }
 
         $unit = Unit::tryFrom($unitRaw) ?? Unit::G;
+        $category = CategoryEnum::tryFrom($categoryRaw);
+
+        if (!$category instanceof CategoryEnum) {
+            return new JsonResponse([
+                'status' => 'error',
+                'message' => 'Catégorie invalide.',
+            ], 422);
+        }
 
         $ingredient = new Ingredient();
         $ingredient->setName($name);
         $ingredient->setNameKey($nameKey);
         $ingredient->setUser($user);
         $ingredient->setUnit($unit);
+        $ingredient->setCategory($category);
 
         $em->persist($ingredient);
         $em->flush();
@@ -177,6 +190,7 @@ class StockController extends AbstractController
             'id' => $ingredient->getId(),
             'name' => $ingredient->getName(),
             'unit' => $ingredient->getUnitValue(),
+            'category' => method_exists($ingredient, 'getCategoryValue') ? $ingredient->getCategoryValue() : null,
             'alreadyExists' => false,
         ]);
     }
@@ -228,6 +242,7 @@ class StockController extends AbstractController
                     'message' => 'Quantité invalide.',
                 ], 422);
             }
+
             $this->addFlash('danger', 'Quantité invalide.');
             return $this->redirectToRoute('stock_index');
         }
@@ -305,10 +320,16 @@ class StockController extends AbstractController
 
         $isAjax = $request->isXmlHttpRequest();
 
-        if (!$this->isCsrfTokenValid('update_stock_'.$userIngredient->getId(), (string) $request->request->get('_token'))) {
+        if (
+            !$this->isCsrfTokenValid(
+                'update_stock_' . $userIngredient->getId(),
+                (string) $request->request->get('_token')
+            )
+        ) {
             if ($isAjax) {
                 return new JsonResponse(['status' => 'error', 'message' => 'Token CSRF invalide.'], 403);
             }
+
             $this->addFlash('danger', 'Token CSRF invalide.');
             return $this->redirectToRoute('stock_index');
         }
@@ -354,7 +375,12 @@ class StockController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        if (!$this->isCsrfTokenValid('delete_stock_'.$userIngredient->getId(), (string) $request->request->get('_token'))) {
+        if (
+            !$this->isCsrfTokenValid(
+                'delete_stock_' . $userIngredient->getId(),
+                (string) $request->request->get('_token')
+            )
+        ) {
             if ($isAjax) {
                 return new JsonResponse([
                     'status' => 'error',
@@ -362,7 +388,7 @@ class StockController extends AbstractController
                 ], 403);
             }
 
-            $this->addFlash('danger', "Token CSRF invalide.");
+            $this->addFlash('danger', 'Token CSRF invalide.');
             return $this->redirectToRoute('stock_index');
         }
 
@@ -372,7 +398,7 @@ class StockController extends AbstractController
         $em->flush();
 
         if (!$isAjax) {
-            $this->addFlash('success', "Ligne supprimée.");
+            $this->addFlash('success', 'Ligne supprimée.');
             return $this->redirectToRoute('stock_index');
         }
 
