@@ -165,6 +165,11 @@ h2{
 }
 
 .bt-action-thumb{ width: 30px; height: 30px; }
+@media (max-width: 576px){
+    .bt-action-thumb{
+        margin-right: -5px;
+    }
+}  
 
 /* =========================================================
    BADGES / CARD HEADER
