@@ -18,6 +18,7 @@ export default class extends Controller {
   connect() {
     this.isLoading = false;
     this.isSending = false;
+    this.typingIndicatorElement = null;
 
     // Voice
     this.mediaSupported = !!(navigator.mediaDevices && window.MediaRecorder);
@@ -59,6 +60,7 @@ export default class extends Controller {
       if (this.isRecording) this.stopRecord();
       this.stopStream();
       this.stopWebAudioGraph();
+      this.hideAssistantTyping();
 
       if (this.helpModalInstance) {
         this.helpModalInstance.hide();
@@ -218,6 +220,46 @@ export default class extends Controller {
 
     wrapper.appendChild(bubbleContainer);
     this.messagesTarget.appendChild(wrapper);
+  }
+
+  showAssistantTyping() {
+    if (!this.hasMessagesTarget) return;
+    if (this.typingIndicatorElement) return;
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "d-flex mb-2 justify-content-start";
+    wrapper.dataset.typingIndicator = "true";
+
+    const bubbleContainer = document.createElement("div");
+    bubbleContainer.style.maxWidth = "80%";
+
+    const bubble = document.createElement("div");
+    bubble.className = "px-3 py-2 rounded-4 border bg-white";
+
+    bubble.innerHTML = `
+      <span class="rp-typing-dots" aria-label="Chargement" role="status">
+        <span></span>
+        <span></span>
+        <span></span>
+      </span>
+    `;
+
+    bubbleContainer.appendChild(bubble);
+    wrapper.appendChild(bubbleContainer);
+
+    this.typingIndicatorElement = wrapper;
+    this.messagesTarget.appendChild(wrapper);
+    this.scrollToBottom();
+  }
+
+  hideAssistantTyping() {
+    if (!this.typingIndicatorElement) return;
+
+    try {
+      this.typingIndicatorElement.remove();
+    } catch {}
+
+    this.typingIndicatorElement = null;
   }
 
   // =========================================================
@@ -711,6 +753,7 @@ export default class extends Controller {
     this.inputTarget.value = "";
     this.isSending = true;
     this.setSendingState(true);
+    this.showAssistantTyping();
 
     try {
       const res = await fetch(this.messageUrlValue, {
@@ -720,6 +763,8 @@ export default class extends Controller {
       });
 
       const data = await res.json().catch(() => ({}));
+
+      this.hideAssistantTyping();
 
       if (!res.ok) {
         const msg = data?.error?.message || "Erreur serveur.";
@@ -737,9 +782,11 @@ export default class extends Controller {
       this.scrollToBottom();
     } catch (e) {
       console.error("[assistant-chat] send failed", e);
+      this.hideAssistantTyping();
       this.addMessage({ role: "assistant", content: "⚠️ Erreur réseau." });
       this.scrollToBottom();
     } finally {
+      this.hideAssistantTyping();
       this.isSending = false;
       this.setSendingState(false);
       if (this.hasInputTarget) this.inputTarget.focus();
