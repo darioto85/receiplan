@@ -60,7 +60,7 @@
           >
 
           {# Nom sur 2 lignes max #}
-          <div style="min-width:0;">
+          <div style="min-width:0; flex:1 1 auto;">
             <div
               class="fw-semibold"
               style="
@@ -79,18 +79,19 @@
         </div>
 
         {# ===== RIGHT: quantity + unit ===== #}
-        <div class="flex-shrink-0" style="width: 150px;">
-          <div class="input-group input-group-sm">
+        <div class="flex-shrink-0" style="width: 86px;">
+          <div class="input-group input-group-sm flex-nowrap">
             <input
               type="number"
               step="0.01"
               min="0"
-              class="form-control text-end"
+              class="form-control text-end px-1"
               value="{{ item.quantity }}"
               data-action="change->shopping#updateQuantity"
               data-shopping-id-param="{{ item.id }}"
               title="Modifier la quantité (0 = retirer de la liste)"
               aria-label="Quantité"
+              style="min-width: 0; width: 40px; max-width: 40px;"
             >
 
             <select
@@ -100,7 +101,16 @@
               data-previous-value="{{ unitValue }}"
               title="Modifier l’unité"
               aria-label="Unité"
-              style="max-width: 78px;"
+              style="
+                width: 44px;
+                max-width: 44px;
+                min-width: 44px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                padding-left: 4px;
+                padding-right: 4px;
+              "
             >
               <option value="g" {{ unitValue == 'g' ? 'selected' : '' }}>g</option>
               <option value="kg" {{ unitValue == 'kg' ? 'selected' : '' }}>kg</option>
@@ -157,17 +167,17 @@
     </td>
 
     <td class="text-nowrap">
-    <div class="input-group input-group-sm">
-      <input
-        type="number"
-        step="0.01"
-        min="0"
-        class="input-group-text text-muted"
-        value="{{ item.quantity }}"
-        data-action="change->shopping#updateQuantity"
-        data-shopping-id-param="{{ item.id }}"
-        title="Modifier la quantité (0 = retirer de la liste)"
-      >
+      <div class="input-group input-group-sm">
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          class="input-group-text text-muted"
+          value="{{ item.quantity }}"
+          data-action="change->shopping#updateQuantity"
+          data-shopping-id-param="{{ item.id }}"
+          title="Modifier la quantité (0 = retirer de la liste)"
+        >
       </div>
     </td>
 

@@ -615,7 +615,7 @@ h2{
   .btn-primary,
   .btn-outline-primary,
   .btn-outline-danger{
-    padding: .42rem .75rem !important;
+    padding: .42rem .70rem !important;
     font-size: .9rem !important;
   }
 
@@ -677,5 +677,12 @@ h2{
 }
 
 .rp-unit-select-mobile {
-  max-width: 78px;
+  width: 44px;
+  max-width: 44px;
+  min-width: 44px;
+  flex: 0 0 44px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .85rem;
 }
