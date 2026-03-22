@@ -112,4 +112,19 @@ enum CategoryEnum: string
         };
     }
 
+    public static function optional(): array
+    {
+        return [
+            // 🟢 Toujours facultatif
+            self::EPICE,
+            self::HERBE_AROMATIQUE,
+            self::CONDIMENT,
+            self::SAUCE,
+            self::SEL_POIVRE,
+            self::VINAIGRE,
+            self::SUCRE_EDULCORANT,
+            self::BOISSON_ALCOOLISEE,
+            self::FRUIT_SEC,
+        ];
+    }
 }

@@ -6,6 +6,7 @@ use App\Entity\MealPlan;
 use App\Entity\Recipe;
 use App\Entity\User;
 use App\Entity\UserIngredient;
+use App\Enum\CategoryEnum;
 use App\Enum\Unit;
 use App\Repository\MealPlanRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,11 +27,14 @@ final class RecipeFeasibilityService
      *     needed: float|null,
      *     stock: float,
      *     unit: mixed,
+     *     is_optional: bool,
      *     is_missing: bool,
+     *     is_blocking_missing: bool,
      *     missing_amount: float|null
      *   }>,
      *   is_feasible: bool,
-     *   missing_count: int
+     *   missing_count: int,
+     *   optional_missing_count: int
      * }>
      */
     public function getFeasibleRecipes(User $user): array
@@ -41,7 +45,23 @@ final class RecipeFeasibilityService
     }
 
     /**
-     * @return array<int, array{...same as getFeasibleRecipes...}>
+     * @return array<int, array{
+     *   recipe: Recipe,
+     *   items: array<int, array{
+     *     recipeIngredient: mixed,
+     *     ingredient: mixed,
+     *     needed: float|null,
+     *     stock: float,
+     *     unit: mixed,
+     *     is_optional: bool,
+     *     is_missing: bool,
+     *     is_blocking_missing: bool,
+     *     missing_amount: float|null
+     *   }>,
+     *   is_feasible: bool,
+     *   missing_count: int,
+     *   optional_missing_count: int
+     * }>
      */
     public function getInsufficientRecipes(User $user): array
     {
@@ -51,10 +71,26 @@ final class RecipeFeasibilityService
     }
 
     /**
-     * ✅ NOUVEAU: recettes planifiées (sur une période) qui sont insuffisantes.
+     * ✅ recettes planifiées (sur une période) qui sont insuffisantes.
      * Par défaut on ne prend que le planning non validé.
      *
-     * @return array<int, array{...same as getFeasibleRecipes...}>
+     * @return array<int, array{
+     *   recipe: Recipe,
+     *   items: array<int, array{
+     *     recipeIngredient: mixed,
+     *     ingredient: mixed,
+     *     needed: float|null,
+     *     stock: float,
+     *     unit: mixed,
+     *     is_optional: bool,
+     *     is_missing: bool,
+     *     is_blocking_missing: bool,
+     *     missing_amount: float|null
+     *   }>,
+     *   is_feasible: bool,
+     *   missing_count: int,
+     *   optional_missing_count: int
+     * }>
      */
     public function getInsufficientPlannedRecipes(
         User $user,
@@ -153,7 +189,10 @@ final class RecipeFeasibilityService
                     $comparableStock = 0.0;
                 }
 
-                if ($comparableStock < $needed) {
+                $isMissing = $comparableStock < $needed;
+                $isOptional = $this->isOptionalIngredient($ing);
+
+                if ($isMissing && !$isOptional) {
                     $ok = false;
                     break;
                 }
@@ -174,13 +213,30 @@ final class RecipeFeasibilityService
     public function isRecipeFeasible(User $user, Recipe $recipe): bool
     {
         $map = $this->getFeasibilityMapForRecipes($user, [$recipe]);
+
         return $map[$recipe->getId()] ?? true;
     }
 
     /**
      * Calcule une vue enrichie par recette (besoin vs stock) pour toutes les recettes user.
      *
-     * @return array<int, array{...}>
+     * @return array<int, array{
+     *   recipe: Recipe,
+     *   items: array<int, array{
+     *     recipeIngredient: mixed,
+     *     ingredient: mixed,
+     *     needed: float|null,
+     *     stock: float,
+     *     unit: mixed,
+     *     is_optional: bool,
+     *     is_missing: bool,
+     *     is_blocking_missing: bool,
+     *     missing_amount: float|null
+     *   }>,
+     *   is_feasible: bool,
+     *   missing_count: int,
+     *   optional_missing_count: int
+     * }>
      */
     private function buildRecipeViews(User $user): array
     {
@@ -211,11 +267,14 @@ final class RecipeFeasibilityService
      *     needed: float|null,
      *     stock: float,
      *     unit: mixed,
+     *     is_optional: bool,
      *     is_missing: bool,
+     *     is_blocking_missing: bool,
      *     missing_amount: float|null
      *   }>,
      *   is_feasible: bool,
-     *   missing_count: int
+     *   missing_count: int,
+     *   optional_missing_count: int
      * }>
      */
     private function buildViewsForRecipes(User $user, array $recipes): array
@@ -227,6 +286,7 @@ final class RecipeFeasibilityService
         foreach ($recipes as $recipe) {
             $items = [];
             $missingCount = 0;
+            $optionalMissingCount = 0;
 
             foreach ($recipe->getRecipeIngredients() as $ri) {
                 $ing = $ri->getIngredient();
@@ -249,10 +309,16 @@ final class RecipeFeasibilityService
                 }
 
                 $isMissing = ($needed !== null && $needed > 0 && $stock < $needed);
+                $isOptional = $this->isOptionalIngredient($ing);
+                $isBlockingMissing = $isMissing && !$isOptional;
                 $missingAmount = $isMissing ? round($needed - $stock, 2) : null;
 
-                if ($isMissing) {
+                if ($isBlockingMissing) {
                     $missingCount++;
+                }
+
+                if ($isMissing && $isOptional) {
+                    $optionalMissingCount++;
                 }
 
                 $items[] = [
@@ -261,7 +327,9 @@ final class RecipeFeasibilityService
                     'needed' => $needed,
                     'stock' => round($stock, 2),
                     'unit' => $unit,
+                    'is_optional' => $isOptional,
                     'is_missing' => $isMissing,
+                    'is_blocking_missing' => $isBlockingMissing,
                     'missing_amount' => $missingAmount,
                 ];
             }
@@ -271,6 +339,7 @@ final class RecipeFeasibilityService
                 'items' => $items,
                 'is_feasible' => ($missingCount === 0),
                 'missing_count' => $missingCount,
+                'optional_missing_count' => $optionalMissingCount,
             ];
         }
 
@@ -313,6 +382,21 @@ final class RecipeFeasibilityService
         return $stockByIngredientId;
     }
 
+    private function isOptionalIngredient(mixed $ingredient): bool
+    {
+        if (!$ingredient || !method_exists($ingredient, 'getCategory')) {
+            return false;
+        }
+
+        $category = $ingredient->getCategory();
+
+        if (!$category instanceof CategoryEnum) {
+            return false;
+        }
+
+        return in_array($category, CategoryEnum::optional(), true);
+    }
+
     private function convertQuantity(float $quantity, ?Unit $from, ?Unit $to): ?float
     {
         if ($from === null || $to === null) {
@@ -335,6 +419,7 @@ final class RecipeFeasibilityService
         }
 
         $baseQuantity = $quantity * $fromMeta['factor'];
+
         return $baseQuantity / $toMeta['factor'];
     }
 
