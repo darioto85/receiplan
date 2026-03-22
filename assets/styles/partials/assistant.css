@@ -3,17 +3,30 @@
    ========================================================= */
 
 /* CHAT — fit remaining viewport inside rp-page */
-.rp-chat-page{ height: 100%; }
+.rp-chat-page{
+  height: 100%;
+  min-height: 0;
+}
 
 .rp-chat-layout{
   height: calc(100dvh - var(--rp-header-h) - var(--rp-main-gap-top) - (var(--rp-page-pad) * 2));
   min-height: 0;
+
+  display: flex;
+  flex-direction: column;
 }
 
 .rp-chat-messages{
+  flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+
+  padding-bottom: 2px;
 }
 
 @media (max-width: 991.98px){
@@ -86,13 +99,16 @@
   font-size: 18px;
   color: rgba(36,49,42,.82);
 }
+
 .rp-scan-note{
   margin-top: 6px;
   font-size: 14px;
   color: rgba(36,49,42,.62);
 }
 
-.rp-scan-body{ padding: 18px 28px 10px 28px; }
+.rp-scan-body{
+  padding: 18px 28px 10px 28px;
+}
 
 .rp-scan-form{
   display:flex;
@@ -115,6 +131,7 @@
   box-shadow: inset 0 0 0 1px rgba(0,0,0,.03);
   transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
 }
+
 .rp-scan-drop:hover{
   transform: translateY(-1px);
   border-color: rgba(106, 168, 138, .55);
@@ -130,11 +147,13 @@
   align-items:center;
   justify-content:center;
 }
+
 .rp-scan-illus img{
   width: 100%;
   height: 100%;
   object-fit: contain;
 }
+
 .rp-scan-illus-fallback{
   font-size: 42px;
   opacity: .9;
@@ -147,11 +166,13 @@
   color:#2a3a31;
   margin-top: 8px;
 }
+
 .rp-scan-drop-sub{
   font-size: 16px;
   color: rgba(42,58,49,.75);
   margin-top: 2px;
 }
+
 .rp-scan-hint{
   margin-top: 14px;
   font-size: 14px;
@@ -198,16 +219,19 @@
   font-weight: 700;
   color:#25342c;
 }
+
 .rp-scan-uploaded-file{
   color: rgba(37,52,44,.75);
   font-size: 14px;
   max-width: 520px;
 }
+
 .rp-scan-uploaded-info{
   color: rgba(37,52,44,.55);
   font-size: 13px;
   margin-top: 2px;
 }
+
 .rp-scan-uploaded-cta{
   display:flex;
   gap: 10px;
@@ -237,11 +261,13 @@
   box-shadow: 0 10px 22px rgba(16,24,40,.06);
   transition: transform .12s ease, box-shadow .12s ease;
 }
+
 .rp-scan-pill:hover{
   transform: translateY(-1px);
   box-shadow: 0 14px 26px rgba(16,24,40,.08);
   color: #25342c;
 }
+
 .rp-scan-pill-ico{
   font-size: 18px;
   line-height: 1;
@@ -256,25 +282,25 @@
   .rp-scan-illus{ width: 200px; height: 110px; }
 }
 
-.rp-chat-input [data-assistant-chat-target="micButton"].is-loading {
+.rp-chat-input [data-assistant-chat-target="micButton"].is-loading{
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
-.rp-chat-input [data-assistant-chat-target="micButton"] .spinner-border {
+.rp-chat-input [data-assistant-chat-target="micButton"] .spinner-border{
   width: 1rem;
   height: 1rem;
 }
 
-.rp-typing-dots {
+.rp-typing-dots{
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
   height: 18px;
 }
 
-.rp-typing-dots span {
+.rp-typing-dots span{
   width: 7px;
   height: 7px;
   border-radius: 50%;
@@ -283,19 +309,19 @@
   animation: rpTypingBounce 1.2s infinite ease-in-out;
 }
 
-.rp-typing-dots span:nth-child(1) {
+.rp-typing-dots span:nth-child(1){
   animation-delay: 0s;
 }
 
-.rp-typing-dots span:nth-child(2) {
+.rp-typing-dots span:nth-child(2){
   animation-delay: 0.15s;
 }
 
-.rp-typing-dots span:nth-child(3) {
+.rp-typing-dots span:nth-child(3){
   animation-delay: 0.3s;
 }
 
-@keyframes rpTypingBounce {
+@keyframes rpTypingBounce{
   0%, 80%, 100% {
     transform: scale(0.75);
     opacity: 0.45;

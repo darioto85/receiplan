@@ -16,6 +16,7 @@ class AssistantConversationFlow
         private readonly AssistantLlmService $llmService,
         private readonly AssistantRunActionManager $runActionManager,
         private readonly AssistantActionExecutor $actionExecutor,
+        private readonly AssistantUiPayloadBuilder $uiPayloadBuilder,
         private readonly EntityManagerInterface $em,
     ) {}
 
@@ -67,7 +68,7 @@ class AssistantConversationFlow
         $status = (string) ($result['conversation_status'] ?? AssistantConversationStatus::CONTINUE->value);
         $execution = null;
 
-        // ✅ Si une action a des missing, on force la conversation à rester ouverte
+        // Si une action a des missing, on force la conversation à rester ouverte
         if ($this->runActionManager->hasBlockingMissing($run)) {
             $status = AssistantConversationStatus::CONTINUE->value;
         }
@@ -78,7 +79,6 @@ class AssistantConversationFlow
          * --------------------------------
          */
         if ($status === AssistantConversationStatus::READY->value) {
-
             $execution = $this->actionExecutor->executeRun($user, $run);
 
             if (($execution['success'] ?? false) === true) {
@@ -87,14 +87,18 @@ class AssistantConversationFlow
                 $assistantText = '⚠️ J’ai bien compris ta demande, mais je n’ai pas réussi à tout appliquer.';
             }
 
+            $payload = $this->buildAssistantPayload(
+                $result,
+                $actions,
+                $status,
+                $execution
+            );
+
             $assistantMessage = $this->messageManager->addAssistantMessage(
                 $conversation,
                 $run,
                 $assistantText,
-                [
-                    'llm_result' => $result,
-                    'execution' => $execution,
-                ]
+                $payload
             );
 
             $this->conversationManager->closeRun($run, AssistantConversationStatus::READY);
@@ -114,12 +118,13 @@ class AssistantConversationFlow
          * --------------------------------
          */
         if ($status === AssistantConversationStatus::DONE->value) {
+            $payload = $this->buildAssistantPayload($result, $actions, $status);
 
             $assistantMessage = $this->messageManager->addAssistantMessage(
                 $conversation,
                 $run,
                 $assistantText,
-                $result
+                $payload
             );
 
             $this->conversationManager->closeRun($run, AssistantConversationStatus::DONE);
@@ -138,12 +143,13 @@ class AssistantConversationFlow
          * --------------------------------
          */
         if ($status === AssistantConversationStatus::OUT_OF_SCOPE->value) {
+            $payload = $this->buildAssistantPayload($result, $actions, $status);
 
             $assistantMessage = $this->messageManager->addAssistantMessage(
                 $conversation,
                 $run,
                 $assistantText,
-                $result
+                $payload
             );
 
             $this->conversationManager->closeRun($run, AssistantConversationStatus::OUT_OF_SCOPE);
@@ -161,11 +167,13 @@ class AssistantConversationFlow
          * CONVERSATION EN COURS
          * --------------------------------
          */
+        $payload = $this->buildAssistantPayload($result, $actions, $status);
+
         $assistantMessage = $this->messageManager->addAssistantMessage(
             $conversation,
             $run,
             $assistantText,
-            $result
+            $payload
         );
 
         $this->em->flush();
@@ -175,5 +183,33 @@ class AssistantConversationFlow
             'actions' => $actions,
             'status' => $status,
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $result
+     * @param array<int, array<string, mixed>> $actions
+     * @param array{
+     *     success: bool,
+     *     results: array<int, array<string, mixed>>,
+     *     errors: array<int, array<string, mixed>>
+     * }|null $execution
+     *
+     * @return array<string, mixed>
+     */
+    private function buildAssistantPayload(
+        array $result,
+        array $actions,
+        string $status,
+        ?array $execution = null,
+    ): array {
+        $payload = $this->uiPayloadBuilder->build($result, $actions, $status, $execution);
+
+        $payload['llm_result'] = $result;
+
+        if ($execution !== null) {
+            $payload['execution'] = $execution;
+        }
+
+        return $payload;
     }
 }

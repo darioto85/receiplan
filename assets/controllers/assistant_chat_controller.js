@@ -35,6 +35,8 @@ export default class extends Controller {
     this.processorNode = null;
     this.sampleRate = 48000;
     this.isWebAudioRecording = false;
+    this.recordBuffers = [];
+    this.recordSamples = 0;
 
     this.helpModalInstance = null;
     this.helpModalStorageKey = "assistant_help_modal_seen";
@@ -170,6 +172,11 @@ export default class extends Controller {
       }
     }
 
+    if (!isUser && payload?.type === "continue_collect" && message?.id) {
+      const continueCollectBlock = this.buildContinueCollectBlock(message.id, payload);
+      if (continueCollectBlock) bubbleContainer.appendChild(continueCollectBlock);
+    }
+
     if (!isUser && payload?.type === "confirm" && message?.id) {
       const alreadyConfirmed = payload.confirmed === "yes" || payload.confirmed === "no";
       if (!alreadyConfirmed) {
@@ -260,6 +267,61 @@ export default class extends Controller {
     } catch {}
 
     this.typingIndicatorElement = null;
+  }
+
+  // =========================================================
+  // Continue collect UI
+  // =========================================================
+  buildContinueCollectBlock(messageId, payload) {
+    const container = document.createElement("div");
+    container.className = "mt-2";
+    container.dataset.messageId = String(messageId);
+
+    const actions = document.createElement("div");
+    actions.className = "d-flex flex-wrap gap-2";
+
+    const addMoreBtn = document.createElement("button");
+    addMoreBtn.type = "button";
+    addMoreBtn.className = "btn btn-sm btn-outline-primary";
+    addMoreBtn.textContent = "Ajouter autre chose";
+
+    const finishBtn = document.createElement("button");
+    finishBtn.type = "button";
+    finishBtn.className = "btn btn-sm btn-primary";
+    finishBtn.textContent = "C’est fini";
+
+    addMoreBtn.addEventListener("click", () => {
+      this.focusInput();
+    });
+
+    finishBtn.addEventListener("click", async () => {
+      addMoreBtn.disabled = true;
+      finishBtn.disabled = true;
+
+      try {
+        await this.sendText("c'est fini", "ui");
+      } finally {
+        addMoreBtn.disabled = false;
+        finishBtn.disabled = false;
+      }
+    });
+
+    actions.appendChild(addMoreBtn);
+    actions.appendChild(finishBtn);
+    container.appendChild(actions);
+
+    return container;
+  }
+
+  focusInput() {
+    if (!this.hasInputTarget) return;
+
+    this.inputTarget.focus();
+
+    try {
+      const len = this.inputTarget.value?.length ?? 0;
+      this.inputTarget.setSelectionRange(len, len);
+    } catch {}
   }
 
   // =========================================================
@@ -741,16 +803,27 @@ export default class extends Controller {
 
   async send(event) {
     if (event?.isComposing) return;
-    if (this.isSending || this.isLoading || this.isTranscribing) return;
     if (!this.hasInputTarget) return;
 
     const text = this.inputTarget.value.trim();
     if (!text) return;
 
-    this.addMessage({ role: "user", content: text });
+    await this.sendText(text, "typed");
+  }
+
+  async sendText(text, source = "typed") {
+    if (this.isSending || this.isLoading) return;
+
+    const cleanText = (text || "").toString().trim();
+    if (!cleanText) return;
+
+    this.addMessage({ role: "user", content: cleanText });
     this.scrollToBottom();
 
-    this.inputTarget.value = "";
+    if (this.hasInputTarget) {
+      this.inputTarget.value = "";
+    }
+
     this.isSending = true;
     this.setSendingState(true);
     this.showAssistantTyping();
@@ -759,7 +832,7 @@ export default class extends Controller {
       const res = await fetch(this.messageUrlValue, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ text, source: "typed" }),
+        body: JSON.stringify({ text: cleanText, source }),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -789,7 +862,7 @@ export default class extends Controller {
       this.hideAssistantTyping();
       this.isSending = false;
       this.setSendingState(false);
-      if (this.hasInputTarget) this.inputTarget.focus();
+      if (this.hasInputTarget) this.focusInput();
     }
   }
 
@@ -805,7 +878,7 @@ export default class extends Controller {
   // Voice
   // =========================================================
   async toggleMic() {
-    if (this.isTranscribing) return;
+    if (this.isTranscribing || this.isSending) return;
     if (!this.mediaSupported && !this.isFirefox) return;
 
     if (this.isRecording) this.stopRecord();
@@ -828,6 +901,7 @@ export default class extends Controller {
 
   async startRecord() {
     this.recordedBlob = null;
+    this.audioChunks = [];
     this.isRecording = true;
     this._setMicButtonState("recording");
 
@@ -843,7 +917,6 @@ export default class extends Controller {
     }
 
     try {
-      this.audioChunks = [];
       await this.ensureStream();
 
       const mimeType = this.pickAudioMimeType();
@@ -856,11 +929,18 @@ export default class extends Controller {
       this.mediaRecorder.onstop = async () => {
         const type = this.mediaRecorder?.mimeType || "audio/webm";
         this.recordedBlob = new Blob(this.audioChunks, { type });
+
         if (this.recordedBlob.size === 0) {
+          this.addMessage({
+            role: "assistant",
+            content: "⚠️ Aucun son détecté. Tu peux réessayer.",
+          });
+          this.scrollToBottom();
           this._setMicButtonState("idle");
           return;
         }
-        await this.autoTranscribeIntoInput();
+
+        await this.autoTranscribeAndSend();
       };
 
       this.mediaRecorder.start(250);
@@ -870,6 +950,11 @@ export default class extends Controller {
       this.isRecording = false;
       this._setMicButtonState("idle");
       this.stopStream();
+      this.addMessage({
+        role: "assistant",
+        content: "⚠️ Impossible de démarrer l’enregistrement audio.",
+      });
+      this.scrollToBottom();
     }
   }
 
@@ -897,6 +982,11 @@ export default class extends Controller {
       setTimeout(() => this.mediaRecorder.stop(), 50);
     } catch {
       this._setMicButtonState("idle");
+      this.addMessage({
+        role: "assistant",
+        content: "⚠️ L’arrêt de l’enregistrement a échoué.",
+      });
+      this.scrollToBottom();
     }
   }
 
@@ -947,6 +1037,11 @@ export default class extends Controller {
       this.stopWebAudioGraph();
       this.isRecording = false;
       this._setMicButtonState("idle");
+      this.addMessage({
+        role: "assistant",
+        content: "⚠️ Impossible de démarrer l’enregistrement audio.",
+      });
+      this.scrollToBottom();
     }
   }
 
@@ -960,13 +1055,29 @@ export default class extends Controller {
       this.recordedBlob = new Blob([wavArrayBuffer], { type: "audio/wav" });
 
       this.stopWebAudioGraph();
-      this.autoTranscribeIntoInput().catch(() => {
+
+      if (!this.recordedBlob || this.recordedBlob.size === 0) {
+        this.addMessage({
+          role: "assistant",
+          content: "⚠️ Aucun son détecté. Tu peux réessayer.",
+        });
+        this.scrollToBottom();
+        this._setMicButtonState("idle");
+        return;
+      }
+
+      this.autoTranscribeAndSend().catch(() => {
         this._setMicButtonState("idle");
       });
     } catch (e) {
       console.error("[assistant-chat] Firefox stop error", e);
       this.stopWebAudioGraph();
       this._setMicButtonState("idle");
+      this.addMessage({
+        role: "assistant",
+        content: "⚠️ Erreur pendant le traitement de l’enregistrement.",
+      });
+      this.scrollToBottom();
     }
   }
 
@@ -1039,10 +1150,15 @@ export default class extends Controller {
     }
   }
 
-  async autoTranscribeIntoInput() {
+  async autoTranscribeAndSend() {
     if (this.isTranscribing) return;
     if (!this.recordedBlob || this.recordedBlob.size === 0) {
       this._setMicButtonState("idle");
+      this.addMessage({
+        role: "assistant",
+        content: "⚠️ Aucun audio exploitable n’a été trouvé.",
+      });
+      this.scrollToBottom();
       return;
     }
 
@@ -1051,13 +1167,36 @@ export default class extends Controller {
     this.setStatus("Transcription…");
 
     try {
-      const text = await this.transcribeAudio();
-      if (!text) return;
+      const result = await this.transcribeAudioDetailed();
 
-      if (this.hasInputTarget) {
-        this.inputTarget.value = text;
-        this.inputTarget.focus();
+      if (!result.ok) {
+        this.addMessage({
+          role: "assistant",
+          content: result.message || "⚠️ La transcription a échoué. Tu peux réessayer.",
+        });
+        this.scrollToBottom();
+        return;
       }
+
+      const text = result.text;
+      if (!text) {
+        this.addMessage({
+          role: "assistant",
+          content: "⚠️ Je n’ai pas réussi à comprendre l’audio. Tu peux réessayer.",
+        });
+        this.scrollToBottom();
+        return;
+      }
+
+      this.setStatus("Envoi…");
+      await this.sendText(text, "voice");
+    } catch (e) {
+      console.error("[assistant-chat] autoTranscribeAndSend failed", e);
+      this.addMessage({
+        role: "assistant",
+        content: "⚠️ Une erreur est survenue pendant la transcription audio.",
+      });
+      this.scrollToBottom();
     } finally {
       this.isTranscribing = false;
       this._setMicButtonState("idle");
@@ -1065,10 +1204,10 @@ export default class extends Controller {
     }
   }
 
-  async transcribeAudio() {
+  async transcribeAudioDetailed() {
     const fd = new FormData();
 
-    const mime = this.recordedBlob.type || "audio/webm";
+    const mime = this.recordedBlob?.type || "audio/webm";
     const ext = mime.includes("wav") ? "wav" : mime.includes("ogg") ? "ogg" : "webm";
     const file = new File([this.recordedBlob], `voice.${ext}`, { type: mime });
 
@@ -1078,15 +1217,37 @@ export default class extends Controller {
     let res;
     try {
       res = await fetch(this.transcribeUrlValue, { method: "POST", body: fd });
-    } catch {
-      return null;
+    } catch (e) {
+      console.error("[assistant-chat] transcribe network error", e);
+      return {
+        ok: false,
+        text: null,
+        message: "⚠️ Erreur réseau pendant la transcription.",
+      };
     }
 
     const data = await res.json().catch(() => null);
-    if (!data || !res.ok) return null;
 
-    const text = (data.text || "").trim();
-    return text || null;
+    if (!res.ok) {
+      const serverMessage =
+        data?.error?.message ||
+        data?.message ||
+        "⚠️ La transcription a échoué. Tu peux réessayer.";
+
+      return {
+        ok: false,
+        text: null,
+        message: serverMessage.startsWith("⚠️") ? serverMessage : `⚠️ ${serverMessage}`,
+      };
+    }
+
+    const text = (data?.text || "").trim();
+
+    return {
+      ok: true,
+      text,
+      message: null,
+    };
   }
 
   pickAudioMimeType() {
