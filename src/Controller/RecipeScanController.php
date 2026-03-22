@@ -28,9 +28,15 @@ final class RecipeScanController extends AbstractController
     #[Route('', name: 'index', methods: ['GET'])]
     public function index(Request $request): Response
     {
+        $session = $request->getSession();
+
+        $scanErrorModal = $session->get('recipe_scan.error_modal');
+        $session->remove('recipe_scan.error_modal');
+
         return $this->render('recipe_scan/index.html.twig', [
-            'last_upload' => $request->getSession()->get('recipe_scan.last_upload'),
-            'last_result' => $request->getSession()->get('recipe_scan.last_result'),
+            'last_upload' => $session->get('recipe_scan.last_upload'),
+            'last_result' => $session->get('recipe_scan.last_result'),
+            'scan_error_modal' => $scanErrorModal,
         ]);
     }
 
@@ -131,6 +137,7 @@ final class RecipeScanController extends AbstractController
 
         // reset debug ancien résultat
         $request->getSession()->remove('recipe_scan.last_result');
+        $request->getSession()->remove('recipe_scan.error_modal');
 
         // 3) Analyse + persist
         $absPath = $projectDir . '/' . ltrim($storedPath, '/');
@@ -166,10 +173,14 @@ final class RecipeScanController extends AbstractController
                 // Ingrédients
                 $ingredients = is_array($data['ingredients'] ?? null) ? $data['ingredients'] : [];
                 foreach ($ingredients as $row) {
-                    if (!is_array($row)) continue;
+                    if (!is_array($row)) {
+                        continue;
+                    }
 
                     $rawName = trim((string) ($row['name'] ?? ''));
-                    if ($rawName === '') continue;
+                    if ($rawName === '') {
+                        continue;
+                    }
 
                     $ingKey = $nameKeyNormalizer->toKey($rawName);
 
@@ -206,10 +217,14 @@ final class RecipeScanController extends AbstractController
                 $steps = is_array($data['steps'] ?? null) ? $data['steps'] : [];
                 $pos = 1;
                 foreach ($steps as $row) {
-                    if (!is_array($row)) continue;
+                    if (!is_array($row)) {
+                        continue;
+                    }
 
                     $content = trim((string) ($row['text'] ?? ''));
-                    if ($content === '') continue;
+                    if ($content === '') {
+                        continue;
+                    }
 
                     $position = (int) ($row['position'] ?? 0);
                     if ($position <= 0) {
@@ -232,11 +247,12 @@ final class RecipeScanController extends AbstractController
 
             // Option : tu peux nettoyer la session upload pour éviter d’afficher “dernière photo”
             $request->getSession()->remove('recipe_scan.last_upload');
+            $request->getSession()->remove('recipe_scan.error_modal');
 
             return $this->redirectToRoute('recipe_wizard_preview', ['id' => $recipe->getId()]);
         } catch (\Throwable $e) {
             // On garde last_upload en session -> l’utilisateur peut relancer
-            $this->addFlash('danger', 'Analyse / import impossible : ' . $e->getMessage());
+            $this->setScanErrorModal($request, $e);
             return $this->redirectToRoute('recipe_scan_index');
         }
     }
@@ -277,6 +293,8 @@ final class RecipeScanController extends AbstractController
             return $this->redirectToRoute('recipe_scan_index');
         }
 
+        $request->getSession()->remove('recipe_scan.error_modal');
+
         try {
             $data = $extractor->extractRecipeFromImage($absPath);
             $request->getSession()->set('recipe_scan.last_result', $data);
@@ -305,10 +323,14 @@ final class RecipeScanController extends AbstractController
 
                 $ingredients = is_array($data['ingredients'] ?? null) ? $data['ingredients'] : [];
                 foreach ($ingredients as $row) {
-                    if (!is_array($row)) continue;
+                    if (!is_array($row)) {
+                        continue;
+                    }
 
                     $rawName = trim((string) ($row['name'] ?? ''));
-                    if ($rawName === '') continue;
+                    if ($rawName === '') {
+                        continue;
+                    }
 
                     $ingKey = $nameKeyNormalizer->toKey($rawName);
 
@@ -341,13 +363,19 @@ final class RecipeScanController extends AbstractController
                 $steps = is_array($data['steps'] ?? null) ? $data['steps'] : [];
                 $pos = 1;
                 foreach ($steps as $row) {
-                    if (!is_array($row)) continue;
+                    if (!is_array($row)) {
+                        continue;
+                    }
 
                     $content = trim((string) ($row['text'] ?? ''));
-                    if ($content === '') continue;
+                    if ($content === '') {
+                        continue;
+                    }
 
                     $position = (int) ($row['position'] ?? 0);
-                    if ($position <= 0) $position = $pos;
+                    if ($position <= 0) {
+                        $position = $pos;
+                    }
 
                     $step = new RecipeStep();
                     $step->setRecipe($recipe);
@@ -363,10 +391,11 @@ final class RecipeScanController extends AbstractController
 
             $this->addFlash('success', 'Recette importée en brouillon ✅');
             $request->getSession()->remove('recipe_scan.last_upload');
+            $request->getSession()->remove('recipe_scan.error_modal');
 
             return $this->redirectToRoute('recipe_wizard_preview', ['id' => $recipe->getId()]);
         } catch (\Throwable $e) {
-            $this->addFlash('danger', 'Analyse / import impossible : ' . $e->getMessage());
+            $this->setScanErrorModal($request, $e);
             return $this->redirectToRoute('recipe_scan_index');
         }
     }
@@ -381,15 +410,50 @@ final class RecipeScanController extends AbstractController
 
         $request->getSession()->remove('recipe_scan.last_upload');
         $request->getSession()->remove('recipe_scan.last_result');
+        $request->getSession()->remove('recipe_scan.error_modal');
 
         $this->addFlash('info', 'Photo et résultat temporaire supprimés.');
         return $this->redirectToRoute('recipe_scan_index');
+    }
+
+    private function setScanErrorModal(Request $request, \Throwable $e): void
+    {
+        $request->getSession()->set('recipe_scan.error_modal', [
+            'title' => 'Analyse impossible',
+            'raw_message' => $this->extractRawScanErrorMessage($e->getMessage()),
+            'can_retry' => true,
+        ]);
+    }
+
+    private function extractRawScanErrorMessage(string $message): string
+    {
+        $message = trim($message);
+
+        $prefixes = [
+            'Analyse / import impossible :',
+            'JSON de recette invalide (sortie modèle). Sortie brute:',
+            'JSON de recette invalide (sortie modèle) :',
+            'Sortie brute:',
+        ];
+
+        foreach ($prefixes as $prefix) {
+            if (str_starts_with($message, $prefix)) {
+                $message = trim(mb_substr($message, mb_strlen($prefix)));
+            }
+        }
+
+        if ($message === '') {
+            return 'Une erreur inconnue est survenue pendant l’analyse.';
+        }
+
+        return $message;
     }
 
     private function cleanIngredientDisplayName(string $name): string
     {
         $name = trim($name);
         $name = preg_replace('/\s+/u', ' ', $name) ?? $name;
+
         return mb_strtolower($name);
     }
 }

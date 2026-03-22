@@ -104,6 +104,57 @@
     </a>
   </div>
 
+  {# ===== MODALE ERREUR SCAN ===== #}
+  {% if scan_error_modal %}
+    <div
+      class="rp-modal-backdrop is-open"
+      id="rp-scan-error-modal"
+      aria-hidden="false"
+    >
+      <div
+        class="rp-modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="rp-scan-error-title"
+        aria-describedby="rp-scan-error-message"
+      >
+        <button
+          type="button"
+          class="rp-modal-close"
+          id="rp-scan-error-close-top"
+          aria-label="Fermer"
+        >
+          ×
+        </button>
+
+        <div class="rp-modal-icon" aria-hidden="true">⚠️</div>
+
+        <h2 class="rp-modal-title" id="rp-scan-error-title">
+          {{ scan_error_modal.title|default('Analyse impossible') }}
+        </h2>
+
+        <div class="rp-modal-subtitle">
+          Kuko n’a pas réussi à comprendre la photo.
+        </div>
+
+        <div class="rp-modal-box">
+          <div class="rp-modal-message" id="rp-scan-error-message">
+            {{ scan_error_modal.raw_message|default('Une erreur inconnue est survenue.') }}
+          </div>
+        </div>
+
+        <div class="rp-modal-actions">
+          <button type="button" class="btn btn-outline-secondary rp-modal-btn" id="rp-scan-error-cancel">
+            Annuler
+          </button>
+          <button type="button" class="btn btn-primary rp-modal-btn" id="rp-scan-error-retry">
+            Recommencer
+          </button>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
   <script>
     (function () {
       const input = document.getElementById('rp-scan-photo');
@@ -112,24 +163,28 @@
       const fileWrap = document.getElementById('rp-scan-file');
       const fileName = document.getElementById('rp-scan-file-name');
       const submit = document.getElementById('rp-scan-submit');
+      const form = document.getElementById('rp-scan-form');
 
-      if (!input || !drop || !img || !fileWrap || !fileName || !submit) return;
+      if (!input || !drop || !img || !fileWrap || !fileName || !submit || !form) return;
+
+      const title = document.getElementById('rp-scan-title');
+      const sub = document.getElementById('rp-scan-sub');
+      const hint = document.getElementById('rp-scan-hint');
 
       function setEmpty() {
         drop.classList.remove('is-filled');
 
         img.src = img.dataset.emptySrc || img.src;
 
-        // Affiche les textes
-        document.getElementById('rp-scan-title').hidden = false;
-        document.getElementById('rp-scan-sub').hidden = false;
-        document.getElementById('rp-scan-hint').hidden = false;
+        if (title) title.hidden = false;
+        if (sub) sub.hidden = false;
+        if (hint) hint.hidden = false;
 
-        // Cache l’état fichier
         fileWrap.hidden = true;
         fileName.textContent = '';
 
         submit.disabled = true;
+        submit.textContent = 'Analyser la recette';
       }
 
       function setFilled(file) {
@@ -137,33 +192,80 @@
 
         img.src = img.dataset.filledSrc || img.src;
 
-        // Cache les textes
-        document.getElementById('rp-scan-title').hidden = true;
-        document.getElementById('rp-scan-sub').hidden = true;
-        document.getElementById('rp-scan-hint').hidden = true;
+        if (title) title.hidden = true;
+        if (sub) sub.hidden = true;
+        if (hint) hint.hidden = true;
 
-        // Affiche l’état fichier
         fileWrap.hidden = false;
         fileName.textContent = file?.name ? '— ' + file.name : '';
 
         submit.disabled = false;
+        submit.textContent = 'Analyser la recette';
       }
-
 
       setEmpty();
 
       input.addEventListener('change', function () {
         const file = input.files && input.files[0] ? input.files[0] : null;
-        if (!file) return setEmpty();
+        if (!file) {
+          setEmpty();
+          return;
+        }
         setFilled(file);
       });
 
-      document.getElementById('rp-scan-form')?.addEventListener('submit', function () {
-        const btn = document.getElementById('rp-scan-submit');
-        if (!btn) return;
-        btn.disabled = true;
-        btn.textContent = 'Analyse en cours…';
+      form.addEventListener('submit', function () {
+        submit.disabled = true;
+        submit.textContent = 'Analyse en cours…';
       });
+
+      const modal = document.getElementById('rp-scan-error-modal');
+      const cancelBtn = document.getElementById('rp-scan-error-cancel');
+      const retryBtn = document.getElementById('rp-scan-error-retry');
+      const closeTopBtn = document.getElementById('rp-scan-error-close-top');
+
+      function closeModal() {
+        if (!modal) return;
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+      }
+
+      function reopenPicker() {
+        closeModal();
+
+        input.value = '';
+        setEmpty();
+
+        window.setTimeout(function () {
+          input.click();
+        }, 120);
+      }
+
+      if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeModal);
+      }
+
+      if (closeTopBtn) {
+        closeTopBtn.addEventListener('click', closeModal);
+      }
+
+      if (retryBtn) {
+        retryBtn.addEventListener('click', reopenPicker);
+      }
+
+      if (modal) {
+        modal.addEventListener('click', function (event) {
+          if (event.target === modal) {
+            closeModal();
+          }
+        });
+
+        document.addEventListener('keydown', function (event) {
+          if (event.key === 'Escape' && modal.classList.contains('is-open')) {
+            closeModal();
+          }
+        });
+      }
     })();
   </script>
 
