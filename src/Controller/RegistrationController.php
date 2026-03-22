@@ -305,7 +305,7 @@ final class RegistrationController extends AbstractController
 
         $email = (new TemplatedEmail())
             ->to((string) $user->getEmail())
-            ->subject('Confirme ton compte Receiplan')
+            ->subject('Confirme ton compte Kuko')
             ->htmlTemplate('emails/verify_email.html.twig')
             ->context([
                 'signedUrl' => $signedUrl,
@@ -324,7 +324,7 @@ final class RegistrationController extends AbstractController
 
         $email = (new TemplatedEmail())
             ->to((string) $user->getEmail())
-            ->subject('Réinitialisation de ton mot de passe Receiplan')
+            ->subject('Réinitialisation de ton mot de passe Kuko')
             ->htmlTemplate('emails/reset_password.html.twig')
             ->context([
                 'resetUrl' => $url,
