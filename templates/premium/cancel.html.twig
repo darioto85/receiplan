@@ -1,0 +1,42 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Paiement annulé — {{ parent() }}{% endblock %}
+
+{% block body %}
+  <div class="container py-4 py-lg-5">
+    <div class="row justify-content-center">
+      <div class="col-12 col-lg-8">
+        <div class="card border-0 shadow-sm">
+          <div class="card-body p-4 p-lg-5 text-center">
+
+            <div class="mb-3" style="font-size: 3rem;">🙂</div>
+
+            <h1 class="h3 mb-2">Paiement annulé</h1>
+
+            <p class="text-body-secondary mb-4">
+              Aucun souci. Tu peux reprendre plus tard si tu le souhaites.
+            </p>
+
+            <div class="alert alert-light text-start mb-4">
+              <div class="fw-semibold mb-2">Tu peux :</div>
+              <ul class="mb-0 ps-3">
+                <li>continuer à utiliser Kuko gratuitement</li>
+                <li>réessayer quand tu veux</li>
+              </ul>
+            </div>
+
+            <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+              <a href="{{ path('premium_index') }}" class="btn btn-success">
+                Voir les offres
+              </a>
+              <a href="{{ path('assistant') }}" class="btn btn-outline-secondary">
+                Retour à l’app
+              </a>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

@@ -4,12 +4,15 @@ namespace App\Controller;
 
 use App\Entity\AssistantConversation;
 use App\Entity\AssistantMessage;
+use App\Entity\User;
 use App\Repository\AssistantConversationRepository;
 use App\Repository\AssistantMessageRepository;
 use App\Service\Assistant\AssistantConversationFlow;
 use App\Service\Assistant\AssistantMessageManager;
+use App\Service\Premium\PremiumAccessChecker;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\KernelInterface;
@@ -23,11 +26,23 @@ final class AssistantChatController extends AbstractController
         private readonly AssistantConversationRepository $conversationRepository,
         private readonly AssistantMessageRepository $messageRepository,
         private readonly KernelInterface $kernel,
-    ) {}
+        private readonly PremiumAccessChecker $premiumAccessChecker,
+    ) {
+    }
 
     #[Route('/assistant/chat', name: 'assistant', methods: ['GET'])]
     public function index(): Response
     {
+        $user = $this->getUser();
+
+        if (!$user instanceof User) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        if ($this->premiumAccessChecker->shouldRedirectToPremium($user)) {
+            return $this->redirectToRoute('premium_index');
+        }
+
         return $this->render('assistant/chat.html.twig');
     }
 
@@ -36,13 +51,23 @@ final class AssistantChatController extends AbstractController
     {
         $user = $this->getUser();
 
-        if (!$user) {
+        if (!$user instanceof User) {
             return $this->json([
                 'error' => [
                     'code' => 'unauthorized',
                     'message' => 'Non authentifié.',
                 ],
             ], 401);
+        }
+
+        if ($this->premiumAccessChecker->shouldRedirectToPremium($user)) {
+            return $this->json([
+                'error' => [
+                    'code' => 'premium_required',
+                    'message' => 'Cette fonctionnalité nécessite un accès premium.',
+                ],
+                'redirect_url' => $this->generateUrl('premium_index'),
+            ], 403);
         }
 
         $todayStart = new \DateTimeImmutable('today');
@@ -82,13 +107,23 @@ final class AssistantChatController extends AbstractController
     {
         $user = $this->getUser();
 
-        if (!$user) {
+        if (!$user instanceof User) {
             return $this->json([
                 'error' => [
                     'code' => 'unauthorized',
                     'message' => 'Non authentifié.',
                 ],
             ], 401);
+        }
+
+        if ($this->premiumAccessChecker->shouldRedirectToPremium($user)) {
+            return $this->json([
+                'error' => [
+                    'code' => 'premium_required',
+                    'message' => 'Cette fonctionnalité nécessite un accès premium.',
+                ],
+                'redirect_url' => $this->generateUrl('premium_index'),
+            ], 403);
         }
 
         $payload = json_decode($request->getContent() ?: '{}', true);

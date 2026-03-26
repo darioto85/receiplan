@@ -67,6 +67,63 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $passwordResetExpiresAt = null;
 
+    /**
+     * =========================
+     * TRIAL
+     * =========================
+     */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $trialStartedAt = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $trialEndsAt = null;
+
+    /**
+     * =========================
+     * PREMIUM MANUEL
+     * =========================
+     */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $manualPremiumStartsAt = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $manualPremiumEndsAt = null;
+
+    #[ORM\Column(options: ['default' => false])]
+    private bool $manualPremiumIsLifetime = false;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $manualPremiumReason = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $manualPremiumGrantedBy = null;
+
+    /**
+     * =========================
+     * STRIPE
+     * =========================
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $stripeCustomerId = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $stripeSubscriptionId = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $stripePriceId = null;
+
+    #[ORM\Column(length: 50, nullable: true)]
+    private ?string $subscriptionStatus = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $premiumActivatedAt = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $premiumEndedAt = null;
+
+    #[ORM\Column(length: 20, nullable: true)]
+    private ?string $billingPeriod = null; // monthly / yearly
+
     /** @var Collection<int, Recipe> */
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: Recipe::class, orphanRemoval: true)]
     private Collection $recipes;
@@ -122,7 +179,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     public function setRoles(array $roles): static
     {
-        $this->roles = $roles;
+        $this->roles = array_values(array_unique($roles));
         return $this;
     }
 
@@ -252,6 +309,205 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         }
 
         return $this->passwordResetExpiresAt > $now;
+    }
+
+    public function getTrialStartedAt(): ?\DateTimeImmutable
+    {
+        return $this->trialStartedAt;
+    }
+
+    public function setTrialStartedAt(?\DateTimeImmutable $trialStartedAt): static
+    {
+        $this->trialStartedAt = $trialStartedAt;
+        return $this;
+    }
+
+    public function getTrialEndsAt(): ?\DateTimeImmutable
+    {
+        return $this->trialEndsAt;
+    }
+
+    public function setTrialEndsAt(?\DateTimeImmutable $trialEndsAt): static
+    {
+        $this->trialEndsAt = $trialEndsAt;
+        return $this;
+    }
+
+    public function getManualPremiumStartsAt(): ?\DateTimeImmutable
+    {
+        return $this->manualPremiumStartsAt;
+    }
+
+    public function setManualPremiumStartsAt(?\DateTimeImmutable $manualPremiumStartsAt): static
+    {
+        $this->manualPremiumStartsAt = $manualPremiumStartsAt;
+        return $this;
+    }
+
+    public function getManualPremiumEndsAt(): ?\DateTimeImmutable
+    {
+        return $this->manualPremiumEndsAt;
+    }
+
+    public function setManualPremiumEndsAt(?\DateTimeImmutable $manualPremiumEndsAt): static
+    {
+        $this->manualPremiumEndsAt = $manualPremiumEndsAt;
+        return $this;
+    }
+
+    public function isManualPremiumIsLifetime(): bool
+    {
+        return $this->manualPremiumIsLifetime;
+    }
+
+    public function setManualPremiumIsLifetime(bool $manualPremiumIsLifetime): static
+    {
+        $this->manualPremiumIsLifetime = $manualPremiumIsLifetime;
+        return $this;
+    }
+
+    public function getManualPremiumReason(): ?string
+    {
+        return $this->manualPremiumReason;
+    }
+
+    public function setManualPremiumReason(?string $manualPremiumReason): static
+    {
+        $this->manualPremiumReason = $manualPremiumReason;
+        return $this;
+    }
+
+    public function getManualPremiumGrantedBy(): ?int
+    {
+        return $this->manualPremiumGrantedBy;
+    }
+
+    public function setManualPremiumGrantedBy(?int $manualPremiumGrantedBy): static
+    {
+        $this->manualPremiumGrantedBy = $manualPremiumGrantedBy;
+        return $this;
+    }
+
+    public function getStripeCustomerId(): ?string
+    {
+        return $this->stripeCustomerId;
+    }
+
+    public function setStripeCustomerId(?string $stripeCustomerId): static
+    {
+        $this->stripeCustomerId = $stripeCustomerId;
+        return $this;
+    }
+
+    public function getStripeSubscriptionId(): ?string
+    {
+        return $this->stripeSubscriptionId;
+    }
+
+    public function setStripeSubscriptionId(?string $stripeSubscriptionId): static
+    {
+        $this->stripeSubscriptionId = $stripeSubscriptionId;
+        return $this;
+    }
+
+    public function getStripePriceId(): ?string
+    {
+        return $this->stripePriceId;
+    }
+
+    public function setStripePriceId(?string $stripePriceId): static
+    {
+        $this->stripePriceId = $stripePriceId;
+        return $this;
+    }
+
+    public function getSubscriptionStatus(): ?string
+    {
+        return $this->subscriptionStatus;
+    }
+
+    public function setSubscriptionStatus(?string $subscriptionStatus): static
+    {
+        $this->subscriptionStatus = $subscriptionStatus;
+        return $this;
+    }
+
+    public function getPremiumActivatedAt(): ?\DateTimeImmutable
+    {
+        return $this->premiumActivatedAt;
+    }
+
+    public function setPremiumActivatedAt(?\DateTimeImmutable $premiumActivatedAt): static
+    {
+        $this->premiumActivatedAt = $premiumActivatedAt;
+        return $this;
+    }
+
+    public function getPremiumEndedAt(): ?\DateTimeImmutable
+    {
+        return $this->premiumEndedAt;
+    }
+
+    public function setPremiumEndedAt(?\DateTimeImmutable $premiumEndedAt): static
+    {
+        $this->premiumEndedAt = $premiumEndedAt;
+        return $this;
+    }
+
+    public function getBillingPeriod(): ?string
+    {
+        return $this->billingPeriod;
+    }
+
+    public function setBillingPeriod(?string $billingPeriod): static
+    {
+        $this->billingPeriod = $billingPeriod;
+        return $this;
+    }
+
+    public function hasActiveTrial(): bool
+    {
+        return $this->trialEndsAt !== null && $this->trialEndsAt > new \DateTimeImmutable();
+    }
+
+    public function hasActiveManualPremium(): bool
+    {
+        if ($this->manualPremiumIsLifetime) {
+            return true;
+        }
+
+        return $this->manualPremiumEndsAt !== null
+            && $this->manualPremiumEndsAt > new \DateTimeImmutable();
+    }
+
+    public function hasActiveStripePremium(): bool
+    {
+        return $this->subscriptionStatus === 'active'
+            || $this->subscriptionStatus === 'trialing';
+    }
+
+    public function canUsePremium(): bool
+    {
+        return $this->hasActiveTrial()
+            || $this->hasActiveManualPremium()
+            || $this->hasActiveStripePremium();
+    }
+
+    public function getPremiumSource(): ?string
+    {
+        if ($this->hasActiveTrial()) {
+            return 'trial';
+        }
+
+        if ($this->hasActiveManualPremium()) {
+            return 'manual';
+        }
+
+        if ($this->hasActiveStripePremium()) {
+            return 'stripe';
+        }
+
+        return null;
     }
 
     /** @return Collection<int, Recipe> */
