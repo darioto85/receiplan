@@ -3,7 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\User;
-use App\Service\Premium\PremiumAccessChecker;
+use App\Service\Stripe\StripeService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Response;
@@ -13,7 +13,7 @@ final class AccountController extends AbstractController
 {
     #[Route('/account', name: 'account_index', methods: ['GET'])]
     public function index(
-        PremiumAccessChecker $premiumAccessChecker,
+        StripeService $stripeService,
         #[Autowire('%env(VAPID_PUBLIC_KEY)%')] string $vapidPublicKey,
     ): Response {
         $user = $this->getUser();
@@ -22,12 +22,14 @@ final class AccountController extends AbstractController
             return $this->redirectToRoute('app_login');
         }
 
+        $subscription = $stripeService->getAccountSubscriptionSummary($user);
+
         return $this->render('account/index.html.twig', [
             'vapid_public_key' => $vapidPublicKey,
-            'premium_label' => $premiumAccessChecker->getPremiumLabel($user),
-            'premium_source' => $premiumAccessChecker->getPremiumSource($user),
-            'premium_can_use' => $premiumAccessChecker->canUsePremium($user),
-            'trial_expired' => $premiumAccessChecker->isTrialExpired($user),
+            'subscription' => $subscription,
+            'formatted_amount' => $subscription
+                ? $stripeService->formatAmount($subscription['amount'], $subscription['currency'])
+                : null,
         ]);
     }
 }

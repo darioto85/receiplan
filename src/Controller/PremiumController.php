@@ -81,4 +81,26 @@ class PremiumController extends AbstractController
     {
         return $this->render('premium/cancel.html.twig');
     }
+
+    #[Route('/premium/cancel-subscription', name: 'premium_cancel_subscription', methods: ['GET'])]
+    public function cancelSubscription(StripeService $stripeService): Response
+    {
+        /** @var User|null $user */
+        $user = $this->getUser();
+
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $subscription = $stripeService->scheduleCancelAtPeriodEnd($user);
+
+        if ($subscription === null) {
+            $this->addFlash('warning', 'Aucun abonnement actif à résilier.');
+            return $this->redirectToRoute('account_index');
+        }
+
+        $this->addFlash('success', 'Ton abonnement sera arrêté à la fin de la période en cours.');
+
+        return $this->redirectToRoute('account_index', ['_fragment' => 'premium']);
+    }
 }

@@ -6,7 +6,6 @@ use App\Entity\User;
 use App\Entity\UserTransaction;
 use App\Repository\UserRepository;
 use App\Repository\UserTransactionRepository;
-use App\Service\Stripe\StripeService;
 use Doctrine\ORM\EntityManagerInterface;
 use Stripe\Event;
 
@@ -100,6 +99,15 @@ class StripeWebhookEventHandler
                     $user->setSubscriptionStatus((string) $object->status);
                 }
 
+                if (isset($object->cancel_at_period_end)) {
+                    $user->setSubscriptionCancelAtPeriodEnd((bool) $object->cancel_at_period_end);
+                }
+
+                $periodEnd = $this->extractSubscriptionPeriodEnd($object);
+                if ($periodEnd !== null) {
+                    $user->setSubscriptionCurrentPeriodEndAt($periodEnd);
+                }
+
                 if (isset($object->items->data[0]->price->id) && $object->items->data[0]->price->id) {
                     $user->setStripePriceId((string) $object->items->data[0]->price->id);
                     $user->setBillingPeriod($this->resolveBillingPeriodFromPrice($object));
@@ -123,6 +131,13 @@ class StripeWebhookEventHandler
 
                 if (isset($object->status) && $object->status) {
                     $user->setSubscriptionStatus((string) $object->status);
+                }
+
+                $user->setSubscriptionCancelAtPeriodEnd(false);
+
+                $periodEnd = $this->extractSubscriptionPeriodEnd($object);
+                if ($periodEnd !== null) {
+                    $user->setSubscriptionCurrentPeriodEndAt($periodEnd);
                 }
 
                 if (isset($object->items->data[0]->price->id) && $object->items->data[0]->price->id) {
@@ -180,10 +195,32 @@ class StripeWebhookEventHandler
             $user->setSubscriptionStatus((string) $subscription->status);
         }
 
+        if (isset($subscription->cancel_at_period_end)) {
+            $user->setSubscriptionCancelAtPeriodEnd((bool) $subscription->cancel_at_period_end);
+        }
+
+        $periodEnd = $this->extractSubscriptionPeriodEnd($subscription);
+        if ($periodEnd !== null) {
+            $user->setSubscriptionCurrentPeriodEndAt($periodEnd);
+        }
+
         if (isset($subscription->items->data[0]->price->id) && $subscription->items->data[0]->price->id) {
             $user->setStripePriceId((string) $subscription->items->data[0]->price->id);
             $user->setBillingPeriod($this->resolveBillingPeriodFromPrice($subscription));
         }
+    }
+
+    private function extractSubscriptionPeriodEnd(object $subscription): ?\DateTimeImmutable
+    {
+        if (isset($subscription->items->data[0]->current_period_end) && $subscription->items->data[0]->current_period_end) {
+            return (new \DateTimeImmutable())->setTimestamp((int) $subscription->items->data[0]->current_period_end);
+        }
+
+        if (isset($subscription->current_period_end) && $subscription->current_period_end) {
+            return (new \DateTimeImmutable())->setTimestamp((int) $subscription->current_period_end);
+        }
+
+        return null;
     }
 
     private function activatePremium(User $user): void
@@ -204,7 +241,8 @@ class StripeWebhookEventHandler
 
     private function deactivatePremium(User $user): void
     {
-        $user->setPremiumEndedAt(new \DateTimeImmutable());
+        $endedAt = $user->getSubscriptionCurrentPeriodEndAt() ?? new \DateTimeImmutable();
+        $user->setPremiumEndedAt($endedAt);
 
         $roles = array_values(array_filter(
             $user->getRoles(),

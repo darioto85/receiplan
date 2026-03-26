@@ -46,18 +46,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $lastLoginAt = null;
 
-    /**
-     * OAuth provider subject identifiers (unique per provider).
-     */
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $googleId = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $appleId = null;
 
-    /**
-     * Password reset fields.
-     */
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $passwordResetToken = null;
 
@@ -115,6 +109,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(length: 50, nullable: true)]
     private ?string $subscriptionStatus = null;
 
+    #[ORM\Column(options: ['default' => false])]
+    private bool $subscriptionCancelAtPeriodEnd = false;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $subscriptionCurrentPeriodEndAt = null;
+
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $premiumActivatedAt = null;
 
@@ -122,7 +122,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?\DateTimeImmutable $premiumEndedAt = null;
 
     #[ORM\Column(length: 20, nullable: true)]
-    private ?string $billingPeriod = null; // monthly / yearly
+    private ?string $billingPeriod = null;
 
     /** @var Collection<int, Recipe> */
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: Recipe::class, orphanRemoval: true)]
@@ -188,9 +188,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->password;
     }
 
-    /**
-     * Set to null to make the account OAuth-only.
-     */
     public function setPassword(?string $password): static
     {
         $this->password = $password;
@@ -432,6 +429,28 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
+    public function isSubscriptionCancelAtPeriodEnd(): bool
+    {
+        return $this->subscriptionCancelAtPeriodEnd;
+    }
+
+    public function setSubscriptionCancelAtPeriodEnd(bool $subscriptionCancelAtPeriodEnd): static
+    {
+        $this->subscriptionCancelAtPeriodEnd = $subscriptionCancelAtPeriodEnd;
+        return $this;
+    }
+
+    public function getSubscriptionCurrentPeriodEndAt(): ?\DateTimeImmutable
+    {
+        return $this->subscriptionCurrentPeriodEndAt;
+    }
+
+    public function setSubscriptionCurrentPeriodEndAt(?\DateTimeImmutable $subscriptionCurrentPeriodEndAt): static
+    {
+        $this->subscriptionCurrentPeriodEndAt = $subscriptionCurrentPeriodEndAt;
+        return $this;
+    }
+
     public function getPremiumActivatedAt(): ?\DateTimeImmutable
     {
         return $this->premiumActivatedAt;
@@ -576,9 +595,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    /**
-     * Ensure the session doesn't contain actual password hashes
-     */
     public function __serialize(): array
     {
         $data = (array) $this;
