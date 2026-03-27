@@ -54,8 +54,19 @@ final class RegistrationController extends AbstractController
             /** @var string $plainPassword */
             $plainPassword = (string) $form->get('plainPassword')->getData();
 
+            $parisTz = new \DateTimeZone('Europe/Paris');
+            $utcTz = new \DateTimeZone('UTC');
+
+            $trialStartedAtLocal = new \DateTimeImmutable('now', $parisTz);
+            $trialEndsAtLocal = $trialStartedAtLocal->modify('+14 days');
+
+            $trialStartedAtUtc = $trialStartedAtLocal->setTimezone($utcTz);
+            $trialEndsAtUtc = $trialEndsAtLocal->setTimezone($utcTz);
+
             $user->setIsVerified(false);
             $user->setPassword($this->passwordHasher->hashPassword($user, $plainPassword));
+            $user->setTrialStartedAt($trialStartedAtUtc);
+            $user->setTrialEndsAt($trialEndsAtUtc);
 
             $this->em->persist($user);
             $this->em->flush();

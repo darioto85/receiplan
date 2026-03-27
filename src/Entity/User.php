@@ -145,6 +145,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->isVerified = false;
     }
 
+    private function now(): \DateTimeImmutable
+    {
+        return new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+    }
+
     public function getId(): ?int
     {
         return $this->id;
@@ -295,8 +300,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    public function isPasswordResetTokenValid(string $token, \DateTimeImmutable $now = new \DateTimeImmutable()): bool
+    public function isPasswordResetTokenValid(string $token, ?\DateTimeImmutable $now = null): bool
     {
+        $now ??= $this->now();
+
         if ($this->passwordResetToken === null || $this->passwordResetExpiresAt === null) {
             return false;
         }
@@ -486,7 +493,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function hasActiveTrial(): bool
     {
-        return $this->trialEndsAt !== null && $this->trialEndsAt > new \DateTimeImmutable();
+        return $this->trialEndsAt !== null && $this->trialEndsAt > $this->now();
     }
 
     public function hasActiveManualPremium(): bool
@@ -496,7 +503,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         }
 
         return $this->manualPremiumEndsAt !== null
-            && $this->manualPremiumEndsAt > new \DateTimeImmutable();
+            && $this->manualPremiumEndsAt > $this->now();
     }
 
     public function hasActiveStripePremium(): bool

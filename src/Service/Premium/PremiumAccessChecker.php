@@ -6,11 +6,16 @@ use App\Entity\User;
 
 class PremiumAccessChecker
 {
+    private function now(): \DateTimeImmutable
+    {
+        return new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+    }
+
     public function hasActiveTrial(User $user): bool
     {
         $trialEndsAt = $user->getTrialEndsAt();
 
-        return $trialEndsAt !== null && $trialEndsAt > new \DateTimeImmutable();
+        return $trialEndsAt !== null && $trialEndsAt > $this->now();
     }
 
     public function hasActiveManualPremium(User $user): bool
@@ -22,7 +27,7 @@ class PremiumAccessChecker
         $manualPremiumEndsAt = $user->getManualPremiumEndsAt();
 
         return $manualPremiumEndsAt !== null
-            && $manualPremiumEndsAt > new \DateTimeImmutable();
+            && $manualPremiumEndsAt > $this->now();
     }
 
     public function hasActiveStripePremium(User $user): bool
@@ -68,7 +73,7 @@ class PremiumAccessChecker
     {
         $trialEndsAt = $user->getTrialEndsAt();
 
-        return $trialEndsAt !== null && $trialEndsAt <= new \DateTimeImmutable();
+        return $trialEndsAt !== null && $trialEndsAt <= $this->now();
     }
 
     public function shouldRedirectToPremium(User $user): bool
