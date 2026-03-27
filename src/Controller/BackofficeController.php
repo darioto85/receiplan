@@ -2,24 +2,25 @@
 
 namespace App\Controller;
 
+use App\Entity\AssistantConversation;
 use App\Entity\Ingredient;
 use App\Entity\Recipe;
-use App\Entity\AssistantConversation;
-use App\Repository\AssistantMessageRepository;
+use App\Entity\User;
 use App\Repository\AssistantConversationRepository;
+use App\Repository\AssistantMessageRepository;
 use App\Repository\IngredientRepository;
 use App\Repository\PreinscriptionRepository;
 use App\Repository\RecipeRepository;
 use App\Repository\UserRepository;
-use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\HttpFoundation\RedirectResponse;
 use App\Service\Image\Storage\ImageStorageInterface;
 use App\Service\IngredientImageResolver;
 use App\Service\RecipeImageResolver;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/godmode', name: 'backoffice_')]
 final class BackofficeController extends AbstractController
@@ -35,6 +36,32 @@ final class BackofficeController extends AbstractController
     private function denyUnlessAdmin(): void
     {
         $this->denyAccessUnlessGranted('ROLE_USER_ADMIN');
+    }
+
+    private function getBackofficeAdminId(): ?int
+    {
+        $admin = $this->getUser();
+
+        return $admin instanceof User ? $admin->getId() : null;
+    }
+
+    /**
+     * Retourne [startUtc, endUtc] en gardant la même heure locale visible.
+     */
+    private function makeUtcPeriodFromNow(int $days): array
+    {
+        $days = max(1, $days);
+
+        $parisTz = new \DateTimeZone('Europe/Paris');
+        $utcTz = new \DateTimeZone('UTC');
+
+        $startLocal = new \DateTimeImmutable('now', $parisTz);
+        $endLocal = $startLocal->modify(sprintf('+%d days', $days));
+
+        return [
+            $startLocal->setTimezone($utcTz),
+            $endLocal->setTimezone($utcTz),
+        ];
     }
 
     #[Route('', name: 'dashboard', methods: ['GET'])]
@@ -86,6 +113,164 @@ final class BackofficeController extends AbstractController
             'current_menu' => 'users',
             'q' => $q,
             'users' => $users,
+        ]);
+    }
+
+    #[Route('/users/{id}', name: 'users_show', methods: ['GET'])]
+    public function userShow(
+        Request $request,
+        User $user,
+    ): Response {
+        $this->denyUnlessAdmin();
+
+        return $this->render('backoffice/users/show.html.twig', [
+            'page_title' => 'Utilisateur #' . $user->getId(),
+            'current_menu' => 'users',
+            'user_entity' => $user,
+            'q' => trim((string) $request->query->get('q', '')),
+        ]);
+    }
+
+    #[Route('/users/{id}/start-trial', name: 'users_start_trial', methods: ['POST'])]
+    public function startUserTrial(
+        Request $request,
+        User $user,
+    ): RedirectResponse {
+        $this->denyUnlessAdmin();
+
+        if (!$this->isCsrfTokenValid(
+            'backoffice_user_start_trial_' . $user->getId(),
+            (string) $request->request->get('_token')
+        )) {
+            $this->addFlash('danger', 'Token CSRF invalide.');
+
+            return $this->redirectToRoute('backoffice_users_show', [
+                'id' => $user->getId(),
+                'q' => $request->query->get('q', ''),
+            ]);
+        }
+
+        $days = max(1, $request->request->getInt('days', 14));
+
+        [$trialStartedAtUtc, $trialEndsAtUtc] = $this->makeUtcPeriodFromNow($days);
+
+        $user->setTrialStartedAt($trialStartedAtUtc);
+        $user->setTrialEndsAt($trialEndsAtUtc);
+
+        $this->entityManager->flush();
+
+        $this->addFlash('success', sprintf(
+            'Trial lancé pour %s pendant %d jour%s.',
+            $user->getEmail() ?? 'cet utilisateur',
+            $days,
+            $days > 1 ? 's' : ''
+        ));
+
+        return $this->redirectToRoute('backoffice_users_show', [
+            'id' => $user->getId(),
+            'q' => $request->query->get('q', ''),
+        ]);
+    }
+
+    #[Route('/users/{id}/grant-manual-premium', name: 'users_grant_manual_premium', methods: ['POST'])]
+    public function grantManualPremium(
+        Request $request,
+        User $user,
+    ): RedirectResponse {
+        $this->denyUnlessAdmin();
+
+        if (!$this->isCsrfTokenValid(
+            'backoffice_user_grant_manual_premium_' . $user->getId(),
+            (string) $request->request->get('_token')
+        )) {
+            $this->addFlash('danger', 'Token CSRF invalide.');
+
+            return $this->redirectToRoute('backoffice_users_show', [
+                'id' => $user->getId(),
+                'q' => $request->query->get('q', ''),
+            ]);
+        }
+
+        $lifetime = $request->request->getBoolean('lifetime');
+        $reason = trim((string) $request->request->get('reason', ''));
+        $reason = $reason !== '' ? $reason : null;
+
+        if ($lifetime) {
+            [$manualPremiumStartsAtUtc] = $this->makeUtcPeriodFromNow(1);
+
+            $user->setManualPremiumStartsAt($manualPremiumStartsAtUtc);
+            $user->setManualPremiumEndsAt(null);
+            $user->setManualPremiumIsLifetime(true);
+            $user->setManualPremiumReason($reason);
+            $user->setManualPremiumGrantedBy($this->getBackofficeAdminId());
+
+            $this->entityManager->flush();
+
+            $this->addFlash('success', sprintf(
+                'Premium à vie attribué à %s.',
+                $user->getEmail() ?? 'cet utilisateur'
+            ));
+        } else {
+            $days = max(1, $request->request->getInt('days', 30));
+            [$manualPremiumStartsAtUtc, $manualPremiumEndsAtUtc] = $this->makeUtcPeriodFromNow($days);
+
+            $user->setManualPremiumStartsAt($manualPremiumStartsAtUtc);
+            $user->setManualPremiumEndsAt($manualPremiumEndsAtUtc);
+            $user->setManualPremiumIsLifetime(false);
+            $user->setManualPremiumReason($reason);
+            $user->setManualPremiumGrantedBy($this->getBackofficeAdminId());
+
+            $this->entityManager->flush();
+
+            $this->addFlash('success', sprintf(
+                'Premium manuel attribué à %s pour %d jour%s.',
+                $user->getEmail() ?? 'cet utilisateur',
+                $days,
+                $days > 1 ? 's' : ''
+            ));
+        }
+
+        return $this->redirectToRoute('backoffice_users_show', [
+            'id' => $user->getId(),
+            'q' => $request->query->get('q', ''),
+        ]);
+    }
+
+    #[Route('/users/{id}/remove-manual-premium', name: 'users_remove_manual_premium', methods: ['POST'])]
+    public function removeManualPremium(
+        Request $request,
+        User $user,
+    ): RedirectResponse {
+        $this->denyUnlessAdmin();
+
+        if (!$this->isCsrfTokenValid(
+            'backoffice_user_remove_manual_premium_' . $user->getId(),
+            (string) $request->request->get('_token')
+        )) {
+            $this->addFlash('danger', 'Token CSRF invalide.');
+
+            return $this->redirectToRoute('backoffice_users_show', [
+                'id' => $user->getId(),
+                'q' => $request->query->get('q', ''),
+            ]);
+        }
+
+        $user->setManualPremiumStartsAt(null);
+        $user->setManualPremiumEndsAt(null);
+        $user->setManualPremiumIsLifetime(false);
+        $user->setManualPremiumReason(null);
+        $user->setManualPremiumGrantedBy(null);
+
+        $this->entityManager->flush();
+
+        $this->addFlash('success', sprintf(
+            'Premium manuel supprimé pour %s.',
+            $user->getEmail() ?? 'cet utilisateur'
+        ));
+
+        return $this->redirectToRoute('backoffice_users_show', [
+            'id' => $user->getId(),
+            'q' => $request->query->get('q', ''),
         ]);
     }
 

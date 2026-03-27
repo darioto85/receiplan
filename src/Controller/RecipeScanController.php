@@ -11,6 +11,7 @@ use App\Repository\IngredientRepository;
 use App\Service\Ai\RecipePhotoExtractionService;
 use App\Service\Image\RecipeScanImageResizer;
 use App\Service\NameKeyNormalizer;
+use App\Service\Premium\PremiumRouteGuard;
 use App\Service\UnitStringMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -25,9 +26,22 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_USER')]
 final class RecipeScanController extends AbstractController
 {
+    public function __construct(
+        private readonly PremiumRouteGuard $premiumRouteGuard,
+    ) {
+    }
+
     #[Route('', name: 'index', methods: ['GET'])]
     public function index(Request $request): Response
     {
+        /** @var User|null $user */
+        $user = $this->getUser();
+
+        $deniedResponse = $this->premiumRouteGuard->getDeniedResponse($user, $request);
+        if ($deniedResponse instanceof Response) {
+            return $deniedResponse;
+        }
+
         $session = $request->getSession();
 
         $scanErrorModal = $session->get('recipe_scan.error_modal');
@@ -53,9 +67,12 @@ final class RecipeScanController extends AbstractController
         NameKeyNormalizer $nameKeyNormalizer,
         UnitStringMapper $unitMapper,
     ): Response {
+        /** @var User|null $user */
         $user = $this->getUser();
-        if (!$user instanceof User) {
-            throw $this->createAccessDeniedException();
+
+        $deniedResponse = $this->premiumRouteGuard->getDeniedResponse($user, $request);
+        if ($deniedResponse instanceof Response) {
+            return $deniedResponse;
         }
 
         if (!$this->isCsrfTokenValid('recipe_scan_upload', (string) $request->request->get('_token'))) {
@@ -75,7 +92,6 @@ final class RecipeScanController extends AbstractController
             return $this->redirectToRoute('recipe_scan_index');
         }
 
-        // Limite app (8 Mo)
         $maxBytes = 8 * 1024 * 1024;
         if (($file->getSize() ?? 0) > $maxBytes) {
             $this->addFlash('danger', 'Image trop lourde (max 8 Mo).');
@@ -103,31 +119,26 @@ final class RecipeScanController extends AbstractController
         $base = (new \DateTimeImmutable())->format('Ymd_His') . '_' . bin2hex(random_bytes(6));
         $originalFilename = sprintf('scan_%s.%s', $base, strtolower($safeExt));
 
-        // 1) Sauvegarde original
         $file->move($targetDir, $originalFilename);
         $originalAbs = $targetDir . '/' . $originalFilename;
 
-        // 2) Version IA redimensionnée (JPEG)
         $aiFilename = sprintf('scan_%s_ai.jpg', $base);
         $aiAbs = $targetDir . '/' . $aiFilename;
 
         try {
             $resizer->resizeToJpeg($originalAbs, $aiAbs);
         } catch (\Throwable $e) {
-            // fallback : utilise l’original
             $this->addFlash('warning', 'Redimensionnement impossible, utilisation de l’original : ' . $e->getMessage());
             $aiAbs = $originalAbs;
             $aiFilename = $originalFilename;
         }
 
-        // Supprime original si on a un _ai
         if ($aiAbs !== $originalAbs) {
             @unlink($originalAbs);
         }
 
         $storedPath = 'var/uploads/recipe_scan/user_' . $user->getId() . '/' . $aiFilename;
 
-        // Stocke en session (utile si analyse échoue -> relancer)
         $request->getSession()->set('recipe_scan.last_upload', [
             'originalName' => $file->getClientOriginalName(),
             'mime' => $mime,
@@ -135,17 +146,14 @@ final class RecipeScanController extends AbstractController
             'uploadedAt' => (new \DateTimeImmutable())->format(DATE_ATOM),
         ]);
 
-        // reset debug ancien résultat
         $request->getSession()->remove('recipe_scan.last_result');
         $request->getSession()->remove('recipe_scan.error_modal');
 
-        // 3) Analyse + persist
         $absPath = $projectDir . '/' . ltrim($storedPath, '/');
 
         try {
             $data = $extractor->extractRecipeFromImage($absPath);
 
-            // debug optionnel
             $request->getSession()->set('recipe_scan.last_result', $data);
 
             $recipe = $em->wrapInTransaction(function () use (
@@ -170,7 +178,6 @@ final class RecipeScanController extends AbstractController
                 $recipe->setNameKey($nameKeyNormalizer->toKey($name));
                 $em->persist($recipe);
 
-                // Ingrédients
                 $ingredients = is_array($data['ingredients'] ?? null) ? $data['ingredients'] : [];
                 foreach ($ingredients as $row) {
                     if (!is_array($row)) {
@@ -213,7 +220,6 @@ final class RecipeScanController extends AbstractController
                     $em->persist($ri);
                 }
 
-                // Étapes
                 $steps = is_array($data['steps'] ?? null) ? $data['steps'] : [];
                 $pos = 1;
                 foreach ($steps as $row) {
@@ -245,13 +251,11 @@ final class RecipeScanController extends AbstractController
 
             $this->addFlash('success', 'Recette importée en brouillon ✅');
 
-            // Option : tu peux nettoyer la session upload pour éviter d’afficher “dernière photo”
             $request->getSession()->remove('recipe_scan.last_upload');
             $request->getSession()->remove('recipe_scan.error_modal');
 
             return $this->redirectToRoute('recipe_wizard_preview', ['id' => $recipe->getId()]);
         } catch (\Throwable $e) {
-            // On garde last_upload en session -> l’utilisateur peut relancer
             $this->setScanErrorModal($request, $e);
             return $this->redirectToRoute('recipe_scan_index');
         }
@@ -269,9 +273,12 @@ final class RecipeScanController extends AbstractController
         NameKeyNormalizer $nameKeyNormalizer,
         UnitStringMapper $unitMapper,
     ): Response {
+        /** @var User|null $user */
         $user = $this->getUser();
-        if (!$user instanceof User) {
-            throw $this->createAccessDeniedException();
+
+        $deniedResponse = $this->premiumRouteGuard->getDeniedResponse($user, $request);
+        if ($deniedResponse instanceof Response) {
+            return $deniedResponse;
         }
 
         if (!$this->isCsrfTokenValid('recipe_scan_analyze', (string) $request->request->get('_token'))) {
@@ -403,6 +410,14 @@ final class RecipeScanController extends AbstractController
     #[Route('/reset', name: 'reset', methods: ['POST'])]
     public function reset(Request $request): Response
     {
+        /** @var User|null $user */
+        $user = $this->getUser();
+
+        $deniedResponse = $this->premiumRouteGuard->getDeniedResponse($user, $request);
+        if ($deniedResponse instanceof Response) {
+            return $deniedResponse;
+        }
+
         if (!$this->isCsrfTokenValid('recipe_scan_reset', (string) $request->request->get('_token'))) {
             $this->addFlash('danger', 'Token CSRF invalide.');
             return $this->redirectToRoute('recipe_scan_index');

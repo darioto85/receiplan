@@ -1,0 +1,45 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Premium{% endblock %}
+
+{% block body %}
+
+<div class="container py-5 text-center">
+
+    <h1 class="mb-4">Passe à Kuko Premium ✨</h1>
+
+    <p class="mb-5">
+        Débloque toutes les fonctionnalités et simplifie encore plus ton quotidien.
+    </p>
+
+    <div class="row justify-content-center g-4">
+
+        <div class="col-md-4">
+            <div class="card shadow-sm p-4">
+                <h3>Mensuel</h3>
+                <p class="my-3">Accès complet</p>
+                <a href="{{ path('premium_checkout', {plan: 'monthly'}) }}"
+                   class="btn btn-success w-100"
+                   data-turbo="false">
+                    Choisir
+                </a>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm p-4 border-success">
+                <h3>Annuel</h3>
+                <p class="my-3">-20% 💸</p>
+                <a href="{{ path('premium_checkout', {plan: 'yearly'}) }}"
+                   class="btn btn-success w-100"
+                   data-turbo="false">
+                    Choisir
+                </a>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

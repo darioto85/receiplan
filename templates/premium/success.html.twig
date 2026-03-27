@@ -1,0 +1,43 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Premium activé — {{ parent() }}{% endblock %}
+
+{% block body %}
+  <div class="container py-4 py-lg-5">
+    <div class="row justify-content-center">
+      <div class="col-12 col-lg-8">
+        <div class="card border-0 shadow-sm">
+          <div class="card-body p-4 p-lg-5 text-center">
+
+            <div class="mb-3" style="font-size: 3rem;">✨</div>
+
+            <h1 class="h3 mb-2">Ton abonnement Premium est activé</h1>
+
+            <p class="text-body-secondary mb-4">
+              Merci pour ta confiance. Ton accès premium est maintenant actif.
+            </p>
+
+            <div class="alert alert-success text-start mb-4">
+              <div class="fw-semibold mb-2">Tu peux maintenant profiter de :</div>
+              <ul class="mb-0 ps-3">
+                <li>l’assistant Kuko</li>
+                <li>tes fonctionnalités premium débloquées</li>
+                <li>une expérience complète dans l’application</li>
+              </ul>
+            </div>
+
+            <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+              <a href="{{ path('assistant') }}" class="btn btn-success">
+                Ouvrir l’assistant
+              </a>
+              <a href="{{ path('account_index') }}" class="btn btn-outline-secondary">
+                Voir mon offre
+              </a>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

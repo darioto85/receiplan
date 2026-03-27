@@ -25,12 +25,15 @@
 {% endblock %}
 
 {% block backoffice_content %}
+    {% set display_timezone = 'Europe/Paris' %}
+    {% set now_ts = 'now'|date('U') %}
+
     <div class="bo-table-card">
         {% if users is empty %}
             <div class="bo-empty">Aucun utilisateur trouvé.</div>
         {% else %}
             <div class="table-responsive">
-                <table class="table bo-table">
+                <table class="table bo-table align-middle">
                     <thead>
                     <tr>
                         <th>#</th>
@@ -38,10 +41,18 @@
                         <th>Prénom</th>
                         <th>Nom</th>
                         <th>Rôles</th>
+                        <th>Trial</th>
+                        <th>Premium</th>
+                        <th class="text-end">Action</th>
                     </tr>
                     </thead>
                     <tbody>
                     {% for user in users %}
+                        {% set trial_end_ts = user.trialEndsAt ? user.trialEndsAt|date('U') : null %}
+                        {% set trial_active = trial_end_ts and trial_end_ts > now_ts %}
+
+                        {% set manual_premium_active = user.manualPremiumIsLifetime or (user.manualPremiumEndsAt and user.manualPremiumEndsAt|date('U') > now_ts) %}
+
                         <tr>
                             <td>{{ user.id }}</td>
                             <td>{{ attribute(user, 'email') is defined ? user.email : '' }}</td>
@@ -51,6 +62,66 @@
                                 {% for role in user.roles %}
                                     <span class="badge bo-badge me-1">{{ role }}</span>
                                 {% endfor %}
+                            </td>
+
+                            <td>
+                                {% if trial_active %}
+                                    <div class="small">
+                                        <div class="fw-semibold text-success">Actif</div>
+                                        <div class="text-muted">
+                                            jusqu’au {{ user.trialEndsAt|date('d/m/Y H:i', display_timezone) }}
+                                        </div>
+                                    </div>
+                                {% elseif user.trialEndsAt %}
+                                    <div class="small">
+                                        <div class="fw-semibold text-muted">Terminé</div>
+                                        <div class="text-muted">
+                                            le {{ user.trialEndsAt|date('d/m/Y H:i', display_timezone) }}
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted small">Aucun</span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if manual_premium_active %}
+                                    <div class="small">
+                                        <div class="fw-semibold text-success">
+                                            {% if user.manualPremiumIsLifetime %}
+                                                À vie
+                                            {% else %}
+                                                Actif
+                                            {% endif %}
+                                        </div>
+
+                                        {% if not user.manualPremiumIsLifetime and user.manualPremiumEndsAt %}
+                                            <div class="text-muted">
+                                                jusqu’au {{ user.manualPremiumEndsAt|date('d/m/Y H:i', display_timezone) }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% elseif user.manualPremiumStartsAt or user.manualPremiumEndsAt %}
+                                    <div class="small">
+                                        <div class="fw-semibold text-muted">Expiré</div>
+                                        {% if user.manualPremiumEndsAt %}
+                                            <div class="text-muted">
+                                                le {{ user.manualPremiumEndsAt|date('d/m/Y H:i', display_timezone) }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted small">Aucun</span>
+                                {% endif %}
+                            </td>
+
+                            <td class="text-end">
+                                <a
+                                    href="{{ path('backoffice_users_show', {id: user.id}) }}"
+                                    class="btn btn-outline-primary btn-sm"
+                                >
+                                    Modifier
+                                </a>
                             </td>
                         </tr>
                     {% endfor %}

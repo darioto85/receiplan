@@ -4,10 +4,12 @@ namespace App\Controller;
 
 use App\Entity\AssistantConversation;
 use App\Entity\AssistantMessage;
+use App\Entity\User;
 use App\Repository\AssistantConversationRepository;
 use App\Repository\AssistantMessageRepository;
 use App\Service\Assistant\AssistantConversationFlow;
 use App\Service\Assistant\AssistantMessageManager;
+use App\Service\Premium\PremiumRouteGuard;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -23,26 +25,33 @@ final class AssistantChatController extends AbstractController
         private readonly AssistantConversationRepository $conversationRepository,
         private readonly AssistantMessageRepository $messageRepository,
         private readonly KernelInterface $kernel,
-    ) {}
+        private readonly PremiumRouteGuard $premiumRouteGuard,
+    ) {
+    }
 
     #[Route('/assistant/chat', name: 'assistant', methods: ['GET'])]
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        /** @var User|null $user */
+        $user = $this->getUser();
+
+        $deniedResponse = $this->premiumRouteGuard->getDeniedResponse($user, $request);
+        if ($deniedResponse instanceof Response) {
+            return $deniedResponse;
+        }
+
         return $this->render('assistant/chat.html.twig');
     }
 
     #[Route('/assistant/chat/history', name: 'assistant_chat_history', methods: ['GET'])]
-    public function history(): JsonResponse
+    public function history(Request $request): JsonResponse|Response
     {
+        /** @var User|null $user */
         $user = $this->getUser();
 
-        if (!$user) {
-            return $this->json([
-                'error' => [
-                    'code' => 'unauthorized',
-                    'message' => 'Non authentifié.',
-                ],
-            ], 401);
+        $deniedResponse = $this->premiumRouteGuard->getDeniedResponse($user, $request);
+        if ($deniedResponse instanceof Response) {
+            return $deniedResponse;
         }
 
         $todayStart = new \DateTimeImmutable('today');
@@ -78,17 +87,14 @@ final class AssistantChatController extends AbstractController
     }
 
     #[Route('/assistant/chat/message', name: 'assistant_chat_message', methods: ['POST'])]
-    public function message(Request $request): JsonResponse
+    public function message(Request $request): JsonResponse|Response
     {
+        /** @var User|null $user */
         $user = $this->getUser();
 
-        if (!$user) {
-            return $this->json([
-                'error' => [
-                    'code' => 'unauthorized',
-                    'message' => 'Non authentifié.',
-                ],
-            ], 401);
+        $deniedResponse = $this->premiumRouteGuard->getDeniedResponse($user, $request);
+        if ($deniedResponse instanceof Response) {
+            return $deniedResponse;
         }
 
         $payload = json_decode($request->getContent() ?: '{}', true);

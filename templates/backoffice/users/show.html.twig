@@ -1,0 +1,349 @@
+{% extends 'backoffice/base_backoffice.html.twig' %}
+
+{% block backoffice_content %}
+    {% set user = user_entity %}
+    {% set display_timezone = 'Europe/Paris' %}
+    {% set now_ts = 'now'|date('U') %}
+
+    {% set trial_end_ts = user.trialEndsAt ? user.trialEndsAt|date('U') : null %}
+    {% set trial_active = trial_end_ts and trial_end_ts > now_ts %}
+    {% set trial_days_left = trial_active ? ((trial_end_ts - now_ts) / 86400)|round(0, 'ceil') : 0 %}
+
+    {% set manual_premium_end_ts = user.manualPremiumEndsAt ? user.manualPremiumEndsAt|date('U') : null %}
+    {% set manual_premium_active = user.manualPremiumIsLifetime or (manual_premium_end_ts and manual_premium_end_ts > now_ts) %}
+    {% set manual_premium_days_left = (manual_premium_end_ts and manual_premium_end_ts > now_ts) ? ((manual_premium_end_ts - now_ts) / 86400)|round(0, 'ceil') : 0 %}
+
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <div>
+            <h1 class="h4 mb-1">Utilisateur #{{ user.id }}</h1>
+            <div class="text-muted small">{{ user.email }}</div>
+        </div>
+
+        <a
+            href="{{ path('backoffice_users', q ? { q: q } : {}) }}"
+            class="btn btn-outline-secondary"
+        >
+            Retour à la liste
+        </a>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12 col-xl-5">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h5 mb-3">Informations</h2>
+
+                    <div class="mb-2">
+                        <div class="text-muted small">Email</div>
+                        <div class="fw-semibold">{{ user.email }}</div>
+                    </div>
+
+                    {% if attribute(user, 'firstname') is defined %}
+                        <div class="mb-2">
+                            <div class="text-muted small">Prénom</div>
+                            <div class="fw-semibold">{{ user.firstname ?: '—' }}</div>
+                        </div>
+                    {% endif %}
+
+                    {% if attribute(user, 'lastname') is defined %}
+                        <div class="mb-2">
+                            <div class="text-muted small">Nom</div>
+                            <div class="fw-semibold">{{ user.lastname ?: '—' }}</div>
+                        </div>
+                    {% endif %}
+
+                    <div class="mb-2">
+                        <div class="text-muted small">Compte créé le</div>
+                        <div class="fw-semibold">{{ user.createdAt|date('d/m/Y H:i', display_timezone) }}</div>
+                    </div>
+
+                    <div class="mb-2">
+                        <div class="text-muted small">Email vérifié</div>
+                        <div class="fw-semibold">
+                            {% if user.isVerified %}
+                                <span class="text-success">Oui</span>
+                            {% else %}
+                                <span class="text-warning">Non</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-0">
+                        <div class="text-muted small mb-1">Rôles</div>
+                        <div>
+                            {% for role in user.roles %}
+                                <span class="badge bo-badge me-1">{{ role }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-7">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h5 mb-3">État premium</h2>
+
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <div class="border rounded p-3 h-100">
+                                <div class="text-muted small">Source actuelle</div>
+                                <div class="fw-semibold mt-1">
+                                    {% if user.getPremiumSource() == 'trial' %}
+                                        Trial
+                                    {% elseif user.getPremiumSource() == 'manual' %}
+                                        Premium manuel
+                                    {% elseif user.getPremiumSource() == 'stripe' %}
+                                        Stripe
+                                    {% else %}
+                                        Aucune
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <div class="border rounded p-3 h-100">
+                                <div class="text-muted small">Accès premium</div>
+                                <div class="fw-semibold mt-1">
+                                    {% if user.canUsePremium() %}
+                                        <span class="text-success">Actif</span>
+                                    {% else %}
+                                        <span class="text-muted">Inactif</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if user.subscriptionStatus %}
+                        <div class="alert alert-info mt-3 mb-0">
+                            <div class="fw-semibold mb-1">Abonnement Stripe</div>
+                            <div class="small">
+                                Statut : <strong>{{ user.subscriptionStatus }}</strong>
+                                {% if user.subscriptionCurrentPeriodEndAt %}
+                                    — fin de période :
+                                    <strong>{{ user.subscriptionCurrentPeriodEndAt|date('d/m/Y H:i', display_timezone) }}</strong>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h5 mb-3">Gérer le trial</h2>
+
+                    <div class="mb-3">
+                        {% if trial_active %}
+                            <div class="alert alert-success mb-0">
+                                <div class="fw-semibold mb-1">Trial actif</div>
+                                <div class="small">
+                                    Début :
+                                    <strong>{{ user.trialStartedAt|date('d/m/Y H:i', display_timezone) }}</strong><br>
+                                    Fin :
+                                    <strong>{{ user.trialEndsAt|date('d/m/Y H:i', display_timezone) }}</strong><br>
+                                    Il reste encore
+                                    <strong>{{ trial_days_left }} jour{% if trial_days_left > 1 %}s{% endif %}</strong>.
+                                </div>
+                            </div>
+                        {% elseif user.trialEndsAt %}
+                            <div class="alert alert-secondary mb-0">
+                                <div class="fw-semibold mb-1">Trial terminé</div>
+                                <div class="small">
+                                    {% if user.trialStartedAt %}
+                                        Début :
+                                        <strong>{{ user.trialStartedAt|date('d/m/Y H:i', display_timezone) }}</strong><br>
+                                    {% endif %}
+                                    Fin :
+                                    <strong>{{ user.trialEndsAt|date('d/m/Y H:i', display_timezone) }}</strong>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-light border mb-0">
+                                <div class="fw-semibold mb-1">Aucun trial</div>
+                                <div class="small">Cet utilisateur n’a pas de trial enregistré.</div>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <form
+                        method="post"
+                        action="{{ path('backoffice_users_start_trial', {id: user.id, q: q}) }}"
+                    >
+                        <input
+                            type="hidden"
+                            name="_token"
+                            value="{{ csrf_token('backoffice_user_start_trial_' ~ user.id) }}"
+                        >
+
+                        <div class="row g-2 align-items-end">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Durée du trial</label>
+                                <input
+                                    type="number"
+                                    name="days"
+                                    min="1"
+                                    value="14"
+                                    class="form-control"
+                                >
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <button class="btn btn-outline-primary w-100">
+                                    Lancer un trial
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-text">
+                            Si un trial existe déjà, il sera remplacé par une nouvelle période.
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h5 mb-3">Gérer le premium manuel</h2>
+
+                    <div class="mb-3">
+                        {% if manual_premium_active %}
+                            <div class="alert alert-success mb-0">
+                                <div class="fw-semibold mb-1">
+                                    {% if user.manualPremiumIsLifetime %}
+                                        Premium manuel à vie
+                                    {% else %}
+                                        Premium manuel actif
+                                    {% endif %}
+                                </div>
+                                <div class="small">
+                                    {% if user.manualPremiumStartsAt %}
+                                        Début :
+                                        <strong>{{ user.manualPremiumStartsAt|date('d/m/Y H:i', display_timezone) }}</strong><br>
+                                    {% endif %}
+
+                                    {% if not user.manualPremiumIsLifetime and user.manualPremiumEndsAt %}
+                                        Fin :
+                                        <strong>{{ user.manualPremiumEndsAt|date('d/m/Y H:i', display_timezone) }}</strong><br>
+                                        Il reste encore
+                                        <strong>{{ manual_premium_days_left }} jour{% if manual_premium_days_left > 1 %}s{% endif %}</strong>.<br>
+                                    {% endif %}
+
+                                    {% if user.manualPremiumReason %}
+                                        Raison :
+                                        <strong>{{ user.manualPremiumReason }}</strong><br>
+                                    {% endif %}
+
+                                    {% if user.manualPremiumGrantedBy %}
+                                        Donné par admin #<strong>{{ user.manualPremiumGrantedBy }}</strong>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% elseif user.manualPremiumStartsAt or user.manualPremiumEndsAt %}
+                            <div class="alert alert-secondary mb-0">
+                                <div class="fw-semibold mb-1">Premium manuel expiré</div>
+                                <div class="small">
+                                    {% if user.manualPremiumStartsAt %}
+                                        Début :
+                                        <strong>{{ user.manualPremiumStartsAt|date('d/m/Y H:i', display_timezone) }}</strong><br>
+                                    {% endif %}
+                                    {% if user.manualPremiumEndsAt %}
+                                        Fin :
+                                        <strong>{{ user.manualPremiumEndsAt|date('d/m/Y H:i', display_timezone) }}</strong><br>
+                                    {% endif %}
+                                    {% if user.manualPremiumReason %}
+                                        Raison :
+                                        <strong>{{ user.manualPremiumReason }}</strong>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-light border mb-0">
+                                <div class="fw-semibold mb-1">Aucun premium manuel</div>
+                                <div class="small">Cet utilisateur n’a pas de premium manuel enregistré.</div>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <form
+                        method="post"
+                        action="{{ path('backoffice_users_grant_manual_premium', {id: user.id, q: q}) }}"
+                        class="mb-3"
+                    >
+                        <input
+                            type="hidden"
+                            name="_token"
+                            value="{{ csrf_token('backoffice_user_grant_manual_premium_' ~ user.id) }}"
+                        >
+
+                        <div class="row g-2">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Durée en jours</label>
+                                <input
+                                    type="number"
+                                    name="days"
+                                    min="1"
+                                    value="30"
+                                    class="form-control"
+                                >
+                            </div>
+
+                            <div class="col-12 col-md-6 d-flex align-items-end">
+                                <div class="form-check mb-2">
+                                    <input
+                                        class="form-check-input"
+                                        type="checkbox"
+                                        name="lifetime"
+                                        value="1"
+                                        id="lifetime_{{ user.id }}"
+                                    >
+                                    <label class="form-check-label" for="lifetime_{{ user.id }}">
+                                        Premium à vie
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label">Raison</label>
+                                <input
+                                    type="text"
+                                    name="reason"
+                                    class="form-control"
+                                    placeholder="Geste commercial, test, support..."
+                                >
+                            </div>
+
+                            <div class="col-12">
+                                <button class="btn btn-outline-success w-100">
+                                    Attribuer le premium manuel
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <form
+                        method="post"
+                        action="{{ path('backoffice_users_remove_manual_premium', {id: user.id, q: q}) }}"
+                    >
+                        <input
+                            type="hidden"
+                            name="_token"
+                            value="{{ csrf_token('backoffice_user_remove_manual_premium_' ~ user.id) }}"
+                        >
+
+                        <button class="btn btn-outline-danger w-100">
+                            Retirer le premium manuel
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
