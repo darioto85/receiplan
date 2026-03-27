@@ -615,4 +615,51 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         // noop
     }
+
+    public function startTrial(int $days): self
+    {
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+
+        $this->trialStartedAt = $now;
+        $this->trialEndsAt = $now->modify("+{$days} days");
+
+        return $this;
+    }
+
+    public function grantManualPremium(int $days, ?int $adminId = null, ?string $reason = null): self
+    {
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+
+        $this->manualPremiumStartsAt = $now;
+        $this->manualPremiumEndsAt = $now->modify("+{$days} days");
+        $this->manualPremiumIsLifetime = false;
+        $this->manualPremiumGrantedBy = $adminId;
+        $this->manualPremiumReason = $reason;
+
+        return $this;
+    }
+
+    public function grantLifetimePremium(?int $adminId = null, ?string $reason = null): self
+    {
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+
+        $this->manualPremiumStartsAt = $now;
+        $this->manualPremiumEndsAt = null;
+        $this->manualPremiumIsLifetime = true;
+        $this->manualPremiumGrantedBy = $adminId;
+        $this->manualPremiumReason = $reason;
+
+        return $this;
+    }
+
+    public function removeManualPremium(): self
+    {
+        $this->manualPremiumStartsAt = null;
+        $this->manualPremiumEndsAt = null;
+        $this->manualPremiumIsLifetime = false;
+        $this->manualPremiumReason = null;
+        $this->manualPremiumGrantedBy = null;
+
+        return $this;
+    }
 }
