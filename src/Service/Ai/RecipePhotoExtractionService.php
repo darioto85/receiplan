@@ -22,54 +22,75 @@ final class RecipePhotoExtractionService
      */
     public function extractRecipeFromImage(string $absoluteImagePath): array
     {
-        if (!is_file($absoluteImagePath)) {
-            throw new \RuntimeException('Image introuvable.');
+        return $this->extractRecipeFromImages([$absoluteImagePath]);
+    }
+
+    /**
+     * Retour attendu:
+     * [
+     *   'name' => string,
+     *   'ingredients' => [ ['name'=>string,'quantity'=>float|null,'unit'=>string|null], ... ],
+     *   'steps' => [ ['position'=>int,'text'=>string], ... ],
+     * ]
+     *
+     * @param string[] $absoluteImagePaths
+     */
+    public function extractRecipeFromImages(array $absoluteImagePaths): array
+    {
+        $absoluteImagePaths = array_values(array_filter(
+            $absoluteImagePaths,
+            static fn ($path): bool => is_string($path) && trim($path) !== ''
+        ));
+
+        if ($absoluteImagePaths === []) {
+            throw new \RuntimeException('Aucune image fournie.');
         }
+
         if ($this->openAiApiKey === '' || $this->openAiApiKey === '0') {
             throw new \RuntimeException('OPENAI_API_KEY manquant.');
         }
+
         if ($this->model === '') {
             throw new \RuntimeException('Modèle OpenAI manquant (configure OPENAI_RECIPE_VISION_MODEL).');
         }
 
-        $bytes = file_get_contents($absoluteImagePath);
-        if ($bytes === false) {
-            throw new \RuntimeException('Impossible de lire le fichier image.');
+        $content = [
+            [
+                'type' => 'input_text',
+                'text' => $this->buildSchemaHint(count($absoluteImagePaths)),
+            ],
+        ];
+
+        foreach ($absoluteImagePaths as $index => $absoluteImagePath) {
+            if (!is_file($absoluteImagePath)) {
+                throw new \RuntimeException(sprintf('Image introuvable : %s', $absoluteImagePath));
+            }
+
+            $bytes = file_get_contents($absoluteImagePath);
+            if ($bytes === false) {
+                throw new \RuntimeException(sprintf('Impossible de lire le fichier image : %s', $absoluteImagePath));
+            }
+
+            $mime = $this->guessMimeFromPath($absoluteImagePath) ?? 'image/jpeg';
+            $dataUrl = sprintf('data:%s;base64,%s', $mime, base64_encode($bytes));
+
+            $content[] = [
+                'type' => 'input_text',
+                'text' => sprintf('Photo %d', $index + 1),
+            ];
+
+            $content[] = [
+                'type' => 'input_image',
+                'image_url' => $dataUrl,
+            ];
         }
-
-        $mime = $this->guessMimeFromPath($absoluteImagePath) ?? 'image/jpeg';
-        $dataUrl = sprintf('data:%s;base64,%s', $mime, base64_encode($bytes));
-
-        $schemaHint = <<<TXT
-Tu dois extraire une recette à partir d'une photo.
-Retourne UNIQUEMENT un JSON valide suivant ce schéma :
-
-{
-  "name": "string",
-  "ingredients": [
-    { "name": "string", "quantity": number|null, "unit": "string"|null }
-  ],
-  "steps": [
-    { "position": number, "text": "string" }
-  ]
-}
-
-Règles:
-- Pas de Markdown, pas de ```json, pas d'explications : uniquement du JSON.
-- Si une quantité/unité n'est pas lisible: quantity=null, unit=null.
-- steps.position commence à 1 et incrémente sans trous.
-- Normalise les unités en français si possible (g, kg, ml, l, c.à.s, c.à.c, pièce).
-TXT;
 
         $payload = [
             'model' => $this->model,
             'input' => [
                 [
                     'role' => 'user',
-                    'content' => [
-                        ['type' => 'input_text', 'text' => $schemaHint],
-                        ['type' => 'input_image', 'image_url' => $dataUrl],
-                    ],
+                    'content' => $content,
                 ],
             ],
         ];
@@ -101,7 +122,7 @@ TXT;
         $parsed = json_decode($outputText, true);
         if (!is_array($parsed)) {
             throw new \RuntimeException(
-                "JSON de recette invalide (sortie modèle). Sortie brute: " . $outputText
+                'JSON de recette invalide (sortie modèle). Sortie brute: ' . $outputText
             );
         }
 
@@ -113,7 +134,6 @@ TXT;
         $ingredients = is_array($parsed['ingredients'] ?? null) ? $parsed['ingredients'] : [];
         $steps = is_array($parsed['steps'] ?? null) ? $parsed['steps'] : [];
 
-        // Normalisation légère côté serveur (sécurité / stabilité)
         $ingredients = $this->normalizeIngredients($ingredients);
         $steps = $this->normalizeSteps($steps);
 
@@ -124,9 +144,43 @@ TXT;
         ];
     }
 
+    private function buildSchemaHint(int $imageCount): string
+    {
+        $photoInstruction = $imageCount > 1
+            ? "La recette est répartie sur plusieurs photos. Tu dois fusionner toutes les informations visibles sur l'ensemble des photos en une seule recette cohérente."
+            : "La recette est présente sur une seule photo.";
+
+        return <<<TXT
+Tu dois extraire une recette à partir de photo(s) de recette.
+{$photoInstruction}
+
+Retourne UNIQUEMENT un JSON valide suivant ce schéma :
+
+{
+  "name": "string",
+  "ingredients": [
+    { "name": "string", "quantity": number|null, "unit": "string"|null }
+  ],
+  "steps": [
+    { "position": number, "text": "string" }
+  ]
+}
+
+Règles:
+- Pas de Markdown, pas de ```json, pas d'explications : uniquement du JSON.
+- Si plusieurs photos se complètent, fusionne-les sans dupliquer les ingrédients ni les étapes.
+- Si une étape est coupée entre deux photos, reconstitue-la proprement si c'est clairement possible.
+- Si une quantité/unité n'est pas lisible: quantity=null, unit=null.
+- steps.position commence à 1 et incrémente sans trous.
+- Normalise les unités en français si possible (g, kg, ml, l, c.à.s, c.à.c, pièce).
+- N'invente pas d'information absente.
+TXT;
+    }
+
     private function guessMimeFromPath(string $path): ?string
     {
         $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+
         return match ($ext) {
             'jpg', 'jpeg' => 'image/jpeg',
             'png' => 'image/png',
@@ -148,14 +202,10 @@ TXT;
     {
         $t = trim($text);
 
-        // Retire les fences ```json ... ``` ou ``` ... ```
-        // On prend le contenu entre la première ouverture et la dernière fermeture si présent.
         if (preg_match('/^```[a-zA-Z0-9]*\s*(.*)\s*```$/s', $t, $m)) {
             $t = trim($m[1]);
         }
 
-        // Retire d’éventuels préfixes/suffixes parasites (rare)
-        // On tente de récupérer le premier objet JSON dans la chaîne.
         $firstBrace = strpos($t, '{');
         $lastBrace = strrpos($t, '}');
         if ($firstBrace !== false && $lastBrace !== false && $lastBrace > $firstBrace) {
@@ -168,10 +218,12 @@ TXT;
     private function normalizeIngredients(array $ingredients): array
     {
         $out = [];
+
         foreach ($ingredients as $row) {
             if (!is_array($row)) {
                 continue;
             }
+
             $name = trim((string) ($row['name'] ?? ''));
             if ($name === '') {
                 continue;
@@ -196,32 +248,37 @@ TXT;
                 'unit' => $unit,
             ];
         }
+
         return $out;
     }
 
     private function normalizeSteps(array $steps): array
     {
         $out = [];
+
         foreach ($steps as $row) {
             if (!is_array($row)) {
                 continue;
             }
+
             $text = trim((string) ($row['text'] ?? ''));
             if ($text === '') {
                 continue;
             }
+
             $pos = (int) ($row['position'] ?? 0);
             if ($pos <= 0) {
                 $pos = count($out) + 1;
             }
+
             $out[] = [
                 'position' => $pos,
                 'text' => $text,
             ];
         }
 
-        // Ré-ordonne et renumérote proprement 1..N
-        usort($out, fn($a, $b) => ($a['position'] <=> $b['position']));
+        usort($out, fn ($a, $b) => ($a['position'] <=> $b['position']));
+
         $i = 1;
         foreach ($out as &$s) {
             $s['position'] = $i++;
@@ -243,6 +300,7 @@ TXT;
                 if (!is_array($content)) {
                     continue;
                 }
+
                 foreach ($content as $c) {
                     if (($c['type'] ?? null) === 'output_text' && isset($c['text']) && is_string($c['text'])) {
                         return $c['text'];

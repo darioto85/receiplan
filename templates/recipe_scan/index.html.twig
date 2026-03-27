@@ -8,7 +8,7 @@
     <img class="rp-title-thumb" src="{{ asset('img/actions/photo.png') }}" alt="">
     Scanner une recette
   </h1>
-  <div class="rp-scan-sub">Une photo suffit. Kuko s’occupe du reste.</div>
+  <div class="rp-scan-sub">Ajoute une ou plusieurs photos. Kuko s’occupe du reste.</div>
   <div class="rp-scan-note">Rien n’est enregistré sans ton accord.</div>
 
   {# ===== ZONE UPLOAD ===== #}
@@ -34,15 +34,15 @@
           </div>
         </div>
 
-        <div class="rp-scan-drop-title" id="rp-scan-title">Dépose une photo de la recette</div>
-        <div class="rp-scan-drop-sub" id="rp-scan-sub">ou prends-la directement avec ton téléphone</div>
+        <div class="rp-scan-drop-title" id="rp-scan-title">Dépose une ou plusieurs photos de la recette</div>
+        <div class="rp-scan-drop-sub" id="rp-scan-sub">ou prends-les directement avec ton téléphone</div>
 
         <div class="rp-scan-hint" id="rp-scan-hint">
-          Astuce : une photo nette aide Kuko à mieux comprendre, mais fais au mieux 💚
+          Astuce : pour une recette sur plusieurs pages, ajoute toutes les photos dans l’ordre 💚
         </div>
 
         <div class="rp-scan-file" id="rp-scan-file" hidden>
-          <span class="rp-scan-file-badge">✅ Photo prête</span>
+          <span class="rp-scan-file-badge">✅ Photos prêtes</span>
           <span class="rp-scan-file-name" id="rp-scan-file-name"></span>
         </div>
       </label>
@@ -51,9 +51,10 @@
         id="rp-scan-photo"
         class="rp-scan-input"
         type="file"
-        name="photo"
+        name="photos[]"
         accept="image/*"
         capture="environment"
+        multiple
         required
       >
 
@@ -69,10 +70,27 @@
 
       <div class="rp-scan-uploaded">
         <div class="rp-scan-uploaded-meta">
-          <div class="rp-scan-uploaded-title">Dernière photo envoyée</div>
-          <div class="rp-scan-uploaded-file text-truncate">{{ last_upload.originalName }}</div>
+          <div class="rp-scan-uploaded-title">
+            Dernières photos envoyées
+            {% if last_upload.count is defined %}
+              ({{ last_upload.count }})
+            {% endif %}
+          </div>
+
+          {% if last_upload.files is defined and last_upload.files is iterable %}
+            <div class="rp-scan-uploaded-files">
+              {% for file in last_upload.files %}
+                <div class="rp-scan-uploaded-file text-truncate">
+                  {{ loop.index }}. {{ file.originalName }}
+                </div>
+              {% endfor %}
+            </div>
+          {% elseif last_upload.originalName is defined %}
+            <div class="rp-scan-uploaded-file text-truncate">{{ last_upload.originalName }}</div>
+          {% endif %}
+
           <div class="rp-scan-uploaded-info">
-            {{ last_upload.mime }} • {{ last_upload.uploadedAt }}
+            {{ last_upload.uploadedAt }}
           </div>
         </div>
 
@@ -134,7 +152,7 @@
         </h2>
 
         <div class="rp-modal-subtitle">
-          Kuko n’a pas réussi à comprendre la photo.
+          Kuko n’a pas réussi à comprendre les photos.
         </div>
 
         <div class="rp-modal-box">
@@ -187,7 +205,7 @@
         submit.textContent = 'Analyser la recette';
       }
 
-      function setFilled(file) {
+      function setFilled(files) {
         drop.classList.add('is-filled');
 
         img.src = img.dataset.filledSrc || img.src;
@@ -197,7 +215,18 @@
         if (hint) hint.hidden = true;
 
         fileWrap.hidden = false;
-        fileName.textContent = file?.name ? '— ' + file.name : '';
+
+        const names = Array.from(files || []).map(function (file) {
+          return file.name;
+        });
+
+        if (names.length === 1) {
+          fileName.textContent = '— ' + names[0];
+        } else if (names.length > 1) {
+          fileName.textContent = '— ' + names.length + ' photos sélectionnées';
+        } else {
+          fileName.textContent = '';
+        }
 
         submit.disabled = false;
         submit.textContent = 'Analyser la recette';
@@ -206,12 +235,13 @@
       setEmpty();
 
       input.addEventListener('change', function () {
-        const file = input.files && input.files[0] ? input.files[0] : null;
-        if (!file) {
+        const files = input.files ? Array.from(input.files) : [];
+        if (!files.length) {
           setEmpty();
           return;
         }
-        setFilled(file);
+
+        setFilled(files);
       });
 
       form.addEventListener('submit', function () {
