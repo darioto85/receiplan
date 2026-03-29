@@ -8,6 +8,7 @@ final class RecipePhotoExtractionService
 {
     public function __construct(
         private readonly HttpClientInterface $httpClient,
+        private readonly RecipeScanPromptBuilder $promptBuilder,
         private readonly string $openAiApiKey,
         private readonly string $model,
     ) {}
@@ -26,14 +27,14 @@ final class RecipePhotoExtractionService
     }
 
     /**
+     * @param string[] $absoluteImagePaths
+     *
      * Retour attendu:
      * [
      *   'name' => string,
      *   'ingredients' => [ ['name'=>string,'quantity'=>float|null,'unit'=>string|null], ... ],
      *   'steps' => [ ['position'=>int,'text'=>string], ... ],
      * ]
-     *
-     * @param string[] $absoluteImagePaths
      */
     public function extractRecipeFromImages(array $absoluteImagePaths): array
     {
@@ -57,7 +58,7 @@ final class RecipePhotoExtractionService
         $content = [
             [
                 'type' => 'input_text',
-                'text' => $this->buildSchemaHint(count($absoluteImagePaths)),
+                'text' => $this->promptBuilder->buildPrompt(count($absoluteImagePaths)),
             ],
         ];
 
@@ -144,39 +145,6 @@ final class RecipePhotoExtractionService
         ];
     }
 
-    private function buildSchemaHint(int $imageCount): string
-    {
-        $photoInstruction = $imageCount > 1
-            ? "La recette est répartie sur plusieurs photos. Tu dois fusionner toutes les informations visibles sur l'ensemble des photos en une seule recette cohérente."
-            : "La recette est présente sur une seule photo.";
-
-        return <<<TXT
-Tu dois extraire une recette à partir de photo(s) de recette.
-{$photoInstruction}
-
-Retourne UNIQUEMENT un JSON valide suivant ce schéma :
-
-{
-  "name": "string",
-  "ingredients": [
-    { "name": "string", "quantity": number|null, "unit": "string"|null }
-  ],
-  "steps": [
-    { "position": number, "text": "string" }
-  ]
-}
-
-Règles:
-- Pas de Markdown, pas de ```json, pas d'explications : uniquement du JSON.
-- Si plusieurs photos se complètent, fusionne-les sans dupliquer les ingrédients ni les étapes.
-- Si une étape est coupée entre deux photos, reconstitue-la proprement si c'est clairement possible.
-- Si une quantité/unité n'est pas lisible: quantity=null, unit=null.
-- steps.position commence à 1 et incrémente sans trous.
-- Normalise les unités en français si possible (g, kg, ml, l, c.à.s, c.à.c, pièce).
-- N'invente pas d'information absente.
-TXT;
-    }
-
     private function guessMimeFromPath(string $path): ?string
     {
         $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
@@ -191,13 +159,6 @@ TXT;
         };
     }
 
-    /**
-     * Nettoie une sortie type:
-     * ```json
-     * { ... }
-     * ```
-     * ou ``` ... ```
-     */
     private function sanitizeModelJson(string $text): string
     {
         $t = trim($text);
@@ -224,23 +185,28 @@ TXT;
                 continue;
             }
 
-            $name = trim((string) ($row['name'] ?? ''));
+            $rawName = trim((string) ($row['name'] ?? ''));
+            if ($rawName === '') {
+                continue;
+            }
+
+            $quantity = $this->parseQuantityValue($row['quantity'] ?? null);
+
+            [$rawName, $quantityFromName] = $this->extractLeadingFractionFromName($rawName);
+            if ($quantity === null && $quantityFromName !== null) {
+                $quantity = $quantityFromName;
+            }
+
+            $name = $this->cleanupIngredientName($rawName);
             if ($name === '') {
                 continue;
             }
 
-            $quantity = $row['quantity'] ?? null;
-            if ($quantity !== null && $quantity !== '') {
-                $quantity = (float) $quantity;
-            } else {
-                $quantity = null;
-            }
-
             $unit = $row['unit'] ?? null;
             $unit = is_string($unit) ? trim($unit) : null;
-            if ($unit === '') {
-                $unit = null;
-            }
+            $unit = $this->normalizeUnitString($unit);
+
+            [$quantity, $unit] = $this->normalizeIngredientMeasurement($name, $quantity, $unit);
 
             $out[] = [
                 'name' => $name,
@@ -250,6 +216,232 @@ TXT;
         }
 
         return $out;
+    }
+
+    private function parseQuantityValue(mixed $value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (float) $value;
+        }
+
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        $value = str_replace(',', '.', $value);
+
+        if (is_numeric($value)) {
+            return (float) $value;
+        }
+
+        if (preg_match('/^(\d+)\s+(\d+)\/(\d+)$/', $value, $m)) {
+            $whole = (float) $m[1];
+            $num = (float) $m[2];
+            $den = (float) $m[3];
+
+            if ($den > 0) {
+                return $whole + ($num / $den);
+            }
+        }
+
+        if (preg_match('/^(\d+)\/(\d+)$/', $value, $m)) {
+            $num = (float) $m[1];
+            $den = (float) $m[2];
+
+            if ($den > 0) {
+                return $num / $den;
+            }
+        }
+
+        return match ($value) {
+            '½' => 0.5,
+            '¼' => 0.25,
+            '¾' => 0.75,
+            default => null,
+        };
+    }
+
+    private function extractLeadingFractionFromName(string $name): array
+    {
+        $name = trim($name);
+
+        if (preg_match('/^(\d+)\s+(\d+)\/(\d+)\s+(.+)$/u', $name, $m)) {
+            $whole = (float) $m[1];
+            $num = (float) $m[2];
+            $den = (float) $m[3];
+            if ($den > 0) {
+                return [trim($m[4]), $whole + ($num / $den)];
+            }
+        }
+
+        if (preg_match('/^(\d+)\/(\d+)\s+(.+)$/u', $name, $m)) {
+            $num = (float) $m[1];
+            $den = (float) $m[2];
+            if ($den > 0) {
+                return [trim($m[3]), $num / $den];
+            }
+        }
+
+        if (preg_match('/^(½|¼|¾)\s+(.+)$/u', $name, $m)) {
+            $quantity = match ($m[1]) {
+                '½' => 0.5,
+                '¼' => 0.25,
+                '¾' => 0.75,
+                default => null,
+            };
+
+            return [trim($m[2]), $quantity];
+        }
+
+        return [$name, null];
+    }
+
+    private function cleanupIngredientName(string $name): string
+    {
+        $name = trim($name);
+
+        $name = preg_replace('/\s*\([^)]*\)/u', '', $name) ?? $name;
+
+        $name = preg_replace(
+            '/^(?:\d+(?:[.,]\d+)?|\d+\s+\d+\/\d+|\d+\/\d+|½|¼|¾)\s*(kg|g|mg|l|cl|ml|c\.?\s*à\.?\s*s\.?|c\.?\s*à\.?\s*c\.?|cuillère[s]?\s+à\s+soupe|cuillère[s]?\s+à\s+café|pi[eè]ce[s]?|tranche[s]?|pincée[s]?|sachet[s]?|pot[s]?|bo[iî]te[s]?|paquet[s]?)\s*/ui',
+            '',
+            $name
+        ) ?? $name;
+
+        $name = preg_replace('/\s*(?:,?\s+(?:ou|\/)\s+.*)$/ui', '', $name) ?? $name;
+
+        if (preg_match('/^([[:alpha:]\-\s]+?)(?:\s+(vert|verts|verte|vertes|jaune|jaunes|rouge|rouges|orange|oranges))(?:\s*,.*)?$/ui', $name, $m)) {
+            $name = trim($m[1]);
+        }
+
+        $name = preg_replace('/^(de|d’|d\'|du|des|la|le|les)\s+/ui', '', $name) ?? $name;
+        $name = preg_replace('/\s+/u', ' ', $name) ?? $name;
+        $name = trim($name, " \t\n\r\0\x0B,;-");
+
+        return $name;
+    }
+
+    private function normalizeUnitString(?string $unit): ?string
+    {
+        if ($unit === null) {
+            return null;
+        }
+
+        $unit = mb_strtolower(trim($unit));
+        if ($unit === '') {
+            return null;
+        }
+
+        return match ($unit) {
+            'gramme', 'grammes', 'gr', 'g.' => 'g',
+            'kilogramme', 'kilogrammes', 'kg.' => 'kg',
+            'millilitre', 'millilitres', 'ml.' => 'ml',
+            'centilitre', 'centilitres', 'cl.' => 'cl',
+            'litre', 'litres', 'l.' => 'l',
+            'piece', 'pièce', 'pièces', 'unité', 'unites', 'unités' => 'pièce',
+            'c.à.s', 'cas', 'cuillère à soupe', 'cuilleres à soupe', 'cuillères à soupe' => 'c.à.s',
+            'c.à.c', 'cac', 'cuillère à café', 'cuilleres à café', 'cuillères à café' => 'c.à.c',
+            default => $unit,
+        };
+    }
+
+    private function normalizeIngredientMeasurement(string $name, ?float $quantity, ?string $unit): array
+    {
+        $lowerName = mb_strtolower($name);
+
+        if (in_array($lowerName, ['sel', 'poivre'], true)) {
+            if ($quantity === null) {
+                return [0.0, 'g'];
+            }
+
+            if ($unit === null) {
+                return [$quantity, 'g'];
+            }
+
+            if ($unit === 'pièce') {
+                if ($quantity <= 1.0) {
+                    return [0.0, 'g'];
+                }
+
+                return [$quantity, 'g'];
+            }
+        }
+
+        if ($quantity !== null && $unit === 'cl') {
+            return [$quantity * 10, 'ml'];
+        }
+
+        if ($quantity !== null && $unit === 'c.à.s') {
+            return [$quantity * 15, 'g'];
+        }
+
+        if ($quantity !== null && $unit === 'c.à.c') {
+            return [$quantity * 5, 'g'];
+        }
+
+        if ($quantity !== null && $unit === null && $this->isCountableIngredient($lowerName)) {
+            return [$quantity, 'pièce'];
+        }
+
+        return [$quantity, $unit];
+    }
+
+    private function isCountableIngredient(string $lowerName): bool
+    {
+        $patterns = [
+            'filet',
+            'branche',
+            'branches',
+            'brin',
+            'brins',
+            'oignon',
+            'oignons',
+            'tomate',
+            'tomates',
+            'œuf',
+            'œufs',
+            'oeuf',
+            'oeufs',
+            'gousse',
+            'gousses',
+            'citron',
+            'citrons',
+            'courgette',
+            'courgettes',
+            'carotte',
+            'carottes',
+            'pomme de terre',
+            'pommes de terre',
+            'échalote',
+            'échalotes',
+            'echalote',
+            'echalotes',
+            'escalope',
+            'escalopes',
+            'blanc de poulet',
+            'poulet',
+            'poivron',
+            'poivrons',
+            'chou',
+            'chou chinois',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (str_contains($lowerName, $pattern)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function normalizeSteps(array $steps): array
@@ -288,9 +480,6 @@ TXT;
         return $out;
     }
 
-    /**
-     * Extrait le texte final renvoyé par Responses API.
-     */
     private function extractOutputText(array $response): string
     {
         $out = $response['output'] ?? null;
