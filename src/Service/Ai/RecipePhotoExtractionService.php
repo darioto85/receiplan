@@ -8,6 +8,7 @@ final class RecipePhotoExtractionService
 {
     public function __construct(
         private readonly HttpClientInterface $httpClient,
+        private readonly RecipeScanPromptBuilder $promptBuilder,
         private readonly string $openAiApiKey,
         private readonly string $model,
     ) {}
@@ -26,14 +27,14 @@ final class RecipePhotoExtractionService
     }
 
     /**
+     * @param string[] $absoluteImagePaths
+     *
      * Retour attendu:
      * [
      *   'name' => string,
      *   'ingredients' => [ ['name'=>string,'quantity'=>float|null,'unit'=>string|null], ... ],
      *   'steps' => [ ['position'=>int,'text'=>string], ... ],
      * ]
-     *
-     * @param string[] $absoluteImagePaths
      */
     public function extractRecipeFromImages(array $absoluteImagePaths): array
     {
@@ -57,7 +58,7 @@ final class RecipePhotoExtractionService
         $content = [
             [
                 'type' => 'input_text',
-                'text' => $this->buildSchemaHint(count($absoluteImagePaths)),
+                'text' => $this->promptBuilder->buildPrompt(count($absoluteImagePaths)),
             ],
         ];
 
@@ -134,47 +135,11 @@ final class RecipePhotoExtractionService
         $ingredients = is_array($parsed['ingredients'] ?? null) ? $parsed['ingredients'] : [];
         $steps = is_array($parsed['steps'] ?? null) ? $parsed['steps'] : [];
 
-        $ingredients = $this->normalizeIngredients($ingredients);
-        $steps = $this->normalizeSteps($steps);
-
         return [
             'name' => $name,
-            'ingredients' => $ingredients,
-            'steps' => $steps,
+            'ingredients' => $this->normalizeIngredients($ingredients),
+            'steps' => $this->normalizeSteps($steps),
         ];
-    }
-
-    private function buildSchemaHint(int $imageCount): string
-    {
-        $photoInstruction = $imageCount > 1
-            ? "La recette est répartie sur plusieurs photos. Tu dois fusionner toutes les informations visibles sur l'ensemble des photos en une seule recette cohérente."
-            : "La recette est présente sur une seule photo.";
-
-        return <<<TXT
-Tu dois extraire une recette à partir de photo(s) de recette.
-{$photoInstruction}
-
-Retourne UNIQUEMENT un JSON valide suivant ce schéma :
-
-{
-  "name": "string",
-  "ingredients": [
-    { "name": "string", "quantity": number|null, "unit": "string"|null }
-  ],
-  "steps": [
-    { "position": number, "text": "string" }
-  ]
-}
-
-Règles:
-- Pas de Markdown, pas de ```json, pas d'explications : uniquement du JSON.
-- Si plusieurs photos se complètent, fusionne-les sans dupliquer les ingrédients ni les étapes.
-- Si une étape est coupée entre deux photos, reconstitue-la proprement si c'est clairement possible.
-- Si une quantité/unité n'est pas lisible: quantity=null, unit=null.
-- steps.position commence à 1 et incrémente sans trous.
-- Normalise les unités en français si possible (g, kg, ml, l, c.à.s, c.à.c, pièce).
-- N'invente pas d'information absente.
-TXT;
     }
 
     private function guessMimeFromPath(string $path): ?string
@@ -191,13 +156,6 @@ TXT;
         };
     }
 
-    /**
-     * Nettoie une sortie type:
-     * ```json
-     * { ... }
-     * ```
-     * ou ``` ... ```
-     */
     private function sanitizeModelJson(string $text): string
     {
         $t = trim($text);
@@ -224,16 +182,23 @@ TXT;
                 continue;
             }
 
-            $name = trim((string) ($row['name'] ?? ''));
-            if ($name === '') {
+            $rawName = trim((string) ($row['name'] ?? ''));
+            if ($rawName === '') {
                 continue;
             }
 
-            $quantity = $row['quantity'] ?? null;
-            if ($quantity !== null && $quantity !== '') {
-                $quantity = (float) $quantity;
-            } else {
-                $quantity = null;
+            $quantity = $this->parseQuantityValue($row['quantity'] ?? null);
+
+            [$rawName, $quantityFromName] = $this->extractLeadingFractionFromName($rawName);
+            if ($quantity === null && $quantityFromName !== null) {
+                $quantity = $quantityFromName;
+            }
+
+            $name = trim($rawName);
+            $name = preg_replace('/\s+/u', ' ', $name) ?? $name;
+
+            if ($name === '') {
+                continue;
             }
 
             $unit = $row['unit'] ?? null;
@@ -250,6 +215,100 @@ TXT;
         }
 
         return $out;
+    }
+
+    private function parseQuantityValue(mixed $value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (float) $value;
+        }
+
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        $value = str_replace(',', '.', $value);
+
+        if (is_numeric($value)) {
+            return (float) $value;
+        }
+
+        if (preg_match('/^(\d+)\s+(\d+)\/(\d+)$/', $value, $m)) {
+            $whole = (float) $m[1];
+            $num = (float) $m[2];
+            $den = (float) $m[3];
+
+            if ($den > 0) {
+                return $whole + ($num / $den);
+            }
+        }
+
+        if (preg_match('/^(\d+)\/(\d+)$/', $value, $m)) {
+            $num = (float) $m[1];
+            $den = (float) $m[2];
+
+            if ($den > 0) {
+                return $num / $den;
+            }
+        }
+
+        return match ($value) {
+            '½' => 0.5,
+            '¼' => 0.25,
+            '¾' => 0.75,
+            default => null,
+        };
+    }
+
+    /**
+     * Si le modèle laisse une fraction au début du nom, on la sort.
+     *
+     * @return array{0:string,1:?float}
+     */
+    private function extractLeadingFractionFromName(string $name): array
+    {
+        $name = trim($name);
+
+        if (preg_match('/^(\d+)\s+(\d+)\/(\d+)\s+(.+)$/u', $name, $m)) {
+            $whole = (float) $m[1];
+            $num = (float) $m[2];
+            $den = (float) $m[3];
+
+            if ($den > 0) {
+                return [trim($m[4]), $whole + ($num / $den)];
+            }
+        }
+
+        if (preg_match('/^(\d+)\/(\d+)\s+(.+)$/u', $name, $m)) {
+            $num = (float) $m[1];
+            $den = (float) $m[2];
+
+            if ($den > 0) {
+                return [trim($m[3]), $num / $den];
+            }
+        }
+
+        if (preg_match('/^(½|¼|¾)\s+(.+)$/u', $name, $m)) {
+            $quantity = match ($m[1]) {
+                '½' => 0.5,
+                '¼' => 0.25,
+                '¾' => 0.75,
+                default => null,
+            };
+
+            return [trim($m[2]), $quantity];
+        }
+
+        return [$name, null];
     }
 
     private function normalizeSteps(array $steps): array
@@ -288,9 +347,6 @@ TXT;
         return $out;
     }
 
-    /**
-     * Extrait le texte final renvoyé par Responses API.
-     */
     private function extractOutputText(array $response): string
     {
         $out = $response['output'] ?? null;

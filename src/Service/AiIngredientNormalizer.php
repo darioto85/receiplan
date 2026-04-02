@@ -34,12 +34,14 @@ final class AiIngredientNormalizer
     {
         $warnings = [];
 
-        $quantity = $item['quantity'];
-        $quantityRaw = $item['quantity_raw'];
+        $name = $this->normalizeIngredientName((string) ($item['name'] ?? ''));
+
+        $quantity = $item['quantity'] ?? null;
+        $quantityRaw = $item['quantity_raw'] ?? null;
         $unitRaw = $item['unit_raw'] ?? null;
 
         $normalizedUnitInfo = $this->normalizeUnitWithConversion(
-            $item['unit'] ?? null,
+            is_string($item['unit'] ?? null) ? (string) $item['unit'] : null,
             is_numeric($quantity) ? (float) $quantity : null
         );
 
@@ -50,7 +52,6 @@ final class AiIngredientNormalizer
             $warnings[] = 'unit_converted';
         }
 
-        // Si l'unité normalisée est encore nulle, on tente depuis unit_raw
         if ($unit === null && is_string($unitRaw) && trim($unitRaw) !== '') {
             $normalizedFromRaw = $this->normalizeUnitWithConversion(
                 $unitRaw,
@@ -68,7 +69,6 @@ final class AiIngredientNormalizer
             }
         }
 
-        // 1️⃣ Conversion quantity_raw → float
         if ($quantity === null && is_string($quantityRaw)) {
             $parsed = $this->parseQuantityFromRaw($quantityRaw);
             if ($parsed !== null) {
@@ -77,8 +77,6 @@ final class AiIngredientNormalizer
             }
         }
 
-        // Si la quantité vient d'être trouvée après coup, on retente la normalisation
-        // de l'unité brute pour gérer correctement "50 cl" -> 500 ml.
         if ($quantity !== null && $unit === null && is_string($unitRaw) && trim($unitRaw) !== '') {
             $normalizedFromRaw = $this->normalizeUnitWithConversion($unitRaw, (float) $quantity);
 
@@ -93,67 +91,58 @@ final class AiIngredientNormalizer
             }
         }
 
-        // 2️⃣ Unité non supportée
-        if ($unit === null && $unitRaw !== null) {
+        if ($unit === null && is_string($unitRaw) && trim($unitRaw) !== '') {
             $warnings[] = 'unsupported_unit';
         }
 
-        // 3️⃣ Quantité suspecte pour l'unité
         if ($quantity !== null && $unit !== null) {
-            if ($this->isSuspiciousQuantity($quantity, $unit)) {
+            if ($this->isSuspiciousQuantity($quantity, $unit, $name)) {
                 $warnings[] = 'suspicious_quantity_for_unit';
             }
         }
 
-        // 4️⃣ Confidence basse
-        if ($item['confidence'] < self::CONFIDENCE_THRESHOLD) {
+        if (($item['confidence'] ?? 1.0) < self::CONFIDENCE_THRESHOLD) {
             $warnings[] = 'low_confidence';
         }
 
-        // 5️⃣ needs_confirmation
+        $hasExplicitRawUnit = is_string($unitRaw) && trim($unitRaw) !== '';
+
+        if ($unit === null && !$hasExplicitRawUnit) {
+            $unit = 'piece';
+            $warnings[] = 'unit_defaulted_to_piece';
+        }
+
         $needsConfirmation =
             !empty($warnings) ||
             $quantity === null ||
             $unit === null;
 
-        // 6️⃣ fallback unité
-        if ($unit === null) {
-            $unit = 'piece';
-            $warnings[] = 'unit_defaulted_to_piece';
-        }
-
         return [
             'ingredient' => [
-                'name' => $item['name'],
+                'name' => $name,
                 'quantity' => $quantity,
                 'unit' => $unit,
                 'quantity_raw' => $quantityRaw,
                 'unit_raw' => $unitRaw,
-                'notes' => $item['notes'],
+                'notes' => $item['notes'] ?? null,
             ],
             'warnings' => array_values(array_unique($warnings)),
             'needs_confirmation' => $needsConfirmation,
         ];
     }
 
-    /**
-     * Ex: "1,5" -> 1.5 | "2" -> 2.0 | "x4" -> 4.0
-     */
     private function parseQuantityFromRaw(string $raw): ?float
     {
         $raw = trim(mb_strtolower($raw));
 
-        // x4, x 4
         if (preg_match('/^x\s*(\d+(?:[.,]\d+)?)$/u', $raw, $m)) {
             return (float) str_replace(',', '.', $m[1]);
         }
 
-        // 1,5 ou 1.5 ou 2
         if (preg_match('/^\d+(?:[.,]\d+)?$/u', $raw)) {
             return (float) str_replace(',', '.', $raw);
         }
 
-        // "une", "un"
         if (in_array($raw, ['une', 'un'], true)) {
             return 1.0;
         }
@@ -195,7 +184,6 @@ final class AiIngredientNormalizer
         $u = str_replace(['ù', 'û', 'ü'], 'u', $u);
         $u = str_replace('ç', 'c', $u);
 
-        // Conversions vers unités métier finales
         if (in_array($u, ['cl', 'centilitre', 'centilitres'], true)) {
             return [
                 'unit' => 'ml',
@@ -214,25 +202,15 @@ final class AiIngredientNormalizer
 
         $normalizedUnit = match ($u) {
             'g', 'gramme', 'grammes', 'gr' => 'g',
-
             'kg', 'kilo', 'kilos', 'kilogramme', 'kilogrammes' => 'kg',
-
             'ml', 'millilitre', 'millilitres' => 'ml',
-
             'l', 'litre', 'litres' => 'l',
-
             'piece', 'pieces', 'pièce', 'pièces', 'unite', 'unites', 'unité', 'unités' => 'piece',
-
             'pot', 'pots' => 'pot',
-
             'boite', 'boites', 'boîte', 'boîtes' => 'boite',
-
             'sachet', 'sachets' => 'sachet',
-
             'tranche', 'tranches' => 'tranche',
-
             'paquet', 'paquets' => 'paquet',
-
             default => null,
         };
 
@@ -243,8 +221,36 @@ final class AiIngredientNormalizer
         ];
     }
 
-    private function isSuspiciousQuantity(float $quantity, string $unit): bool
+    private function normalizeIngredientName(string $name): string
     {
+        $name = trim($name);
+        $name = preg_replace('/\s+/u', ' ', $name) ?? $name;
+        $name = mb_strtolower($name);
+
+        if ($name === '') {
+            return $name;
+        }
+
+        $name = preg_replace(
+            '/\s+(froid|froide|froids|froides|tempere|tempérée|temperee|tempérées|temperees)$/u',
+            '',
+            $name
+        ) ?? $name;
+
+        $name = preg_replace('/\s+/u', ' ', $name) ?? $name;
+        $name = trim($name);
+
+        return $name;
+    }
+
+    private function isSuspiciousQuantity(float $quantity, string $unit, string $name): bool
+    {
+        $lowerName = mb_strtolower(trim($name));
+
+        if (in_array($lowerName, ['sel', 'poivre'], true) && $unit === 'g' && $quantity === 0.0) {
+            return false;
+        }
+
         return match ($unit) {
             'kg' => $quantity > 20,
             'l' => $quantity > 20,

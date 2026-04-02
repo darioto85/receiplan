@@ -2,17 +2,14 @@
 
 namespace App\Controller;
 
-use App\Entity\Ingredient;
 use App\Entity\Recipe;
-use App\Entity\RecipeIngredient;
 use App\Entity\RecipeStep;
 use App\Entity\User;
-use App\Repository\IngredientRepository;
+use App\Service\Ai\AiRecipeIngredientApplier;
 use App\Service\Ai\RecipePhotoExtractionService;
 use App\Service\Image\RecipeScanImageResizer;
 use App\Service\NameKeyNormalizer;
 use App\Service\Premium\PremiumRouteGuard;
-use App\Service\UnitStringMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Filesystem\Filesystem;
@@ -55,17 +52,16 @@ final class RecipeScanController extends AbstractController
     }
 
     /**
-     * Upload + resize + analyse + persist + redirect preview (1 clic)
+     * Upload + resize + analyse + persist + redirect preview
      */
     #[Route('/upload', name: 'upload', methods: ['POST'])]
     public function upload(
         Request $request,
         RecipeScanImageResizer $resizer,
         RecipePhotoExtractionService $extractor,
-        IngredientRepository $ingredientRepository,
         EntityManagerInterface $em,
         NameKeyNormalizer $nameKeyNormalizer,
-        UnitStringMapper $unitMapper,
+        AiRecipeIngredientApplier $recipeIngredientApplier,
     ): Response {
         /** @var User|null $user */
         $user = $this->getUser();
@@ -124,7 +120,6 @@ final class RecipeScanController extends AbstractController
         foreach ($uploadedFiles as $index => $file) {
             $position = $index + 1;
 
-            // IMPORTANT : récupérer les infos AVANT le move()
             $clientOriginalName = $file->getClientOriginalName();
             $clientMime = $file->getMimeType() ?? '';
 
@@ -188,10 +183,9 @@ final class RecipeScanController extends AbstractController
             $recipe = $this->persistExtractedRecipe(
                 $data,
                 $user,
-                $ingredientRepository,
                 $em,
                 $nameKeyNormalizer,
-                $unitMapper
+                $recipeIngredientApplier
             );
 
             $this->addFlash('success', 'Recette importée en brouillon ✅');
@@ -213,10 +207,9 @@ final class RecipeScanController extends AbstractController
     public function analyze(
         Request $request,
         RecipePhotoExtractionService $extractor,
-        IngredientRepository $ingredientRepository,
         EntityManagerInterface $em,
         NameKeyNormalizer $nameKeyNormalizer,
-        UnitStringMapper $unitMapper,
+        AiRecipeIngredientApplier $recipeIngredientApplier,
     ): Response {
         /** @var User|null $user */
         $user = $this->getUser();
@@ -268,10 +261,9 @@ final class RecipeScanController extends AbstractController
             $recipe = $this->persistExtractedRecipe(
                 $data,
                 $user,
-                $ingredientRepository,
                 $em,
                 $nameKeyNormalizer,
-                $unitMapper
+                $recipeIngredientApplier
             );
 
             $this->addFlash('success', 'Recette importée en brouillon ✅');
@@ -312,18 +304,16 @@ final class RecipeScanController extends AbstractController
     private function persistExtractedRecipe(
         array $data,
         User $user,
-        IngredientRepository $ingredientRepository,
         EntityManagerInterface $em,
         NameKeyNormalizer $nameKeyNormalizer,
-        UnitStringMapper $unitMapper,
+        AiRecipeIngredientApplier $recipeIngredientApplier,
     ): Recipe {
         return $em->wrapInTransaction(function () use (
             $data,
             $user,
             $nameKeyNormalizer,
-            $ingredientRepository,
             $em,
-            $unitMapper
+            $recipeIngredientApplier
         ) {
             $recipe = new Recipe();
             $recipe->setUser($user);
@@ -340,46 +330,7 @@ final class RecipeScanController extends AbstractController
             $em->persist($recipe);
 
             $ingredients = is_array($data['ingredients'] ?? null) ? $data['ingredients'] : [];
-            foreach ($ingredients as $row) {
-                if (!is_array($row)) {
-                    continue;
-                }
-
-                $rawName = trim((string) ($row['name'] ?? ''));
-                if ($rawName === '') {
-                    continue;
-                }
-
-                $ingKey = $nameKeyNormalizer->toKey($rawName);
-
-                $ingredient = $ingredientRepository->findOneBy([
-                    'user' => $user,
-                    'nameKey' => $ingKey,
-                ]);
-
-                if (!$ingredient) {
-                    $ingredient = new Ingredient();
-                    $ingredient->setUser($user);
-                    $ingredient->setName($this->cleanIngredientDisplayName($rawName));
-                    $ingredient->setNameKey($ingKey);
-
-                    $unit = $unitMapper->map(isset($row['unit']) ? (string) $row['unit'] : null);
-                    $ingredient->setUnit($unit);
-
-                    $em->persist($ingredient);
-                }
-
-                $qty = $row['quantity'] ?? null;
-                $qtyFloat = ($qty !== null && $qty !== '') ? (float) $qty : null;
-                $qtyFloat = $qtyFloat ?? 0.0;
-
-                $ri = new RecipeIngredient();
-                $ri->setRecipe($recipe);
-                $ri->setIngredient($ingredient);
-                $ri->setQuantity(number_format($qtyFloat, 2, '.', ''));
-
-                $em->persist($ri);
-            }
+            $recipeIngredientApplier->applyScanRows($user, $recipe, $ingredients);
 
             $steps = is_array($data['steps'] ?? null) ? $data['steps'] : [];
             $pos = 1;
@@ -466,13 +417,5 @@ final class RecipeScanController extends AbstractController
         }
 
         return $message;
-    }
-
-    private function cleanIngredientDisplayName(string $name): string
-    {
-        $name = trim($name);
-        $name = preg_replace('/\s+/u', ' ', $name) ?? $name;
-
-        return mb_strtolower($name);
     }
 }

@@ -6,6 +6,7 @@ use App\Entity\AssistantConversation;
 use App\Entity\Ingredient;
 use App\Entity\Recipe;
 use App\Entity\User;
+use App\Form\Backoffice\IngredientBackofficeType;
 use App\Repository\AssistantConversationRepository;
 use App\Repository\AssistantMessageRepository;
 use App\Repository\IngredientRepository;
@@ -17,6 +18,7 @@ use App\Service\IngredientImageResolver;
 use App\Service\RecipeImageResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -446,6 +448,105 @@ final class BackofficeController extends AbstractController
             'total' => $total,
             'total_pages' => $totalPages,
             'ingredients' => $ingredients,
+        ]);
+    }
+
+    #[Route('/ingredients/new', name: 'ingredients_new', methods: ['GET', 'POST'])]
+    public function ingredientNew(
+        Request $request,
+        IngredientRepository $ingredientRepository,
+    ): Response {
+        $this->denyUnlessAdmin();
+
+        $ingredient = new Ingredient();
+        $form = $this->createForm(IngredientBackofficeType::class, $ingredient);
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted()) {
+            $nameKey = trim((string) $ingredient->getNameKey());
+            $nameKey = $nameKey !== ''
+                ? Ingredient::normalizeName($nameKey)
+                : Ingredient::normalizeName((string) $ingredient->getName());
+
+            $ingredient->setNameKey($nameKey);
+
+            $existingIngredient = $ingredientRepository->findOneBy([
+                'user' => $ingredient->getUser(),
+                'nameKey' => $nameKey,
+            ]);
+
+            if ($existingIngredient !== null) {
+                $form->get('name')->addError(new FormError('Un ingrédient avec ce nom existe déjà pour cette portée.'));
+            }
+
+            if ($form->isValid()) {
+                $this->entityManager->persist($ingredient);
+                $this->entityManager->flush();
+
+                $this->addFlash('success', sprintf(
+                    'L’ingrédient "%s" a été créé.',
+                    $ingredient->getName() ?? 'Nouvel ingrédient'
+                ));
+
+                return $this->redirectToRoute('backoffice_ingredients');
+            }
+        }
+
+        return $this->render('backoffice/ingredients/form.html.twig', [
+            'page_title' => 'Ajouter un ingrédient',
+            'current_menu' => 'ingredients',
+            'form' => $form->createView(),
+            'ingredient' => $ingredient,
+            'is_edit' => false,
+        ]);
+    }
+
+    #[Route('/ingredients/{id}/edit', name: 'ingredients_edit', methods: ['GET', 'POST'])]
+    public function ingredientEdit(
+        Request $request,
+        Ingredient $ingredient,
+        IngredientRepository $ingredientRepository,
+    ): Response {
+        $this->denyUnlessAdmin();
+
+        $form = $this->createForm(IngredientBackofficeType::class, $ingredient);
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted()) {
+            $nameKey = trim((string) $ingredient->getNameKey());
+            $nameKey = $nameKey !== ''
+                ? Ingredient::normalizeName($nameKey)
+                : Ingredient::normalizeName((string) $ingredient->getName());
+
+            $ingredient->setNameKey($nameKey);
+
+            $existingIngredient = $ingredientRepository->findOneBy([
+                'user' => $ingredient->getUser(),
+                'nameKey' => $nameKey,
+            ]);
+
+            if ($existingIngredient !== null && $existingIngredient->getId() !== $ingredient->getId()) {
+                $form->get('name')->addError(new FormError('Un ingrédient avec ce nom existe déjà pour cette portée.'));
+            }
+
+            if ($form->isValid()) {
+                $this->entityManager->flush();
+
+                $this->addFlash('success', sprintf(
+                    'L’ingrédient "%s" a été modifié.',
+                    $ingredient->getName() ?? 'cet ingrédient'
+                ));
+
+                return $this->redirectToRoute('backoffice_ingredients');
+            }
+        }
+
+        return $this->render('backoffice/ingredients/form.html.twig', [
+            'page_title' => 'Modifier un ingrédient',
+            'current_menu' => 'ingredients',
+            'form' => $form->createView(),
+            'ingredient' => $ingredient,
+            'is_edit' => true,
         ]);
     }
 

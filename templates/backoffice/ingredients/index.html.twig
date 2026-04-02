@@ -32,6 +32,12 @@
                 • page {{ page }}/{{ total_pages }}
             {% endif %}
         </div>
+
+        <div>
+            <a href="{{ path('backoffice_ingredients_new') }}" class="btn btn-success">
+                Ajouter un ingrédient
+            </a>
+        </div>
     </div>
 
     <div class="bo-table-card">
@@ -108,22 +114,31 @@
                             </td>
 
                             <td>
-                                <form
-                                    method="post"
-                                    action="{{ path('backoffice_ingredients_regenerate_image', {id: ingredient.id, q: q, page: page}) }}"
-                                    class="d-inline"
-                                    onsubmit="return confirm('Demander une nouvelle génération d’image pour cet ingrédient ?');"
-                                >
-                                    <input
-                                        type="hidden"
-                                        name="_token"
-                                        value="{{ csrf_token('regenerate_ingredient_image_' ~ ingredient.id) }}"
+                                <div class="d-flex flex-wrap gap-2">
+                                    <a
+                                        href="{{ path('backoffice_ingredients_edit', {id: ingredient.id}) }}"
+                                        class="btn btn-sm btn-outline-secondary"
                                     >
+                                        Modifier
+                                    </a>
 
-                                    <button type="submit" class="btn btn-sm btn-outline-primary">
-                                        Régénérer l’image
-                                    </button>
-                                </form>
+                                    <form
+                                        method="post"
+                                        action="{{ path('backoffice_ingredients_regenerate_image', {id: ingredient.id, q: q, page: page}) }}"
+                                        class="d-inline"
+                                        onsubmit="return confirm('Demander une nouvelle génération d’image pour cet ingrédient ?');"
+                                    >
+                                        <input
+                                            type="hidden"
+                                            name="_token"
+                                            value="{{ csrf_token('regenerate_ingredient_image_' ~ ingredient.id) }}"
+                                        >
+
+                                        <button type="submit" class="btn btn-sm btn-outline-primary">
+                                            Régénérer l’image
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                     {% endfor %}
