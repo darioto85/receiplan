@@ -4,7 +4,6 @@
 {% block title %}Récapitulatif{% endblock %}
 
 {% block body %}
-  {# ✅ image recette (helper existant) avec fallback placeholder #}
   {% set recipeImg = recipe_image(recipe) %}
   {% if not recipeImg %}
     {% set recipeImg = asset('img/recipe/placeholder.png') %}
@@ -13,9 +12,6 @@
   <div class="card shadow-sm">
     <div class="card-body">
 
-      {# =========================
-         HEADER : image recette + titre "Récapitulatif" + bouton retour (seul bouton retour)
-         ========================= #}
       <div class="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
         <div class="d-flex align-items-center gap-3" style="min-width:0;">
           <img
@@ -35,7 +31,6 @@
         </a>
       </div>
 
-      {# ===== Nom de la recette ===== #}
       <div class="mb-4">
         <div class="text-muted small mb-1">Nom</div>
         <div class="h4 mb-0">{{ recipe.name }}</div>
@@ -43,7 +38,6 @@
 
       <hr class="my-4">
 
-      {# ===== Ingrédients ===== #}
       <div class="mb-3 d-flex align-items-center justify-content-between gap-2 flex-wrap">
         <h2 class="h5 mb-0">🧂 Ingrédients</h2>
       </div>
@@ -56,7 +50,7 @@
         <div class="list-group mb-4">
           {% for ri in items %}
             {% set ing = ri.ingredient %}
-            {% set unit = (ing and ing.unit) ? ing.unit.value : '' %}
+            {% set unit = ri.unitLabel %}
             <div class="list-group-item d-flex align-items-center justify-content-between gap-3">
               <div class="d-flex align-items-center gap-2" style="min-width:0;">
                 <img
@@ -86,7 +80,6 @@
 
       <hr class="my-4">
 
-      {# ===== Étapes ===== #}
       <div class="mb-3 d-flex align-items-center justify-content-between gap-2 flex-wrap">
         <h2 class="h5 mb-0">📝 Étapes</h2>
       </div>
@@ -108,7 +101,6 @@
         </div>
       {% endif %}
 
-      {# ===== CTA ===== #}
       {% if recipe.draft %}
         <form method="post" action="{{ path('recipe_wizard_publish', { id: recipe.id }) }}" class="d-flex justify-content-end">
           <input type="hidden" name="_token" value="{{ csrf_token('recipe_publish_' ~ recipe.id) }}">

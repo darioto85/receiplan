@@ -36,12 +36,12 @@ final class AiIngredientNormalizer
 
         $name = $this->normalizeIngredientName((string) ($item['name'] ?? ''));
 
-        $quantity = $item['quantity'];
-        $quantityRaw = $item['quantity_raw'];
+        $quantity = $item['quantity'] ?? null;
+        $quantityRaw = $item['quantity_raw'] ?? null;
         $unitRaw = $item['unit_raw'] ?? null;
 
         $normalizedUnitInfo = $this->normalizeUnitWithConversion(
-            $item['unit'] ?? null,
+            is_string($item['unit'] ?? null) ? (string) $item['unit'] : null,
             is_numeric($quantity) ? (float) $quantity : null
         );
 
@@ -91,12 +91,12 @@ final class AiIngredientNormalizer
             }
         }
 
-        if ($unit === null && $unitRaw !== null) {
+        if ($unit === null && is_string($unitRaw) && trim($unitRaw) !== '') {
             $warnings[] = 'unsupported_unit';
         }
 
         if ($quantity !== null && $unit !== null) {
-            if ($this->isSuspiciousQuantity($quantity, $unit)) {
+            if ($this->isSuspiciousQuantity($quantity, $unit, $name)) {
                 $warnings[] = 'suspicious_quantity_for_unit';
             }
         }
@@ -105,15 +105,17 @@ final class AiIngredientNormalizer
             $warnings[] = 'low_confidence';
         }
 
+        $hasExplicitRawUnit = is_string($unitRaw) && trim($unitRaw) !== '';
+
+        if ($unit === null && !$hasExplicitRawUnit) {
+            $unit = 'piece';
+            $warnings[] = 'unit_defaulted_to_piece';
+        }
+
         $needsConfirmation =
             !empty($warnings) ||
             $quantity === null ||
             $unit === null;
-
-        if ($unit === null) {
-            $unit = 'piece';
-            $warnings[] = 'unit_defaulted_to_piece';
-        }
 
         return [
             'ingredient' => [
@@ -122,7 +124,7 @@ final class AiIngredientNormalizer
                 'unit' => $unit,
                 'quantity_raw' => $quantityRaw,
                 'unit_raw' => $unitRaw,
-                'notes' => $item['notes'],
+                'notes' => $item['notes'] ?? null,
             ],
             'warnings' => array_values(array_unique($warnings)),
             'needs_confirmation' => $needsConfirmation,
@@ -241,8 +243,14 @@ final class AiIngredientNormalizer
         return $name;
     }
 
-    private function isSuspiciousQuantity(float $quantity, string $unit): bool
+    private function isSuspiciousQuantity(float $quantity, string $unit, string $name): bool
     {
+        $lowerName = mb_strtolower(trim($name));
+
+        if (in_array($lowerName, ['sel', 'poivre'], true) && $unit === 'g' && $quantity === 0.0) {
+            return false;
+        }
+
         return match ($unit) {
             'kg' => $quantity > 20,
             'l' => $quantity > 20,

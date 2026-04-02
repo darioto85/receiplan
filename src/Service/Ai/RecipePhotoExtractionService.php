@@ -135,13 +135,10 @@ final class RecipePhotoExtractionService
         $ingredients = is_array($parsed['ingredients'] ?? null) ? $parsed['ingredients'] : [];
         $steps = is_array($parsed['steps'] ?? null) ? $parsed['steps'] : [];
 
-        $ingredients = $this->normalizeIngredients($ingredients);
-        $steps = $this->normalizeSteps($steps);
-
         return [
             'name' => $name,
-            'ingredients' => $ingredients,
-            'steps' => $steps,
+            'ingredients' => $this->normalizeIngredients($ingredients),
+            'steps' => $this->normalizeSteps($steps),
         ];
     }
 
@@ -197,16 +194,18 @@ final class RecipePhotoExtractionService
                 $quantity = $quantityFromName;
             }
 
-            $name = $this->cleanupIngredientName($rawName);
+            $name = trim($rawName);
+            $name = preg_replace('/\s+/u', ' ', $name) ?? $name;
+
             if ($name === '') {
                 continue;
             }
 
             $unit = $row['unit'] ?? null;
             $unit = is_string($unit) ? trim($unit) : null;
-            $unit = $this->normalizeUnitString($unit);
-
-            [$quantity, $unit] = $this->normalizeIngredientMeasurement($name, $quantity, $unit);
+            if ($unit === '') {
+                $unit = null;
+            }
 
             $out[] = [
                 'name' => $name,
@@ -270,6 +269,11 @@ final class RecipePhotoExtractionService
         };
     }
 
+    /**
+     * Si le modèle laisse une fraction au début du nom, on la sort.
+     *
+     * @return array{0:string,1:?float}
+     */
     private function extractLeadingFractionFromName(string $name): array
     {
         $name = trim($name);
@@ -278,6 +282,7 @@ final class RecipePhotoExtractionService
             $whole = (float) $m[1];
             $num = (float) $m[2];
             $den = (float) $m[3];
+
             if ($den > 0) {
                 return [trim($m[4]), $whole + ($num / $den)];
             }
@@ -286,6 +291,7 @@ final class RecipePhotoExtractionService
         if (preg_match('/^(\d+)\/(\d+)\s+(.+)$/u', $name, $m)) {
             $num = (float) $m[1];
             $den = (float) $m[2];
+
             if ($den > 0) {
                 return [trim($m[3]), $num / $den];
             }
@@ -303,145 +309,6 @@ final class RecipePhotoExtractionService
         }
 
         return [$name, null];
-    }
-
-    private function cleanupIngredientName(string $name): string
-    {
-        $name = trim($name);
-
-        $name = preg_replace('/\s*\([^)]*\)/u', '', $name) ?? $name;
-
-        $name = preg_replace(
-            '/^(?:\d+(?:[.,]\d+)?|\d+\s+\d+\/\d+|\d+\/\d+|½|¼|¾)\s*(kg|g|mg|l|cl|ml|c\.?\s*à\.?\s*s\.?|c\.?\s*à\.?\s*c\.?|cuillère[s]?\s+à\s+soupe|cuillère[s]?\s+à\s+café|pi[eè]ce[s]?|tranche[s]?|pincée[s]?|sachet[s]?|pot[s]?|bo[iî]te[s]?|paquet[s]?)\s*/ui',
-            '',
-            $name
-        ) ?? $name;
-
-        $name = preg_replace('/\s*(?:,?\s+(?:ou|\/)\s+.*)$/ui', '', $name) ?? $name;
-
-        if (preg_match('/^([[:alpha:]\-\s]+?)(?:\s+(vert|verts|verte|vertes|jaune|jaunes|rouge|rouges|orange|oranges))(?:\s*,.*)?$/ui', $name, $m)) {
-            $name = trim($m[1]);
-        }
-
-        $name = preg_replace('/^(de|d’|d\'|du|des|la|le|les)\s+/ui', '', $name) ?? $name;
-        $name = preg_replace('/\s+/u', ' ', $name) ?? $name;
-        $name = trim($name, " \t\n\r\0\x0B,;-");
-
-        return $name;
-    }
-
-    private function normalizeUnitString(?string $unit): ?string
-    {
-        if ($unit === null) {
-            return null;
-        }
-
-        $unit = mb_strtolower(trim($unit));
-        if ($unit === '') {
-            return null;
-        }
-
-        return match ($unit) {
-            'gramme', 'grammes', 'gr', 'g.' => 'g',
-            'kilogramme', 'kilogrammes', 'kg.' => 'kg',
-            'millilitre', 'millilitres', 'ml.' => 'ml',
-            'centilitre', 'centilitres', 'cl.' => 'cl',
-            'litre', 'litres', 'l.' => 'l',
-            'piece', 'pièce', 'pièces', 'unité', 'unites', 'unités' => 'pièce',
-            'c.à.s', 'cas', 'cuillère à soupe', 'cuilleres à soupe', 'cuillères à soupe' => 'c.à.s',
-            'c.à.c', 'cac', 'cuillère à café', 'cuilleres à café', 'cuillères à café' => 'c.à.c',
-            default => $unit,
-        };
-    }
-
-    private function normalizeIngredientMeasurement(string $name, ?float $quantity, ?string $unit): array
-    {
-        $lowerName = mb_strtolower($name);
-
-        if (in_array($lowerName, ['sel', 'poivre'], true)) {
-            if ($quantity === null) {
-                return [0.0, 'g'];
-            }
-
-            if ($unit === null) {
-                return [$quantity, 'g'];
-            }
-
-            if ($unit === 'pièce') {
-                if ($quantity <= 1.0) {
-                    return [0.0, 'g'];
-                }
-
-                return [$quantity, 'g'];
-            }
-        }
-
-        if ($quantity !== null && $unit === 'cl') {
-            return [$quantity * 10, 'ml'];
-        }
-
-        if ($quantity !== null && $unit === 'c.à.s') {
-            return [$quantity * 15, 'g'];
-        }
-
-        if ($quantity !== null && $unit === 'c.à.c') {
-            return [$quantity * 5, 'g'];
-        }
-
-        if ($quantity !== null && $unit === null && $this->isCountableIngredient($lowerName)) {
-            return [$quantity, 'pièce'];
-        }
-
-        return [$quantity, $unit];
-    }
-
-    private function isCountableIngredient(string $lowerName): bool
-    {
-        $patterns = [
-            'filet',
-            'branche',
-            'branches',
-            'brin',
-            'brins',
-            'oignon',
-            'oignons',
-            'tomate',
-            'tomates',
-            'œuf',
-            'œufs',
-            'oeuf',
-            'oeufs',
-            'gousse',
-            'gousses',
-            'citron',
-            'citrons',
-            'courgette',
-            'courgettes',
-            'carotte',
-            'carottes',
-            'pomme de terre',
-            'pommes de terre',
-            'échalote',
-            'échalotes',
-            'echalote',
-            'echalotes',
-            'escalope',
-            'escalopes',
-            'blanc de poulet',
-            'poulet',
-            'poivron',
-            'poivrons',
-            'chou',
-            'chou chinois',
-        ];
-
-        foreach ($patterns as $pattern) {
-            if (str_contains($lowerName, $pattern)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private function normalizeSteps(array $steps): array

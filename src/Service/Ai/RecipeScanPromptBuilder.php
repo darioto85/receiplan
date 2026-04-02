@@ -82,6 +82,10 @@ Exemples interdits pour name :
 - "poivrons verts, jaunes ou rouges"
 - "ch"
 - "gousse d'ail"
+- "tranche de jambon"
+- "tranches de jambon"
+- "tranche d’édam"
+- "tranches d’édam"
 
 Exemples attendus :
 - "farine"
@@ -90,6 +94,8 @@ Exemples attendus :
 - "poivron"
 - "chou chinois"
 - "ail"
+- "jambon"
+- "édam"
 
 RÈGLES SUR LES CONDITIONNEMENTS
 Si un ingrédient contient un conditionnement lisible, ne le garde pas dans le nom.
@@ -114,6 +120,38 @@ Ne laisse jamais :
 - "pot de yaourt"
 - "sachet de levure"
 dans le champ "name".
+
+RÈGLE SPÉCIALE TRANCHES
+
+Quand une recette mentionne :
+- tranche de jambon
+- tranches de jambon
+- tranche d’édam
+- tranches d’édam
+- tranche de fromage
+- tranche de charcuterie
+
+tu dois comprendre que :
+- "tranche" est l’unité
+- le nom de l’ingrédient ne doit jamais contenir "tranche" ou "tranches"
+- le nom doit rester uniquement l’aliment
+
+Exemples obligatoires :
+- "3 tranches de jambon" → name="jambon", quantity=3, unit="tranche"
+- "2 tranches d’édam" → name="édam", quantity=2, unit="tranche"
+- "1 tranche de fromage" → name="fromage", quantity=1, unit="tranche"
+
+Exemples interdits :
+- name="tranche de jambon"
+- name="tranches de jambon"
+- name="tranche d’édam"
+- name="tranches d’édam"
+
+IMPORTANT :
+- "tranche" ou "tranches" peuvent être une unité
+- mais ne doivent jamais rester dans le champ "name"
+- le champ "name" doit contenir uniquement l’ingrédient réel
+
 
 RÈGLE SPÉCIALE GOUSSES
 Quand une recette mentionne :
@@ -257,26 +295,24 @@ Exemple :
 - "Crème de noix de coco 20 cl" → quantity=200, unit="ml"
 
 RÈGLE SPÉCIALE CUILLÈRES
-Si une recette mentionne :
-- cuillère à soupe
-- cuillère à café
+Si une recette utilise des unités culinaires non supportées par Kuko
+(comme cuillère à soupe ou cuillère à café), convertis-les automatiquement en ml.
 
-alors convertis en grammes :
-- 1 cuillère à soupe = 15 g
-- 1 cuillère à café = 5 g
+Équivalences à utiliser :
+- 1 cuillère à soupe = 15 ml
+- 1 cuillère à café = 5 ml
 
-Exemples :
-- "2 cuillères à soupe de sucre" → quantity=30, unit="g"
-- "1 cuillère à café de cacao" → quantity=5, unit="g"
+Exemples obligatoires :
+- "2 cuillères à soupe d'huile" → name="huile", quantity=30, unit="ml"
+- "1 cuillère à café de sucre" → name="sucre", quantity=5, unit="ml"
+- "1 c.à.s de vinaigre" → name="vinaigre", quantity=15, unit="ml"
+- "2 c.à.c de vanille" → name="vanille", quantity=10, unit="ml"
 
-Ne retourne jamais comme unité :
-- cuillère
-- cuillère à soupe
-- cuillère à café
-- c.à.s
-- c.à.c
-
-Convertis directement.
+IMPORTANT :
+- ne retourne jamais "cuillère", "cuillère à soupe" ou "cuillère à café" dans unit
+- ne retourne jamais "c.à.s" ou "c.à.c" dans unit
+- utilise uniquement une unité autorisée
+- pour les cuillères, retourne directement une quantité convertie en ml
 
 RÈGLE SPÉCIALE SEL ET POIVRE
 Si l'ingrédient est simplement :
