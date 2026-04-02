@@ -1,0 +1,82 @@
+{% extends 'backoffice/base_backoffice.html.twig' %}
+
+{% block backoffice_content %}
+
+<div class="container-fluid">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h4 mb-1">
+                {{ is_edit ? 'Modifier un ingrédient' : 'Ajouter un ingrédient' }}
+            </h1>
+            <div class="text-muted small">
+                {% if is_edit %}
+                    Ingrédient #{{ ingredient.id }}
+                {% else %}
+                    Nouvel ingrédient
+                {% endif %}
+            </div>
+        </div>
+
+        <a href="{{ path('backoffice_ingredients') }}" class="btn btn-outline-secondary">
+            Retour
+        </a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-light">
+            <strong>Informations</strong>
+        </div>
+
+        <div class="card-body p-4">
+
+            {{ form_start(form) }}
+
+            <div class="mb-4">
+                {{ form_label(form.name, null, {'label_attr': {'class': 'form-label mb-2'}}) }}
+                {{ form_widget(form.name, {'attr': {'class': 'form-control'}}) }}
+                {{ form_errors(form.name) }}
+            </div>
+
+            <div class="mb-4">
+                {{ form_label(form.nameKey, null, {'label_attr': {'class': 'form-label mb-2'}}) }}
+                {{ form_widget(form.nameKey, {'attr': {'class': 'form-control'}}) }}
+                {{ form_errors(form.nameKey) }}
+            </div>
+
+            <div class="mb-4">
+                {{ form_label(form.user, null, {'label_attr': {'class': 'form-label mb-2'}}) }}
+                {{ form_widget(form.user, {'attr': {'class': 'form-select'}}) }}
+                {{ form_errors(form.user) }}
+            </div>
+
+            <div class="mb-4">
+                {{ form_label(form.category, null, {'label_attr': {'class': 'form-label mb-2'}}) }}
+                {{ form_widget(form.category, {'attr': {'class': 'form-select'}}) }}
+                {{ form_errors(form.category) }}
+            </div>
+
+            <div class="mb-4">
+                {{ form_label(form.unit, null, {'label_attr': {'class': 'form-label mb-2'}}) }}
+                {{ form_widget(form.unit, {'attr': {'class': 'form-select'}}) }}
+                {{ form_errors(form.unit) }}
+            </div>
+
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-success">
+                    {{ is_edit ? 'Enregistrer' : 'Créer' }}
+                </button>
+
+                <a href="{{ path('backoffice_ingredients') }}" class="btn btn-outline-secondary">
+                    Annuler
+                </a>
+            </div>
+
+            {{ form_end(form) }}
+
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}
