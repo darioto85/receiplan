@@ -41,7 +41,7 @@ final class RecipeFeasibilityService
     {
         $views = $this->buildRecipeViews($user);
 
-        return array_values(array_filter($views, static fn(array $v) => $v['is_feasible'] === true));
+        return array_values(array_filter($views, static fn (array $v) => $v['is_feasible'] === true));
     }
 
     /**
@@ -67,13 +67,10 @@ final class RecipeFeasibilityService
     {
         $views = $this->buildRecipeViews($user);
 
-        return array_values(array_filter($views, static fn(array $v) => $v['is_feasible'] === false));
+        return array_values(array_filter($views, static fn (array $v) => $v['is_feasible'] === false));
     }
 
     /**
-     * ✅ recettes planifiées (sur une période) qui sont insuffisantes.
-     * Par défaut on ne prend que le planning non validé.
-     *
      * @return array<int, array{
      *   recipe: Recipe,
      *   items: array<int, array{
@@ -103,7 +100,7 @@ final class RecipeFeasibilityService
         if ($onlyUnvalidated) {
             $plans = array_values(array_filter(
                 $plans,
-                static fn(MealPlan $mp) => $mp->isValidated() === false
+                static fn (MealPlan $mp) => $mp->isValidated() === false
             ));
         }
 
@@ -113,6 +110,10 @@ final class RecipeFeasibilityService
         foreach ($plans as $mp) {
             $recipe = $mp->getRecipe();
             if (!$recipe instanceof Recipe) {
+                continue;
+            }
+
+            if ($recipe->isDraft()) {
                 continue;
             }
 
@@ -136,22 +137,22 @@ final class RecipeFeasibilityService
             ->leftJoin('ri.ingredient', 'i')
             ->andWhere('r.user = :user')
             ->andWhere('r.id IN (:ids)')
+            ->andWhere('r.draft = :draft')
             ->setParameter('user', $user)
             ->setParameter('ids', $recipeIds)
+            ->setParameter('draft', false)
             ->orderBy('r.name', 'ASC')
             ->getQuery()
             ->getResult();
 
         $views = $this->buildViewsForRecipes($user, $recipes);
 
-        return array_values(array_filter($views, static fn(array $v) => $v['is_feasible'] === false));
+        return array_values(array_filter($views, static fn (array $v) => $v['is_feasible'] === false));
     }
 
     /**
-     * Map recipeId => isFeasible (stock instantané), pour un sous-ensemble de recettes déjà chargées.
-     *
      * @param Recipe[] $recipes
-     * @return array<int, bool> recipeId => isFeasible
+     * @return array<int, bool>
      */
     public function getFeasibilityMapForRecipes(User $user, array $recipes): array
     {
@@ -160,6 +161,10 @@ final class RecipeFeasibilityService
         $map = [];
         foreach ($recipes as $recipe) {
             if (!$recipe instanceof Recipe) {
+                continue;
+            }
+
+            if ($recipe->isDraft()) {
                 continue;
             }
 
@@ -207,19 +212,18 @@ final class RecipeFeasibilityService
         return $map;
     }
 
-    /**
-     * Helper pratique pour les cas AJAX “une seule recette”.
-     */
     public function isRecipeFeasible(User $user, Recipe $recipe): bool
     {
+        if ($recipe->isDraft()) {
+            return false;
+        }
+
         $map = $this->getFeasibilityMapForRecipes($user, [$recipe]);
 
         return $map[$recipe->getId()] ?? true;
     }
 
     /**
-     * Calcule une vue enrichie par recette (besoin vs stock) pour toutes les recettes user.
-     *
      * @return array<int, array{
      *   recipe: Recipe,
      *   items: array<int, array{
@@ -247,7 +251,9 @@ final class RecipeFeasibilityService
             ->leftJoin('r.recipeIngredients', 'ri')
             ->leftJoin('ri.ingredient', 'i')
             ->andWhere('r.user = :user')
+            ->andWhere('r.draft = :draft')
             ->setParameter('user', $user)
+            ->setParameter('draft', false)
             ->orderBy('r.name', 'ASC')
             ->getQuery()
             ->getResult();
@@ -256,8 +262,6 @@ final class RecipeFeasibilityService
     }
 
     /**
-     * Construit les views pour une liste de recettes déjà chargées (avec ingredients).
-     *
      * @param Recipe[] $recipes
      * @return array<int, array{
      *   recipe: Recipe,
@@ -284,6 +288,10 @@ final class RecipeFeasibilityService
         $views = [];
 
         foreach ($recipes as $recipe) {
+            if ($recipe->isDraft()) {
+                continue;
+            }
+
             $items = [];
             $missingCount = 0;
             $optionalMissingCount = 0;
@@ -347,7 +355,7 @@ final class RecipeFeasibilityService
     }
 
     /**
-     * @return array<int, array{qty: float, unit: Unit}> ingredientId => ['qty' => ..., 'unit' => ...]
+     * @return array<int, array{qty: float, unit: Unit}>
      */
     private function buildStockMap(User $user): array
     {
@@ -424,11 +432,6 @@ final class RecipeFeasibilityService
     }
 
     /**
-     * factor = multiplicateur vers l'unité canonique de la famille
-     * - poids    : base = g
-     * - volume   : base = ml
-     * - unités   : base = unité elle-même
-     *
      * @return array{family: string, factor: float}|null
      */
     private function getUnitMeta(Unit $unit): ?array
