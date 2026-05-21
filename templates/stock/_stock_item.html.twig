@@ -1,11 +1,7 @@
-{# templates/stock/_stock_item.html.twig #}
-
 {% set ing = ui.ingredient ?? null %}
 {% set ingName = ing ? ing.name : 'Ingrédient supprimé' %}
-
-{# Si tu as un placeholder local #}
+{% set ingCategory = ing and ing.category ? ing.category.value : '' %}
 {% set ingImg = ing ? ingredient_image(ing) : asset('img/ingredient/placeholder.png') %}
-
 {% set unitValue = ui.unitValue|default('') %}
 {% set unitLabel = ui.unitLabel|default(unitValue) %}
 {% set updateUrl = path('stock_update_quantity', { id: ui.id }) %}
@@ -17,6 +13,7 @@
     class="swipe-item {% if first|default(false) %}swipe-hint{% endif %}"
     data-stock-item-id="{{ ui.id }}"
     data-stock-item-name="{{ ingName }}"
+    data-stock-category="{{ ingCategory }}"
     data-controller="swipe-reveal"
     data-swipe-reveal-open-class-value="is-revealed"
   >
@@ -36,8 +33,6 @@
 
     <div class="swipe-content">
       <div class="d-flex align-items-center justify-content-between gap-2">
-
-        {# ===== LEFT: image + name ===== #}
         <div class="d-flex align-items-center gap-2 flex-grow-1" style="min-width:0;">
           <img
             src="{{ ingImg }}"
@@ -56,7 +51,6 @@
           </div>
         </div>
 
-        {# ===== RIGHT: quantity + unit (unité du stock user) ===== #}
         <div class="flex-shrink-0" style="width: 110px;">
           <button
             type="button"
@@ -80,14 +74,17 @@
             </div>
           </button>
         </div>
-
       </div>
     </div>
   </div>
 
 {% else %}
 
-  <tr data-stock-item-id="{{ ui.id }}" data-stock-item-name="{{ ingName }}">
+  <tr
+    data-stock-item-id="{{ ui.id }}"
+    data-stock-item-name="{{ ingName }}"
+    data-stock-category="{{ ingCategory }}"
+  >
     <td>
       <div class="d-flex align-items-center gap-2">
         <img
@@ -105,7 +102,6 @@
       </div>
     </td>
 
-    {# Desktop: inline edit invisible #}
     <td class="text-end">
       <span
         class="rp-qty"

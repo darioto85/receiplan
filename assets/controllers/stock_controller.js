@@ -2,21 +2,16 @@ import { Controller } from '@hotwired/stimulus';
 
 export default class extends Controller {
   static targets = [
-    // listing
     'mobileList',
     'desktopTable',
     'desktopTbody',
     'empty',
     'count',
     'formErrors',
-
-    // delete modal
     'deleteModal',
     'deleteName',
     'deleteError',
     'confirmDeleteBtn',
-
-    // qty modal (mobile)
     'qtyModal',
     'qtyName',
     'qtyModalInput',
@@ -28,14 +23,12 @@ export default class extends Controller {
   connect() {
     this.pendingDeleteForm = null;
     this.bsDeleteModal = null;
-
-    this.pendingQty = null; // {id, url, token}
+    this.pendingQty = null;
     this.bsQtyModal = null;
-
     this.activeQtyEl = null;
     this.activePrevValue = null;
+    this.activeCategory = 'all';
 
-    // ✅ reset du champ à la fermeture (annuler / valider / croix)
     if (this.hasQtyModalTarget && this.hasQtyModalInputTarget) {
       this.qtyModalTarget.addEventListener('hidden.bs.modal', () => {
         this.qtyModalInputTarget.dataset.clearedOnce = '0';
@@ -43,13 +36,34 @@ export default class extends Controller {
       });
     }
 
-    // état initial cohérent
+    this._initCategorySlider();
     this._syncEmptyState();
   }
 
-  // =========================
-  // UPSERT (AJAX add / increment)
-  // =========================
+  filterCategory(event) {
+    const btn = event.currentTarget;
+    const category = btn.dataset.stockCategoryFilter || 'all';
+
+    this.activeCategory = category;
+
+    this.element.querySelectorAll('[data-stock-category-filter]').forEach((button) => {
+      const isActive = button.dataset.stockCategoryFilter === category;
+
+      button.classList.toggle('active', isActive);
+      button.classList.toggle('btn-primary', isActive);
+      button.classList.toggle('btn-outline-primary', !isActive);
+    });
+
+    this.element.querySelectorAll('[data-stock-item-id]').forEach((item) => {
+      const itemCategory = item.dataset.stockCategory || '';
+      const shouldShow = category === 'all' || itemCategory === category;
+
+      item.classList.toggle('d-none', !shouldShow);
+    });
+
+    this._syncEmptyState();
+  }
+
   async submitUpsert(event) {
     event.preventDefault();
 
@@ -78,7 +92,6 @@ export default class extends Controller {
       this.countTarget.textContent = String(data.count);
     }
 
-    // ✅ Desktop: insert/replace row
     if (this.hasDesktopTbodyTarget && data.htmlDesktop) {
       const existing = this.desktopTbodyTarget.querySelector(
         `[data-stock-item-id="${data.id}"]`
@@ -87,7 +100,6 @@ export default class extends Controller {
       else this.desktopTbodyTarget.insertAdjacentHTML('afterbegin', data.htmlDesktop);
     }
 
-    // ✅ Mobile: insert/replace item
     if (this.hasMobileListTarget && data.htmlMobile) {
       const existing = this.mobileListTarget.querySelector(
         `[data-stock-item-id="${data.id}"]`
@@ -96,15 +108,12 @@ export default class extends Controller {
       else this.mobileListTarget.insertAdjacentHTML('afterbegin', data.htmlMobile);
     }
 
-    // ✅ IMPORTANT: supprimer/cacher tous les "empty" (mobile + desktop)
     this._removeAllEmptyPlaceholders();
-
-    // ✅ et s'assurer que les conteneurs sont affichés
+    this._applyCurrentCategoryFilter();
     this._syncEmptyState(true);
 
     form.reset();
 
-    // TomSelect: clear selection if available
     const tsWrapper = form.querySelector('.ts-wrapper');
     if (tsWrapper && tsWrapper.tomselect) {
       tsWrapper.tomselect.clear(true);
@@ -125,9 +134,6 @@ export default class extends Controller {
     this.formErrorsTarget.innerHTML = html;
   }
 
-  // =========================
-  // DELETE (open modal)
-  // =========================
   deleteItem(event) {
     event.preventDefault();
 
@@ -179,7 +185,6 @@ export default class extends Controller {
     const selector = `[data-stock-item-id="${data.id}"]`;
     this.element.querySelectorAll(selector).forEach((el) => el.remove());
 
-    // ✅ si on devient vide, on doit afficher l'état vide (si présent)
     this._syncEmptyState();
 
     if (this.bsDeleteModal) this.bsDeleteModal.hide();
@@ -188,9 +193,6 @@ export default class extends Controller {
     if (this.hasConfirmDeleteBtnTarget) this.confirmDeleteBtnTarget.disabled = false;
   }
 
-  // =========================
-  // DESKTOP inline quantity edit
-  // =========================
   startEditQuantity(event) {
     const qtyEl = event.currentTarget;
     const input = qtyEl.querySelector('.rp-qty-input');
@@ -270,9 +272,6 @@ export default class extends Controller {
     this.activePrevValue = null;
   }
 
-  // =========================
-  // MOBILE qty modal
-  // =========================
   openQuantityModal(event) {
     const btn = event.currentTarget;
 
@@ -393,20 +392,27 @@ export default class extends Controller {
       });
   }
 
-  // =========================
-  // Empty state handling (mobile + desktop)
-  // =========================
+  _applyCurrentCategoryFilter() {
+    const category = this.activeCategory || 'all';
+
+    this.element.querySelectorAll('[data-stock-item-id]').forEach((item) => {
+      const itemCategory = item.dataset.stockCategory || '';
+      const shouldShow = category === 'all' || itemCategory === category;
+
+      item.classList.toggle('d-none', !shouldShow);
+    });
+  }
+
   _removeAllEmptyPlaceholders() {
     if (!this.hasEmptyTarget) return;
 
-    // Stimulus: emptyTargets = tous les éléments ayant data-stock-target="empty"
     const empties = this.emptyTargets || [];
     empties.forEach((el) => {
       const tag = (el.tagName || '').toLowerCase();
       if (tag === 'tr') {
-        el.remove(); // desktop empty row
+        el.remove();
       } else {
-        el.classList.add('d-none'); // mobile empty div
+        el.classList.add('d-none');
       }
     });
   }
@@ -415,10 +421,10 @@ export default class extends Controller {
     let hasAny = forceNonEmpty;
 
     if (!hasAny) {
-      if (this.hasMobileListTarget && this.mobileListTarget.querySelector('[data-stock-item-id]')) {
+      if (this.hasMobileListTarget && this.mobileListTarget.querySelector('[data-stock-item-id]:not(.d-none)')) {
         hasAny = true;
       }
-      if (!hasAny && this.hasDesktopTbodyTarget && this.desktopTbodyTarget.querySelector('[data-stock-item-id]')) {
+      if (!hasAny && this.hasDesktopTbodyTarget && this.desktopTbodyTarget.querySelector('[data-stock-item-id]:not(.d-none)')) {
         hasAny = true;
       }
     }
@@ -426,9 +432,47 @@ export default class extends Controller {
     if (hasAny) {
       this._removeAllEmptyPlaceholders();
     } else {
-      // si on est vide, on ré-affiche les placeholders existants (si présents)
       const empties = this.emptyTargets || [];
       empties.forEach((el) => el.classList.remove('d-none'));
     }
+  }
+
+    _initCategorySlider() {
+    const slider = this.element.querySelector('.rp-category-filter__scroller');
+
+    if (!slider) return;
+
+    let isDown = false;
+    let startX = 0;
+    let scrollLeft = 0;
+
+    slider.addEventListener('mousedown', (e) => {
+      isDown = true;
+      slider.classList.add('is-dragging');
+
+      startX = e.pageX - slider.offsetLeft;
+      scrollLeft = slider.scrollLeft;
+    });
+
+    slider.addEventListener('mouseleave', () => {
+      isDown = false;
+      slider.classList.remove('is-dragging');
+    });
+
+    slider.addEventListener('mouseup', () => {
+      isDown = false;
+      slider.classList.remove('is-dragging');
+    });
+
+    slider.addEventListener('mousemove', (e) => {
+      if (!isDown) return;
+
+      e.preventDefault();
+
+      const x = e.pageX - slider.offsetLeft;
+      const walk = (x - startX) * 1.2;
+
+      slider.scrollLeft = scrollLeft - walk;
+    });
   }
 }

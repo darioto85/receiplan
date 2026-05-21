@@ -38,7 +38,6 @@
       </div>
     </div>
 
-    {# Flash messages #}
     {% for label, messages in app.flashes %}
       {% for message in messages %}
         <div class="alert alert-{{ label }} alert-dismissible fade show" role="alert">
@@ -48,7 +47,6 @@
       {% endfor %}
     {% endfor %}
 
-    {# ===== Quick Add Bar ===== #}
     <div id="stockUpsertForm" class="collapse mb-4 {% if form.vars.submitted %}show{% endif %}">
       <div class="mb-2" data-stock-target="formErrors"></div>
 
@@ -88,7 +86,6 @@
             {{ form_errors(form.quantity) }}
           </div>
 
-          {# ✅ Unité (vrai select) dans le "miniFake" pour coller au design #}
           <div class="rp-quickadd__mini">
             <div class="rp-quickadd__miniFake">
               {{ form_widget(form.unit, {
@@ -113,12 +110,10 @@
       {{ form_end(form) }}
     </div>
 
-    {# ===== Liste du stock ===== #}
     <div data-stock-target="listing">
-      {{ include('stock/_listing.html.twig', { items: items }) }}
+      {{ include('stock/_listing.html.twig', { items: items, categories: categories }) }}
     </div>
 
-    {# ===== Delete Modal ===== #}
     <div
       class="modal fade"
       id="stockDeleteModal"
@@ -165,7 +160,6 @@
       </div>
     </div>
 
-    {# ===== Quantity Modal (mobile) ===== #}
     <div
       class="modal fade"
       id="stockQuantityModal"

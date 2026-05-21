@@ -1,6 +1,27 @@
-{# templates/stock/_listing.html.twig #}
+<div class="rp-category-filter mb-3">
+  <div class="rp-category-filter__scroller">
+    <button
+      type="button"
+      class="btn btn-primary rp-category-filter__btn active"
+      data-action="click->stock#filterCategory"
+      data-stock-category-filter="all"
+    >
+      Tous
+    </button>
 
-{# ===== Mobile list ===== #}
+    {% for category in categories|default([]) %}
+      <button
+        type="button"
+        class="btn btn-outline-primary rp-category-filter__btn"
+        data-action="click->stock#filterCategory"
+        data-stock-category-filter="{{ category.value }}"
+      >
+        {{ category.label }}
+      </button>
+    {% endfor %}
+  </div>
+</div>
+
 <div
   class="d-grid gap-2 d-md-none"
   data-stock-target="mobileList"
@@ -19,7 +40,6 @@
   {% endif %}
 </div>
 
-{# ===== Desktop table ===== #}
 <div
   class="table-responsive d-none d-md-block"
   data-stock-target="desktopTable"
