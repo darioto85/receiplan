@@ -2,8 +2,8 @@
 
 {% set checked = item.checked is defined and item.checked %}
 {% set ing = item.ingredient %}
+{% set ingCategory = ing and ing.category ? ing.category.value : '' %}
 
-{# ✅ unité portée par Shopping (source de vérité) #}
 {% set unitValue = item.unitValue|default('') %}
 {% set unitLabel = item.unitLabel|default(unitValue) %}
 
@@ -13,6 +13,7 @@
   <div
     class="swipe-item {{ checked ? 'is-checked' : '' }} {% if first|default(false) %}swipe-hint{% endif %}"
     data-shopping-row-id="{{ item.id }}"
+    data-shopping-category="{{ ingCategory }}"
     data-controller="swipe-reveal"
     data-swipe-reveal-open-class-value="is-revealed"
   >
@@ -32,7 +33,6 @@
     <div class="swipe-content">
       <div class="d-flex align-items-center justify-content-between gap-2">
 
-        {# ===== LEFT: checkbox + image + name ===== #}
         <div class="d-flex align-items-center gap-2 flex-grow-1" style="min-width:0;">
           <input
             id="{{ cbId }}"
@@ -59,7 +59,6 @@
             style="object-fit: contain; border-radius: 8px; flex: 0 0 auto;"
           >
 
-          {# Nom sur 2 lignes max #}
           <div style="min-width:0; flex:1 1 auto;">
             <div
               class="fw-semibold"
@@ -78,7 +77,6 @@
           </div>
         </div>
 
-        {# ===== RIGHT: quantity + unit ===== #}
         <div class="flex-shrink-0" style="width: 86px;">
           <div class="input-group input-group-sm flex-nowrap">
             <input
@@ -131,10 +129,13 @@
   </div>
 
 {% else %}
-  {# ===== Desktop ===== #}
   {% set cbId = 'shopping_cb_d_' ~ item.id %}
 
-  <tr data-shopping-row-id="{{ item.id }}" class="{{ checked ? 'is-checked' : '' }}">
+  <tr
+    data-shopping-row-id="{{ item.id }}"
+    data-shopping-category="{{ ingCategory }}"
+    class="{{ checked ? 'is-checked' : '' }}"
+  >
     <td>
       <input
         id="{{ cbId }}"

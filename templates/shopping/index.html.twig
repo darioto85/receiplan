@@ -58,7 +58,6 @@
       </div>
     </div>
 
-    {# ===== Quick Add Bar (factorisé, même HTML que Stock) ===== #}
     <div id="shoppingUpsertForm" class="collapse mb-4">
       <div class="mb-2" data-shopping-target="formErrors"></div>
 
@@ -72,12 +71,9 @@
     </div>
 
     <div data-shopping-target="listing">
-      {{ include('shopping/_listing.html.twig', { items: items }) }}
+      {{ include('shopping/_listing.html.twig', { items: items, categories: categories }) }}
     </div>
 
-    {# =========================
-       ✅ MODALE: Génération
-       ========================= #}
     <div class="modal fade" id="shoppingGenerateModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -150,7 +146,6 @@
       </div>
     </div>
 
-    {# ✅ MODALE: création ingrédient (réutilise stock_ingredient_create) #}
     {{ include('common/_modal-ingredient.html.twig') }}
 
   </div>

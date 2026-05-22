@@ -5,9 +5,12 @@ namespace App\Controller;
 use App\Entity\Ingredient;
 use App\Entity\Shopping;
 use App\Entity\User;
+use App\Enum\CategoryEnum;
 use App\Enum\Unit;
 use App\Form\StockUpsertType;
 use App\Repository\ShoppingRepository;
+use App\Service\CartValidatorService;
+use App\Service\ShoppingListService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -29,14 +32,15 @@ final class ShoppingController extends AbstractController
         }
 
         $items = $shoppingRepository->findForUser($user);
+        $categories = $this->getCategoriesFromItems($items);
 
-        // ✅ même form que Stock
         $form = $this->createForm(StockUpsertType::class, null, [
             'user' => $user,
         ]);
 
         return $this->render('shopping/index.html.twig', [
             'items' => $items,
+            'categories' => $categories,
             'form' => $form->createView(),
         ]);
     }
@@ -74,11 +78,8 @@ final class ShoppingController extends AbstractController
             return $this->redirectToRoute('shopping_index');
         }
 
-        /** @var Ingredient $ingredient */
         $ingredient = $form->get('ingredient')->getData();
         $quantityToAdd = (float) $form->get('quantity')->getData();
-
-        /** @var Unit $unit */
         $unit = $form->has('unit') ? ($form->get('unit')->getData() ?? Unit::G) : Unit::G;
 
         if ($quantityToAdd <= 0) {
@@ -93,7 +94,6 @@ final class ShoppingController extends AbstractController
             return $this->redirectToRoute('shopping_index');
         }
 
-        // ✅ upsert sur Shopping (même ingredient => addition)
         $existing = $shoppingRepository->findOneBy([
             'user' => $user,
             'ingredient' => $ingredient,
@@ -112,7 +112,6 @@ final class ShoppingController extends AbstractController
             $isNew = true;
         }
 
-        // ✅ dernier choix utilisateur = source de vérité
         $existing->setUnit($unit);
 
         $current = (float) $existing->getQuantity();
@@ -126,7 +125,6 @@ final class ShoppingController extends AbstractController
             return $this->redirectToRoute('shopping_index');
         }
 
-        // ✅ HTML partiels (desktop + mobile)
         $htmlDesktop = $this->renderView('shopping/_shopping_item.html.twig', [
             'item' => $existing,
             'variant' => 'desktop',
@@ -138,7 +136,6 @@ final class ShoppingController extends AbstractController
             'first' => true,
         ]);
 
-        // ✅ compteur
         $count = (int) $shoppingRepository->count(['user' => $user]);
 
         return new JsonResponse([
@@ -155,16 +152,10 @@ final class ShoppingController extends AbstractController
         ]);
     }
 
-    /**
-     * ✅ Génération de liste avec modes :
-     * - all       : toutes les recettes
-     * - favorites : uniquement favorites
-     * - week      : semaine à venir (planning)
-     */
     #[Route('/generate', name: 'shopping_generate', methods: ['POST'])]
     public function generate(
         Request $request,
-        \App\Service\ShoppingListService $shoppingService
+        ShoppingListService $shoppingService
     ): Response {
         $user = $this->getUser();
         if (!$user instanceof User) {
@@ -173,7 +164,6 @@ final class ShoppingController extends AbstractController
 
         $isAjax = $request->isXmlHttpRequest();
 
-        // ✅ CSRF
         $token = (string) $request->request->get('_token', '');
         if (!$this->isCsrfTokenValid('shopping_generate', $token)) {
             if ($isAjax) {
@@ -242,7 +232,7 @@ final class ShoppingController extends AbstractController
     #[Route('/validate-cart', name: 'shopping_validate_cart', methods: ['POST'])]
     public function validateCart(
         Request $request,
-        \App\Service\CartValidatorService $cartValidator
+        CartValidatorService $cartValidator
     ): Response {
         $user = $this->getUser();
         if (!$user instanceof User) {
@@ -333,5 +323,33 @@ final class ShoppingController extends AbstractController
             'unit' => $shopping->getUnitValue(),
             'unitLabel' => $shopping->getUnitLabel(),
         ]);
+    }
+
+    private function getCategoriesFromItems(array $items): array
+    {
+        $categories = [];
+
+        foreach ($items as $item) {
+            if (!$item instanceof Shopping) {
+                continue;
+            }
+
+            $ingredient = $item->getIngredient();
+            if (!$ingredient instanceof Ingredient) {
+                continue;
+            }
+
+            $category = $ingredient->getCategory();
+            if (!$category instanceof CategoryEnum) {
+                continue;
+            }
+
+            $categories[$category->value] = [
+                'value' => $category->value,
+                'label' => method_exists($category, 'label') ? $category->label() : $category->value,
+            ];
+        }
+
+        return array_values($categories);
     }
 }
