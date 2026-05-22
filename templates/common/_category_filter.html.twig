@@ -1,0 +1,23 @@
+<div class="rp-category-filter mb-3">
+  <div class="rp-category-filter__scroller">
+    <button
+      type="button"
+      class="btn btn-primary rp-category-filter__btn active"
+      data-action="click->{{ controller }}#filterCategory"
+      data-{{ filter_prefix }}-category-filter="all"
+    >
+      Tous
+    </button>
+
+    {% for category in categories|default([]) %}
+      <button
+        type="button"
+        class="btn btn-outline-primary rp-category-filter__btn"
+        data-action="click->{{ controller }}#filterCategory"
+        data-{{ filter_prefix }}-category-filter="{{ category.value }}"
+      >
+        {{ category.label }}
+      </button>
+    {% endfor %}
+  </div>
+</div>

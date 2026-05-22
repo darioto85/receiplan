@@ -1,26 +1,8 @@
-<div class="rp-category-filter mb-3">
-  <div class="rp-category-filter__scroller">
-    <button
-      type="button"
-      class="btn btn-primary rp-category-filter__btn active"
-      data-action="click->stock#filterCategory"
-      data-stock-category-filter="all"
-    >
-      Tous
-    </button>
-
-    {% for category in categories|default([]) %}
-      <button
-        type="button"
-        class="btn btn-outline-primary rp-category-filter__btn"
-        data-action="click->stock#filterCategory"
-        data-stock-category-filter="{{ category.value }}"
-      >
-        {{ category.label }}
-      </button>
-    {% endfor %}
-  </div>
-</div>
+{{ include('common/_category_filter.html.twig', {
+  categories: categories,
+  controller: 'stock',
+  filter_prefix: 'stock'
+}) }}
 
 <div
   class="d-grid gap-2 d-md-none"
