@@ -9,6 +9,39 @@
   }
 }
 
+.rp-category-filter{
+  width: 100%;
+  overflow: hidden;
+}
+
+.rp-category-filter__scroller{
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  cursor: grab;
+  padding-bottom: 2px;
+}
+
+.rp-category-filter__scroller::-webkit-scrollbar{
+  display: none;
+}
+
+.rp-category-filter__scroller:active{
+  cursor: grabbing;
+}
+
+.rp-category-filter__btn{
+  flex: 0 0 auto;
+  white-space: nowrap;
+  border-radius: 999px;
+  font-weight: 800;
+}
+
 .rp-quickadd{ margin: 0; }
 
 .rp-quickadd__bar{
@@ -59,7 +92,6 @@
   font-weight: 700;
 }
 
-/* Mini champs */
 .rp-quickadd__mini{ flex: 0 0 auto; }
 
 .rp-quickadd__miniInput,
@@ -99,7 +131,6 @@
     var(--rp-shadow-inset);
 }
 
-/* Bouton ajouter */
 .rp-quickadd__btn{
   height: 50px;
   padding: 0 18px;
@@ -161,13 +192,11 @@
   line-height: 1;
 }
 
-/* Erreurs form */
 .rp-quickadd .invalid-feedback,
 .rp-quickadd .form-error-message{
   margin-top: 6px;
 }
 
-/* Mobile quick add */
 @media (max-width: 520px){
   .rp-quickadd__bar{
     gap: 10px;
@@ -193,7 +222,6 @@
   }
 }
 
-/* TomSelect in quickadd */
 .rp-quickadd .ts-wrapper.rp-quickadd__input{
   position: relative;
   width: 100%;
@@ -282,14 +310,12 @@
   background: rgba(166,210,123,.30);
 }
 
-/* Stock header actions */
 .rp-stock-actions{
   display: flex;
   justify-content: flex-end;
   flex: 0 0 auto;
 }
 
-/* Mobile: actions full width + boutons 50/50 */
 @media (max-width: 575.98px){
   .rp-stock-actions{ width: 100%; }
   .rp-stock-topactions{
@@ -304,13 +330,12 @@
     white-space: nowrap;
   }
 }
-/* Stock - unit select inside quickadd miniFake */
+
 .rp-quickadd__miniFake {
   display: flex;
   align-items: center;
 }
 
-/* enlève le look bootstrap */
 .rp-quickadd__miniSelect {
   background: transparent !important;
   border: 0 !important;
@@ -326,7 +351,6 @@
   -webkit-appearance: none;
 }
 
-/* optionnel : focus propre */
 .rp-quickadd__miniSelect:focus {
   outline: none !important;
   box-shadow: none !important;

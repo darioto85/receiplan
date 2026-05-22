@@ -1,6 +1,9 @@
-{# templates/shopping/_listing.html.twig #}
+{{ include('common/_category_filter.html.twig', {
+  categories: categories,
+  controller: 'shopping',
+  filter_prefix: 'shopping'
+}) }}
 
-{# ✅ Empty state : toujours présent pour que le JS puisse le masquer #}
 <div
   class="{% if items is not empty %}d-none{% endif %} text-center text-muted py-4"
   data-shopping-target="emptyState"
@@ -8,14 +11,12 @@
   Ta liste de courses est vide 🧘‍♀️
 </div>
 
-{# ===== Mobile (xs/sm) : toujours présent #}
 <div class="d-grid gap-2 d-md-none" data-shopping-target="mobileList">
   {% for item in items %}
     {{ include('shopping/_shopping_item.html.twig', { item: item, variant: 'mobile', first: loop.first }) }}
   {% endfor %}
 </div>
 
-{# ===== Desktop/tablette (md+) : toujours présent #}
 <div class="table-responsive d-none d-md-block">
   <table class="table table-hover mb-0 align-middle">
     <thead class="table-light">

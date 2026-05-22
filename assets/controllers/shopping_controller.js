@@ -15,25 +15,39 @@ export default class extends Controller {
     "checkbox",
     "validateBtn",
     "countBadge",
-
-    // ✅ Quick add
     "formErrors",
     "desktopTbody",
     "mobileList",
-
-    // ✅ Empty state (placeholder “liste vide”)
     "emptyState",
   ];
 
   connect() {
+    this.activeCategory = "all";
+
     this.refreshValidateButtonState();
     this.refreshCountBadge();
     this.refreshEmptyState();
+    this._initCategorySlider();
   }
 
-  // =========================
-  // ✅ Generate (AJAX-friendly)
-  // =========================
+  filterCategory(event) {
+    const btn = event.currentTarget;
+    const category = btn.dataset.shoppingCategoryFilter || "all";
+
+    this.activeCategory = category;
+
+    this.element.querySelectorAll("[data-shopping-category-filter]").forEach((button) => {
+      const isActive = button.dataset.shoppingCategoryFilter === category;
+
+      button.classList.toggle("active", isActive);
+      button.classList.toggle("btn-primary", isActive);
+      button.classList.toggle("btn-outline-primary", !isActive);
+    });
+
+    this._applyCurrentCategoryFilter();
+    this.refreshEmptyState();
+  }
+
   async submitGenerate(event) {
     event.preventDefault();
 
@@ -60,7 +74,6 @@ export default class extends Controller {
         return;
       }
 
-      // ✅ Ferme la modale si Bootstrap est présent
       const modalEl = form.closest(".modal");
       if (modalEl && window.bootstrap?.Modal) {
         const instance =
@@ -68,7 +81,6 @@ export default class extends Controller {
         instance.hide();
       }
 
-      // ✅ Le plus simple: reload pour afficher la liste recalculée + flash éventuel
       window.location.reload();
     } catch (e) {
       console.error(e);
@@ -78,9 +90,6 @@ export default class extends Controller {
     }
   }
 
-  // =========================
-  // ✅ Quick Add (Upsert)
-  // =========================
   async submitUpsert(event) {
     event.preventDefault();
 
@@ -113,8 +122,6 @@ export default class extends Controller {
         return;
       }
 
-      // ✅ IMPORTANT: si la liste est vide, il faut aussi masquer l’emptyState
-      // et insérer dans les bons conteneurs (tbody + mobile list).
       if (data.htmlDesktop && this.hasDesktopTbodyTarget) {
         this.upsertDomRow(this.desktopTbodyTarget, data.id, data.htmlDesktop);
       }
@@ -123,13 +130,12 @@ export default class extends Controller {
         this.upsertDomRow(this.mobileListTarget, data.id, data.htmlMobile);
       }
 
-      // ✅ reset quantité
       const qtyInput =
         form.querySelector('input[name$="[quantity]"]') ||
         form.querySelector('input[name*="[quantity]"]');
       if (qtyInput) qtyInput.value = "";
 
-      // ✅ mettre à jour UI
+      this._applyCurrentCategoryFilter();
       this.refreshValidateButtonState();
 
       if (typeof data.count !== "undefined") {
@@ -147,11 +153,6 @@ export default class extends Controller {
     }
   }
 
-  /**
-   * Insère ou remplace une row dans un conteneur.
-   * ✅ Fix: si `containerEl` est vide, insertAdjacentHTML fonctionne,
-   * mais il faut que ce soit le BON conteneur (mobileList / desktopTbody).
-   */
   upsertDomRow(containerEl, id, html) {
     const selector = `[data-shopping-row-id="${CSS.escape(String(id))}"]`;
     const existing = containerEl.querySelector(selector);
@@ -163,9 +164,6 @@ export default class extends Controller {
     }
   }
 
-  // =========================
-  // Existing features
-  // =========================
   async toggle(event) {
     const checkbox = event.currentTarget;
     const id = event.params.id;
@@ -212,7 +210,6 @@ export default class extends Controller {
       if (label) label.classList.remove("is-loading");
       this.refreshValidateButtonState();
       this.refreshCountBadge();
-      // emptyState ne change pas ici
     }
   }
 
@@ -371,15 +368,62 @@ export default class extends Controller {
     }
   }
 
-  // -------- Helpers --------
-
   refreshEmptyState() {
     if (!this.hasEmptyStateTarget) return;
 
-    const hasAnyRow = this.element.querySelector("[data-shopping-row-id]") !== null;
+    const hasVisibleRow = this.element.querySelector("[data-shopping-row-id]:not(.d-none)") !== null;
 
-    // emptyState est visible si vide, sinon caché
-    this.emptyStateTarget.classList.toggle("d-none", hasAnyRow);
+    this.emptyStateTarget.classList.toggle("d-none", hasVisibleRow);
+  }
+
+  _applyCurrentCategoryFilter() {
+    const category = this.activeCategory || "all";
+
+    this.element.querySelectorAll("[data-shopping-row-id]").forEach((item) => {
+      const itemCategory = item.dataset.shoppingCategory || "";
+      const shouldShow = category === "all" || itemCategory === category;
+
+      item.classList.toggle("d-none", !shouldShow);
+    });
+  }
+
+  _initCategorySlider() {
+    const slider = this.element.querySelector(".rp-category-filter__scroller");
+
+    if (!slider) return;
+
+    let isDown = false;
+    let startX = 0;
+    let scrollLeft = 0;
+
+    slider.addEventListener("mousedown", (e) => {
+      isDown = true;
+      slider.classList.add("is-dragging");
+
+      startX = e.pageX - slider.offsetLeft;
+      scrollLeft = slider.scrollLeft;
+    });
+
+    slider.addEventListener("mouseleave", () => {
+      isDown = false;
+      slider.classList.remove("is-dragging");
+    });
+
+    slider.addEventListener("mouseup", () => {
+      isDown = false;
+      slider.classList.remove("is-dragging");
+    });
+
+    slider.addEventListener("mousemove", (e) => {
+      if (!isDown) return;
+
+      e.preventDefault();
+
+      const x = e.pageX - slider.offsetLeft;
+      const walk = (x - startX) * 1.2;
+
+      slider.scrollLeft = scrollLeft - walk;
+    });
   }
 
   findLabelForCheckbox(checkbox) {

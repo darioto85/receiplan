@@ -33,9 +33,12 @@ class StockController extends AbstractController
         $items = $userIngredientRepository->createQueryBuilder('ui')
             ->leftJoin('ui.ingredient', 'i')->addSelect('i')
             ->andWhere('ui.user = :user')->setParameter('user', $user)
-            ->orderBy('i.name', 'ASC')
+            ->orderBy('i.category', 'ASC')
+            ->addOrderBy('i.name', 'ASC')
             ->getQuery()
             ->getResult();
+
+        $categories = $this->getCategoriesFromItems($items);
 
         $form = $this->createForm(StockUpsertType::class, null, [
             'user' => $user,
@@ -43,14 +46,11 @@ class StockController extends AbstractController
 
         return $this->render('stock/index.html.twig', [
             'items' => $items,
+            'categories' => $categories,
             'form' => $form->createView(),
         ]);
     }
 
-    /**
-     * ✅ Endpoint JSON pour TomSelect (recherche ingrédients)
-     * GET /stock/ingredient/search?q=...
-     */
     #[Route('/ingredient/search', name: 'ingredient_search', methods: ['GET'])]
     public function ingredientSearch(Request $request, IngredientRepository $ingredientRepository): JsonResponse
     {
@@ -83,10 +83,6 @@ class StockController extends AbstractController
         return new JsonResponse($payload);
     }
 
-    /**
-     * ✅ Endpoint JSON (fallback) : récupérer l'unité d'un ingrédient par ID
-     * GET /stock/ingredient/get?id=123
-     */
     #[Route('/ingredient/get', name: 'ingredient_get', methods: ['GET'])]
     public function ingredientGet(Request $request, IngredientRepository $ingredientRepository): JsonResponse
     {
@@ -118,10 +114,6 @@ class StockController extends AbstractController
         ]);
     }
 
-    /**
-     * ✅ Création d'un ingrédient à la volée (modale)
-     * POST /stock/ingredient/create (AJAX)
-     */
     #[Route('/ingredient/create', name: 'ingredient_create', methods: ['POST'])]
     public function ingredientCreate(
         Request $request,
@@ -228,11 +220,8 @@ class StockController extends AbstractController
             return $this->redirectToRoute('stock_index');
         }
 
-        /** @var Ingredient $ingredient */
         $ingredient = $form->get('ingredient')->getData();
         $quantityToAdd = (float) $form->get('quantity')->getData();
-
-        /** @var Unit $unit */
         $unit = $form->get('unit')->getData() ?? Unit::G;
 
         if ($quantityToAdd <= 0) {
@@ -262,8 +251,6 @@ class StockController extends AbstractController
             $existing->setUnit($unit);
             $em->persist($existing);
             $isNew = true;
-        } else {
-            // ✅ choix métier : on NE change PAS l’unité d’une ligne existante automatiquement
         }
 
         $current = (float) $existing->getQuantity();
@@ -409,5 +396,33 @@ class StockController extends AbstractController
             'id' => $deletedId,
             'count' => $count,
         ]);
+    }
+
+    private function getCategoriesFromItems(array $items): array
+    {
+        $categories = [];
+
+        foreach ($items as $item) {
+            if (!$item instanceof UserIngredient) {
+                continue;
+            }
+
+            $ingredient = $item->getIngredient();
+            if (!$ingredient instanceof Ingredient || !method_exists($ingredient, 'getCategory')) {
+                continue;
+            }
+
+            $category = $ingredient->getCategory();
+            if (!$category instanceof CategoryEnum) {
+                continue;
+            }
+
+            $categories[$category->value] = [
+                'value' => $category->value,
+                'label' => method_exists($category, 'label') ? $category->label() : $category->value,
+            ];
+        }
+
+        return array_values($categories);
     }
 }
