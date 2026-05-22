@@ -5,6 +5,7 @@ export default class extends Controller {
   static values = {
     toggleUrl: String,
     validateUrl: String,
+    clearUrl: String,
     updateQuantityUrl: String,
     updateUnitUrl: String,
     upsertUrl: String,
@@ -365,6 +366,54 @@ export default class extends Controller {
       this.refreshCountBadge();
       this.refreshEmptyState();
       if (btn) btn.disabled = false;
+    }
+  }
+
+  async clearCart(event) {
+    event?.preventDefault?.();
+
+    const btn = event.currentTarget;
+    if (btn) btn.disabled = true;
+
+    try {
+      const res = await fetch(this.clearUrlValue, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          ...this.csrfHeader(),
+        },
+      });
+
+      const data = await this.safeJson(res);
+
+      if (!res.ok || !data?.ok) {
+        console.error("clearCart failed", data);
+        alert(data?.message || "Erreur lors du vidage de la liste.");
+        return;
+      }
+
+      this.element.querySelectorAll("[data-shopping-row-id]").forEach((row) => {
+        row.remove();
+      });
+
+      const modalEl = document.getElementById("shoppingClearModal");
+
+      if (modalEl && window.bootstrap?.Modal) {
+        const instance =
+          window.bootstrap.Modal.getInstance(modalEl) ||
+          new window.bootstrap.Modal(modalEl);
+
+        instance.hide();
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Erreur réseau.");
+    } finally {
+      if (btn) btn.disabled = false;
+
+      this.refreshValidateButtonState();
+      this.refreshCountBadge();
+      this.refreshEmptyState();
     }
   }
 

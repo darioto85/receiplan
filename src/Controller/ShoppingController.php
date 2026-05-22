@@ -203,6 +203,32 @@ final class ShoppingController extends AbstractController
         return $this->redirectToRoute('shopping_index');
     }
 
+    #[Route('/clear', name: 'shopping_clear', methods: ['POST'])]
+    public function clear(
+        ShoppingRepository $shoppingRepository,
+        EntityManagerInterface $em
+    ): Response {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $items = $shoppingRepository->findBy([
+            'user' => $user,
+        ]);
+
+        foreach ($items as $item) {
+            $em->remove($item);
+        }
+
+        $em->flush();
+
+        return $this->json([
+            'ok' => true,
+            'removed_count' => count($items),
+        ]);
+    }
+
     #[Route('/{id}/toggle', name: 'shopping_toggle', methods: ['POST'])]
     public function toggle(
         Shopping $shopping,

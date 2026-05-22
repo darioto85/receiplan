@@ -7,18 +7,20 @@
     data-controller="shopping"
     data-shopping-toggle-url-value="{{ path('shopping_toggle', { id: 0 }) }}"
     data-shopping-validate-url-value="{{ path('shopping_validate_cart') }}"
+    data-shopping-clear-url-value="{{ path('shopping_clear') }}"
     data-shopping-update-quantity-url-value="{{ path('shopping_update_quantity', { id: 0 }) }}"
     data-shopping-update-unit-url-value="{{ path('shopping_update_unit', { id: 0 }) }}"
     data-shopping-upsert-url-value="{{ path('shopping_upsert') }}"
     data-shopping-csrf-token-value="{{ csrf_token('shopping_cart') }}"
   >
-    <div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
+    <div class="d-flex justify-content-between align-items-center mb-3 gap-2">
       <h1 class="mb-0">
         <img class="rp-title-thumb" src="{{ asset('img/actions/courses.png') }}" alt="">
         Courses
       </h1>
 
-      <div class="d-flex align-items-center gap-1 flex-wrap rp-zone-bouton-shopping">
+      {# Desktop #}
+      <div class="d-none d-md-flex align-items-center gap-1 flex-wrap rp-zone-bouton-shopping">
         <button
           class="btn btn-primary d-flex align-items-center gap-2"
           type="button"
@@ -27,8 +29,7 @@
           aria-controls="shoppingUpsertForm"
         >
           <img class="bt-action-thumb" src="{{ asset('img/actions/stock_add.png') }}" alt="">
-          <span class="d-none d-sm-inline">Ajouter manuellement</span>
-          <span class="d-inline d-sm-none">Ajout</span>
+          <span>Ajouter manuellement</span>
         </button>
 
         <button
@@ -39,8 +40,7 @@
           title="Générer ma liste de courses"
         >
           <img class="bt-action-thumb" src="{{ asset('img/actions/generer_courses.png') }}" alt="">
-          <span class="d-none d-sm-inline">Générer ma liste</span>
-          <span class="d-inline d-sm-none">Générer</span>
+          <span>Générer ma liste</span>
         </button>
 
         <button
@@ -52,9 +52,87 @@
           title="Valider les produits cochés et les ajouter au stock"
         >
           <img class="bt-action-thumb" src="{{ asset('img/actions/caddie.png') }}" alt="">
-          <span class="d-none d-sm-inline">Valider mon caddie</span>
-          <span class="d-inline d-sm-none">Valider</span>
+          <span>Valider mon caddie</span>
         </button>
+
+        <button
+          type="button"
+          class="btn btn-outline-danger d-flex align-items-center gap-2"
+          data-bs-toggle="modal"
+          data-bs-target="#shoppingClearModal"
+          title="Vider toute la liste de courses"
+        >
+          <span><img src="{{ asset('img/actions/delete.png') }}" alt="" class="bt-action-thumb"></span>
+          <span>Vider la liste</span>
+        </button>
+      </div>
+
+      {# Mobile #}
+      <div class="dropdown d-md-none">
+        <button
+          class="btn btn-primary d-flex align-items-center gap-2"
+          type="button"
+          data-bs-toggle="dropdown"
+          aria-expanded="false"
+          title="Actions"
+        >
+          <span>Actions</span>
+          <span>⋯</span>
+        </button>
+
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+          <li>
+            <button
+              class="dropdown-item d-flex align-items-center gap-2"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#shoppingUpsertForm"
+              aria-controls="shoppingUpsertForm"
+            >
+              <img class="bt-action-thumb" src="{{ asset('img/actions/stock_add.png') }}" alt="">
+              Ajouter manuellement
+            </button>
+          </li>
+
+          <li>
+            <button
+              type="button"
+              class="dropdown-item d-flex align-items-center gap-2"
+              data-bs-toggle="modal"
+              data-bs-target="#shoppingGenerateModal"
+            >
+              <img class="bt-action-thumb" src="{{ asset('img/actions/generer_courses.png') }}" alt="">
+              Générer ma liste
+            </button>
+          </li>
+
+          <li>
+            <button
+              type="button"
+              class="dropdown-item d-flex align-items-center gap-2"
+              data-shopping-target="validateBtn"
+              data-action="shopping#validateCart"
+              disabled
+            >
+              <img class="bt-action-thumb" src="{{ asset('img/actions/caddie.png') }}" alt="">
+              Valider mon caddie
+            </button>
+          </li>
+
+          <li><hr class="dropdown-divider"></li>
+
+          <li>
+            <button
+              type="button"
+              class="dropdown-item d-flex align-items-center gap-2 text-danger"
+              data-bs-toggle="modal"
+              data-bs-target="#shoppingClearModal"
+            >
+              <span><img src="{{ asset('img/actions/delete.png') }}" alt="" class="bt-action-thumb"></span>
+              Vider la liste
+            </button>
+          </li>
+        </ul>
       </div>
     </div>
 
@@ -72,6 +150,57 @@
 
     <div data-shopping-target="listing">
       {{ include('shopping/_listing.html.twig', { items: items, categories: categories }) }}
+    </div>
+
+    <div class="modal fade" id="shoppingClearModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+
+          <div class="modal-header">
+            <h5 class="modal-title d-flex align-items-center gap-2">
+              <span><img src="{{ asset('img/actions/delete.png') }}" alt="" class="bt-action-thumb"></span>
+              Vider la liste
+            </h5>
+
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Fermer"
+            ></button>
+          </div>
+
+          <div class="modal-body">
+            <p class="mb-2">
+              Tu es sûr de vouloir vider toute ta liste de courses ?
+            </p>
+
+            <p class="text-muted small mb-0">
+              Cette action supprimera tous les articles de la liste.
+            </p>
+          </div>
+
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-outline-primary"
+              data-bs-dismiss="modal"
+            >
+              Annuler
+            </button>
+
+            <button
+              type="button"
+              class="btn btn-outline-danger d-flex align-items-center gap-2"
+              data-action="shopping#clearCart"
+            >
+              <span><img src="{{ asset('img/actions/delete.png') }}" alt="" class="bt-action-thumb"></span>
+              Confirmer
+            </button>
+          </div>
+
+        </div>
+      </div>
     </div>
 
     <div class="modal fade" id="shoppingGenerateModal" tabindex="-1" aria-hidden="true">
